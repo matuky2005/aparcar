@@ -11,6 +11,10 @@
         <Border Background="#164677" Padding="16,12">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="APARCAR" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="UsuarioActivoTexto" Text="Sin sesión" Foreground="White"
+                           VerticalAlignment="Center"/>
+                <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
+                        Visibility="Collapsed"/>
                 <TextBlock x:Name="Mensaje" Text="v0.4 · Medios de pago y reportes · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
@@ -30,6 +34,10 @@
                 <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
                 <NavigationViewItem Content="Reportes" Tag="reportes" Icon="Document"/>
                 <NavigationViewItem Content="Configuración" Tag="config" Icon="Setting"/>
+                <NavigationViewItem x:Name="MenuUsuarios" Content="Usuarios" Tag="usuarios" Icon="People"
+                                    Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="MenuAuditoria" Content="Auditoría" Tag="auditoria" Icon="Document"
+                                    Visibility="Collapsed"/>
             </NavigationView.MenuItems>
             <Grid Margin="24">
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
@@ -241,6 +249,39 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <ScrollViewer x:Name="UsuariosPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="700" HorizontalAlignment="Left">
+                        <TextBlock Text="Administración de usuarios" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="Solo el administrador puede crear cuentas. Cada operador debe tener su contraseña personal."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Nombre de usuario"/>
+                        <TextBox x:Name="NuevoUsuarioInput" Width="300" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Contraseña (mínimo 10 caracteres, letras y números)"/>
+                        <PasswordBox x:Name="NuevaContrasenaBox" Width="330" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Rol asignado"/>
+                        <ComboBox x:Name="NuevoRolCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="2">
+                            <ComboBoxItem Content="Administrador"/>
+                            <ComboBoxItem Content="Supervisor"/>
+                            <ComboBoxItem Content="Cajero"/>
+                            <ComboBoxItem Content="Lavadero"/>
+                            <ComboBoxItem Content="Consulta"/>
+                        </ComboBox>
+                        <Button Content="Crear usuario" Click="CrearUsuario_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="ListaUsuarios" Width="640" MinHeight="260" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+                <ScrollViewer x:Name="AuditoriaPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Left">
+                        <TextBlock Text="Registro de auditoría" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="Registro encadenado para detectar modificaciones no autorizadas. No sustituye almacenamiento externo de auditoría."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Verificar integridad y actualizar" Click="VerificarAuditoria_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="AuditoriaEstadoText" TextWrapping="Wrap"/>
+                        <ListView x:Name="ListaAuditoria" Width="700" MinHeight="340" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+
                 <ScrollViewer x:Name="ConfigPanel" Visibility="Collapsed">
                     <StackPanel Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
                         <TextBlock Text="Configuración técnica" FontSize="30" FontWeight="Bold"/>
@@ -268,5 +309,37 @@
                 </ScrollViewer>
             </Grid>
         </NavigationView>
+        <Border x:Name="PantallaAcceso" Grid.Row="1" Background="#F3F6FB"
+                Padding="28" Visibility="Visible">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="500" HorizontalAlignment="Center" Spacing="16">
+                    <TextBlock Text="APARCAR" FontWeight="Bold" FontSize="35" Foreground="#164677"/>
+                    <TextBlock Text="Acceso seguro a gestión de estacionamientos"
+                               FontSize="17" Foreground="#164677"/>
+                    <StackPanel x:Name="PrimerAdministradorPanel" Spacing="12" Visibility="Collapsed">
+                        <TextBlock Text="Configuración inicial" FontSize="24" FontWeight="SemiBold"/>
+                        <TextBlock Text="Creá el primer administrador. No existen usuarios ni contraseñas predeterminadas."
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Usuario administrador"/>
+                        <TextBox x:Name="AdminInicialUsuarioInput" Width="320" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Contraseña (10 a 128 caracteres, con letras y números)"/>
+                        <PasswordBox x:Name="AdminInicialPasswordBox" Width="320" HorizontalAlignment="Left"/>
+                        <Button Content="Crear administrador e ingresar" Click="CrearAdministradorInicial_Click"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel x:Name="LoginPanel" Spacing="12" Visibility="Visible">
+                        <TextBlock Text="Iniciar sesión" FontSize="24" FontWeight="SemiBold"/>
+                        <TextBlock Text="Usuario"/>
+                        <TextBox x:Name="LoginUsuarioInput" Width="320" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Contraseña"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Width="320" HorizontalAlignment="Left"/>
+                        <Button Content="Ingresar a Aparcar" Click="Login_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Tras cinco intentos erróneos la cuenta se bloquea temporalmente."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                    <TextBlock x:Name="AccesoMensaje" TextWrapping="Wrap" Foreground="#B91C1C"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Window>
