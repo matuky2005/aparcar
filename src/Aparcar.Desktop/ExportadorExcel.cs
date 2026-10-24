@@ -41,7 +41,7 @@ internal static class ExportadorExcel
             hoja.Cell(fila,1).Style.DateFormat.Format="dd/mm/yyyy hh:mm";
             hoja.Cell(fila,2).Value=registro.Ticket;
             hoja.Cell(fila,3).Value=registro.Patente;
-            hoja.Cell(fila,4).Value=registro.Devuelto?"Devolución efectivo":registro.MedioPago;
+            hoja.Cell(fila,4).Value=registro.Devuelto?"Devolución efectivo":(registro.Origen=="Estacionamiento"?registro.MedioPago:$"{registro.Origen} / {registro.MedioPago}");
             hoja.Cell(fila,5).Value=registro.ImporteCentavos/100m;
             hoja.Cell(fila,5).Style.NumberFormat.Format="#,##0.00;[Red]-#,##0.00";
             hoja.Cell(fila,6).Value=registro.Operador;
