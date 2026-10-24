@@ -86,6 +86,9 @@ jobs:
           if (-not $signTool) { throw 'No se encontró signtool x64 en el runner.' }
           & $signTool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint /s My $msix.FullName
           if ($LASTEXITCODE -ne 0) { throw 'No se pudo firmar el MSIX de pruebas.' }
+          # Confiar SOLO en el runner efímero en nuestro certificado autocreado para validar la cadena.
+          # No afecta la PC del usuario ni se exporta la clave privada.
+          Import-Certificate -FilePath (Join-Path $out 'Aparcar-Pruebas.cer') -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
           & $signTool.FullName verify /pa /v $msix.FullName
           if ($LASTEXITCODE -ne 0) { throw 'No se pudo verificar la firma del MSIX.' }
 
