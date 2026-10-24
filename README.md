@@ -22,6 +22,10 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
 
+## Validación v0.6
+
+**Código validado en Windows:** 29/29 pruebas automáticas y compilación WinUI 3 exitosas en [GitHub Actions #40128096125](https://github.com/matuky2005/aparcar/actions/runs/40128096125). **Cero artefactos publicados.** Aún falta probar estas pantallas y sus flujos en un equipo físico antes de considerarlos aptos para producción.
+
 ## Etapa v0.6: Lavadero y Abonados
 
 Sin generar ZIP/MSIX ni publicar versiones instalables, se incorporan nuevos módulos a la misma base SQLite.
