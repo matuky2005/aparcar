@@ -75,6 +75,7 @@ public sealed partial class AparcarDb
         cmd.ExecuteNonQuery();
         tx.Commit();
         InicializarTickets();
+        InicializarFinanzas();
     }
 
     public static string NormalizarPatente(string texto)
@@ -115,6 +116,7 @@ public sealed partial class AparcarDb
         {
             var ticket = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
             GuardarToken(db, tx, estadiaId);
+            AsignarTarifaAlIngresar(db, tx, estadiaId, tipoVehiculo);
             tx.Commit();
             return ticket;
         }
