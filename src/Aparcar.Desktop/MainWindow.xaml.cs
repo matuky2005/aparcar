@@ -391,7 +391,8 @@ public sealed partial class MainWindow : Window
                 $" · {_cotizacion.TipoVehiculo}\n" +
                 $"Ingreso: {_estadiaSeleccionada.IngresoUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                 $"Tiempo aproximado: {(int)diferencia.TotalMinutes} minutos" +
-                $"\nTarifa versión {_cotizacion.TarifaVersion}";
+                $"\nTarifa versión {_cotizacion.TarifaVersion}" +
+                (_cotizacion.CubiertoPorAbono?"\nABONO VIGENTE: cobertura total":"");
             SalidaImporteText.Text = Dinero(_cotizacion.ImporteCentavos);
             CotizacionVigenciaText.Text = "Cotización válida hasta " +
                 _cotizacion.VenceUtc.ToLocalTime().ToString("HH:mm:ss");
@@ -399,7 +400,7 @@ public sealed partial class MainWindow : Window
             Mensaje.Text = _cotizacion.TurnoId.HasValue
                 ? "Contá el efectivo y confirmá el cobro."
                 : "Para cobrar primero abrí un turno en Caja.";
-            EfectivoRecibidoInput.Text = "";
+            EfectivoRecibidoInput.Text = _cotizacion.CubiertoPorAbono ? "0" : "";
             ReferenciaElectronicaInput.Text = "";
             PagoVerificadoCheck.IsChecked = false;
             VueltoPrevistoText.Text = "";
