@@ -228,6 +228,12 @@ public sealed partial class AparcarDb
 
     public string CrearRespaldo()
     {
+        ExigirPermiso(PermisosAparcar.Respaldo);
+        return CrearRespaldoInterno();
+    }
+
+    private string CrearRespaldoInterno()
+    {
         var carpeta = Path.Combine(Environment.GetFolderPath(
             Environment.SpecialFolder.MyDocuments), "Aparcar", "Respaldos");
         Directory.CreateDirectory(carpeta);
