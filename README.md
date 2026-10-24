@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: versión técnica 0.3 — NO apta para cobros reales ni para producción.**
+> **Estado: versión técnica 0.4 — NO apta para cobros reales ni para producción.**
 
 ## Funcionalidad implementada (rama de trabajo)
 
@@ -32,6 +32,30 @@ Esta versión agrega un primer circuito de **cobro en efectivo confirmado manual
 **No usar todavía con dinero de clientes:** faltan usuarios autenticados, control de permisos, devoluciones, retiro de efectivo, conciliación y pruebas físicas del flujo. No contempla tarjetas ni transferencias. Una entrada de efectivo registrada presupone que el cajero realmente recibió el dinero.
 
 El esquema se migra automáticamente, con respaldo consistente previo a la migración. Los cobros simulados de v0.1/v0.2 **no se incorporan** a caja. Cada estadía recibe una versión de tarifa propia.
+
+## Novedades de Aparcar v0.4
+
+**No apta para dinero real sin las pruebas y controles pendientes.** Esta versión funciona localmente y todavía no autentica a los usuarios ni verifica pagos mediante una API externa.
+
+- **Medios de pago:** efectivo, débito, crédito, transferencia y QR. Para los cuatro métodos externos exige marcar la verificación realizada fuera de Aparcar e ingresar una referencia del proveedor. *No consulta bancos ni pasarelas ni garantiza acreditación.*
+- **Caja separada:** el efectivo esperado nunca incluye cobros electrónicos. Permite depósitos y retiros con fecha, operador y motivo; los arqueos descuentan retiros y devoluciones.
+- **Devolución:** únicamente *completa y en efectivo*, vinculada a un cobro existente. Es única por cobro y exige PIN local de supervisor creado sin valor predeterminado. Ese PIN es un control provisional, no sustituye la autenticación y permisos de personal.
+- **Reportes:** período desde/hasta, cobros brutos, devolución por fecha de reintegro, efectivo neto, medios externos, detalle de tickets y Excel real `.xlsx` en Documentos/Aparcar/Reportes. El PDF todavía no está implementado.
+- **Respaldo antes de migrar:** nueva estructura de SQLite en `EsquemaVersion=4`, conserva estadías, tarifas y cobros v0.3. Las operaciones anteriores se reconocen como efectivo.
+- **Identificador único de cobro:** si se reintenta una operación confirmada, se recupera el registro previo y no se vuelve a cobrar.
+
+### Circuito recomendado de pruebas
+
+1. Abrí Caja y registrá un turno.
+2. Registrá un ingreso y buscá la salida.
+3. Cambiá el medio a transferencia, cargá una referencia de prueba y marcá el comprobante como verificado. Confirmá, solo con datos ficticios.
+4. Comprobá en Caja que el saldo de efectivo **no** aumente por la transferencia.
+5. Simulá un cobro en efectivo, un depósito y un retiro; compará el saldo esperado.
+6. Configurá un PIN local de supervisor y probá una devolución completa de ese cobro en efectivo.
+7. Abrí Reportes, consultá un período y exportá el Excel real.
+8. Cerrá el turno y confirmá el arqueo. Reabrí la aplicación y comprobá la persistencia.
+
+**Restricciones pendientes:** roles y autenticación, pasarelas reales, conciliación bancaria, reembolsos externos, devolución parcial, reportes PDF, ventas de lavadero/abonos, terminales multicaja y auditoría anti-manipulación.
 
 ## Requisitos
 
