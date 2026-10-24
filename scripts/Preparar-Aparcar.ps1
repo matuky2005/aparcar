@@ -29,15 +29,15 @@ if (Test-Path $workspace) {
 }
 
 Write-Host 'Instalando las plantillas oficiales WinUI 3...'
-Invoke-Dotnet new install Microsoft.WindowsAppSDK.WinUI.CSharp.Templates
+Invoke-Dotnet -Arguments @('new','install','Microsoft.WindowsAppSDK.WinUI.CSharp.Templates')
 New-Item -ItemType Directory -Path $src -Force | Out-Null
 New-Item -ItemType Directory -Path $testsDir -Force | Out-Null
-Invoke-Dotnet new sln -n Aparcar -o $workspace --format sln
+Invoke-Dotnet -Arguments @('new','sln','-n','Aparcar','-o',$workspace,'--format','sln')
 
-Invoke-Dotnet new winui -n Aparcar.Desktop -o (Join-Path $src 'Aparcar.Desktop')
-Invoke-Dotnet new classlib -n Aparcar.Domain -f net10.0 -o (Join-Path $src 'Aparcar.Domain')
-Invoke-Dotnet new classlib -n Aparcar.Infrastructure -f net10.0 -o (Join-Path $src 'Aparcar.Infrastructure')
-Invoke-Dotnet new xunit -n Aparcar.Tests -f net10.0 -o (Join-Path $testsDir 'Aparcar.Tests')
+Invoke-Dotnet -Arguments @('new','winui','-n','Aparcar.Desktop','-o',(Join-Path $src 'Aparcar.Desktop'))
+Invoke-Dotnet -Arguments @('new','classlib','-n','Aparcar.Domain','-f','net10.0','-o',(Join-Path $src 'Aparcar.Domain'))
+Invoke-Dotnet -Arguments @('new','classlib','-n','Aparcar.Infrastructure','-f','net10.0','-o',(Join-Path $src 'Aparcar.Infrastructure'))
+Invoke-Dotnet -Arguments @('new','xunit','-n','Aparcar.Tests','-f','net10.0','-o',(Join-Path $testsDir 'Aparcar.Tests'))
 
 $desktopProj = Join-Path $src 'Aparcar.Desktop\Aparcar.Desktop.csproj'
 $domainProj = Join-Path $src 'Aparcar.Domain\Aparcar.Domain.csproj'
@@ -45,12 +45,12 @@ $infraProj = Join-Path $src 'Aparcar.Infrastructure\Aparcar.Infrastructure.cspro
 $testProj = Join-Path $testsDir 'Aparcar.Tests\Aparcar.Tests.csproj'
 
 foreach ($project in @($desktopProj,$domainProj,$infraProj,$testProj)) {
-    Invoke-Dotnet sln $solution add $project
+    Invoke-Dotnet -Arguments @('sln',$solution,'add',$project)
 }
-Invoke-Dotnet add $infraProj reference $domainProj
-Invoke-Dotnet add $desktopProj reference $infraProj $domainProj
-Invoke-Dotnet add $testProj reference $infraProj $domainProj
-Invoke-Dotnet add $infraProj package Microsoft.Data.Sqlite
+Invoke-Dotnet -Arguments @('add',$infraProj,'reference',$domainProj)
+Invoke-Dotnet -Arguments @('add',$desktopProj,'reference',$infraProj,$domainProj)
+Invoke-Dotnet -Arguments @('add',$testProj,'reference',$infraProj,$domainProj)
+Invoke-Dotnet -Arguments @('add',$infraProj,'package','Microsoft.Data.Sqlite')
 
 foreach ($name in @('Aparcar.Desktop','Aparcar.Domain','Aparcar.Infrastructure')) {
     $origin = Join-Path $repo "src\$name"
@@ -65,11 +65,11 @@ Get-ChildItem -LiteralPath $testSource -Filter '*.cs' | ForEach-Object {
 }
 
 Write-Host 'Compilando el dominio y la persistencia...'
-Invoke-Dotnet build $infraProj -c Debug
+Invoke-Dotnet -Arguments @('build',$infraProj,'-c','Debug')
 Write-Host 'Ejecutando pruebas automatizadas...'
-Invoke-Dotnet test $testProj -c Debug
+Invoke-Dotnet -Arguments @('test',$testProj,'-c','Debug')
 Write-Host 'Compilando la aplicación WinUI 3 (x64)...'
-Invoke-Dotnet build $desktopProj -c Debug -p:Platform=x64
+Invoke-Dotnet -Arguments @('build',$desktopProj,'-c','Debug','-p:Platform=x64','-p:AppxPackageSigningEnabled=false')
 Write-Host ''
 Write-Host "Preparación terminada. Abrí $solution en Visual Studio, seleccioná x64 y presioná F5."
 Write-Host 'IMPORTANTE: Versión de prueba. No apta para cobros reales.'
