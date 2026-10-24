@@ -455,6 +455,8 @@ public sealed partial class AparcarDb
             r.GetInt64(0),r.GetString(1),r.GetString(2),r.GetInt64(3),
             DateTimeOffset.Parse(r.GetString(4),CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind),
             r.GetString(5),r.GetInt32(6)!=0));
+        rows.AddRange(LeerCobrosComplementarios(desdeUtc,hastaUtc));
+        rows=rows.OrderByDescending(x=>x.FechaUtc).ToList();
         long bruto=rows.Where(x=>!x.Devuelto).Sum(x=>x.ImporteCentavos);
         long devoluciones=-rows.Where(x=>x.Devuelto).Sum(x=>x.ImporteCentavos);
         long efectivo=rows.Where(x=>x.MedioPago=="Efectivo" || x.Devuelto).Sum(x=>x.ImporteCentavos);
