@@ -1055,7 +1055,10 @@ public sealed partial class MainWindow : Window
     }
 
 
-    private void AbContratosList_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    private void AbContratosList_SelectionChanged(object sender,SelectionChangedEventArgs e) =>
+        ActualizarPatentesContratoSeleccionado();
+
+    private void ActualizarPatentesContratoSeleccionado()
     {
         if(AbVehiculosText is null || AbContratosList.SelectedIndex<0 ||
            AbContratosList.SelectedIndex>=_contratosAbono.Count)return;
@@ -1075,8 +1078,7 @@ public sealed partial class MainWindow : Window
             var contrato=ContratoSeleccionado();
             _db.AgregarVehiculoAbono(contrato.Id,AbPatenteExtraInput.Text);
             Mensaje.Text="Patente añadida al contrato pendiente.";
-            AbContratosList_SelectionChanged(sender,new SelectionChangedEventArgs(
-                System.Collections.Generic.Array.Empty<object>(),System.Collections.Generic.Array.Empty<object>()));
+            ActualizarPatentesContratoSeleccionado();
         }
         catch(Exception ex){Mensaje.Text="No se agregó la patente: "+ex.Message;}
     }
@@ -1088,8 +1090,7 @@ public sealed partial class MainWindow : Window
             var contrato=ContratoSeleccionado();
             _db.QuitarVehiculoAbono(contrato.Id,AbPatenteExtraInput.Text);
             Mensaje.Text="Patente quitada del contrato pendiente.";
-            AbContratosList_SelectionChanged(sender,new SelectionChangedEventArgs(
-                System.Collections.Generic.Array.Empty<object>(),System.Collections.Generic.Array.Empty<object>()));
+            ActualizarPatentesContratoSeleccionado();
         }
         catch(Exception ex){Mensaje.Text="No se quitó la patente: "+ex.Message;}
     }
