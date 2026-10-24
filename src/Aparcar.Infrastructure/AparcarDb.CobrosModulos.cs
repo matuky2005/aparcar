@@ -56,8 +56,8 @@ public sealed partial class AparcarDb
         string descripcion,patente;
         string? periodicidad=null;
         string? renovacionDe=null;
-        DateTimeOffset inicioCobertura=ahora;
         DateTimeOffset ahora=DateTimeOffset.UtcNow;
+        DateTimeOffset inicioCobertura=ahora;
         if(categoria=="Lavadero")
         {
             using var cmd=db.CreateCommand();
