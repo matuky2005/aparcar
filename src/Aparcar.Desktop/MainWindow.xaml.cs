@@ -23,6 +23,11 @@ public sealed partial class MainWindow : Window
     private Guid _claveCobro = Guid.Empty;
     private ResumenRecaudacion? _reporteActual;
     private System.Collections.Generic.List<UsuarioListado> _usuariosActuales = new();
+    private System.Collections.Generic.List<ServicioLavado> _serviciosLavado=new();
+    private System.Collections.Generic.List<OrdenLavado> _ordenesLavado=new();
+    private System.Collections.Generic.List<PlanAbono> _planesAbono=new();
+    private System.Collections.Generic.List<ContratoAbono> _contratosAbono=new();
+    private bool _procesandoCobroExtra;
 
     public MainWindow()
     {
@@ -94,6 +99,17 @@ public sealed partial class MainWindow : Window
             RolesAparcar.Permite(rol,PermisosAparcar.AbrirCaja)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[9]).Visibility=
             RolesAparcar.Permite(rol,PermisosAparcar.Usuarios)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[6]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.LavaderoConsultar)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[7]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.AbonosConsultar)?Visibility.Visible:Visibility.Collapsed;
+        LavGuardarServicioButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.LavaderoCatalogo);
+        LavCrearOrdenButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.LavaderoOperar);
+        LavCambiarEstadoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.LavaderoOperar);
+        LavCobrarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
+        AbGuardarPlanButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.AbonosAdministrar);
+        AbCrearContratoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.AbonosAdministrar);
+        AbCobrarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
         CargarImpresoras();
         AutoImprimirCheck.IsChecked=_db.ObtenerPreferencia("AutoImprimir")!="false";
         TipoTarifaCombo.SelectedIndex=0;
@@ -294,6 +310,8 @@ public sealed partial class MainWindow : Window
         if (pantalla == "salida") BusquedaInput.Focus(FocusState.Programmatic);
         if (pantalla == "caja") ActualizarCaja();
         if (pantalla == "tarifas") MostrarTarifaSeleccionada();
+        if (pantalla == "lavadero") RefrescarLavadero();
+        if (pantalla == "abonados") RefrescarAbonados();
         if (pantalla == "reportes") ConsultarReporteActual();
         if (pantalla == "usuarios") RefrescarUsuarios();
         if (pantalla == "auditoria") CargarAuditoria();
@@ -863,6 +881,190 @@ public sealed partial class MainWindow : Window
     }
 
     private void ConsultarReporte_Click(object sender,RoutedEventArgs e) => ConsultarReporteActual();
+
+
+    private static string TextoCombo(ComboBox combo) =>
+        (combo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+
+    private static string MedioCombo(ComboBox combo) =>
+        (combo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??MediosPago.Efectivo;
+
+    private void RefrescarLavadero()
+    {
+        try
+        {
+            _serviciosLavado=_db.ListarServiciosLavado();
+            LavServiciosCombo.Items.Clear();
+            foreach(var servicio in _serviciosLavado)
+                LavServiciosCombo.Items.Add(new ComboBoxItem
+                {
+                    Content=$"{servicio.TipoVehiculo} · {servicio.Nombre} v{servicio.Version} · {Dinero(servicio.PrecioCentavos)}",
+                    Tag=servicio.Id.ToString("D")
+                });
+            _ordenesLavado=_db.ListarOrdenesLavado();
+            LavOrdenesList.ItemsSource=_ordenesLavado.Select(o=>
+                $"#{o.Numero:D5} · {o.Patente} · {o.ServicioNombre} · {Dinero(o.PrecioCentavos)}" +
+                $" · {o.Estado} · {o.EstadoPago} · {o.Operario}").ToList();
+        }
+        catch(Exception ex){ Mensaje.Text="Lavadero: "+ex.Message; }
+    }
+
+    private void GuardarServicioLavado_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var servicio=_db.GuardarServicioLavado(
+                LavServicioNombreInput.Text,TextoCombo(LavServicioTipoCombo),
+                LeerImporte(LavServicioPrecioInput.Text));
+            Mensaje.Text=$"Servicio {servicio.Nombre} v{servicio.Version} guardado.";
+            RefrescarLavadero();
+        }
+        catch(Exception ex){ Mensaje.Text="No se guardó el servicio: "+ex.Message; }
+    }
+
+    private void CrearOrdenLavado_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sel=LavServiciosCombo.SelectedItem as ComboBoxItem;
+            if(!Guid.TryParse(sel?.Tag?.ToString(),out var servicioId))
+                throw new ArgumentException("Elegí un servicio.");
+            Guid? estadiaId=null;
+            if(LavVincularEstadiaCheck.IsChecked==true)
+            {
+                var activa=_db.BuscarActiva(LavPatenteInput.Text) ??
+                    throw new InvalidOperationException("No hay una estadía activa para esa patente.");
+                estadiaId=activa.Id;
+            }
+            var orden=_db.CrearOrdenLavado(servicioId,LavPatenteInput.Text,
+                LavOperarioInput.Text,LavObservacionesInput.Text,estadiaId);
+            Mensaje.Text=$"Orden de lavado #{orden.Numero:D5} creada sin cobro automático.";
+            LavPatenteInput.Text="";
+            LavObservacionesInput.Text="";
+            RefrescarLavadero();
+        }
+        catch(Exception ex){ Mensaje.Text="Orden no creada: "+ex.Message; }
+    }
+
+    private OrdenLavado OrdenSeleccionada()
+    {
+        int indice=LavOrdenesList.SelectedIndex;
+        if(indice<0 || indice>=_ordenesLavado.Count)
+            throw new ArgumentException("Seleccioná una orden de lavado.");
+        return _ordenesLavado[indice];
+    }
+
+    private void CambiarEstadoLavado_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var orden=OrdenSeleccionada();
+            var destino=(LavEstadoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+            var actualizado=_db.CambiarEstadoOrdenLavado(orden.Id,destino,LavOperarioInput.Text);
+            Mensaje.Text=$"Orden #{actualizado.Numero:D5}: {actualizado.Estado}.";
+            RefrescarLavadero();
+        }
+        catch(Exception ex){ Mensaje.Text="Estado no modificado: "+ex.Message; }
+    }
+
+    private void CobrarLavado_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoCobroExtra)return;
+        _procesandoCobroExtra=true;
+        try
+        {
+            var orden=OrdenSeleccionada();
+            var medio=MedioCombo(LavPagoMedioCombo);
+            var recibido=medio==MediosPago.Efectivo?
+                LeerImporte(LavRecibidoInput.Text):orden.PrecioCentavos;
+            var cobro=_db.CobrarComplemento("Lavadero",orden.Id,medio,recibido,
+                LavReferenciaInput.Text,LavVerificadoCheck.IsChecked==true,Guid.NewGuid());
+            Mensaje.Text=$"Lavado #{orden.Numero:D5} cobrado: {Dinero(cobro.ImporteCentavos)}."+
+                $" Vuelto {Dinero(cobro.VueltoCentavos)}.";
+            LavRecibidoInput.Text="";LavReferenciaInput.Text="";LavVerificadoCheck.IsChecked=false;
+            RefrescarLavadero();
+            ActualizarCaja();
+        }
+        catch(Exception ex){ Mensaje.Text="No se confirmó el lavado: "+ex.Message; }
+        finally{_procesandoCobroExtra=false;}
+    }
+
+    private void RefrescarAbonados()
+    {
+        try
+        {
+            _planesAbono=_db.ListarPlanesAbono();
+            AbPlanesCombo.Items.Clear();
+            foreach(var plan in _planesAbono)
+                AbPlanesCombo.Items.Add(new ComboBoxItem
+                {
+                    Content=$"{plan.Nombre} · {plan.TipoVehiculo} · {plan.Periodicidad} · {Dinero(plan.PrecioCentavos)}",
+                    Tag=plan.Id.ToString("D")
+                });
+            _contratosAbono=_db.ListarContratosAbono();
+            AbContratosList.ItemsSource=_contratosAbono.Select(c=>
+                $"{c.Cliente} · {c.Patente} · {c.PlanNombre} · {c.Estado}" +
+                (c.FinUtc is null?" · Sin cobertura":$" · Vence {c.FinUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}")).ToList();
+        }
+        catch(Exception ex){ Mensaje.Text="Abonados: "+ex.Message; }
+    }
+
+    private void GuardarPlanAbono_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var plan=_db.GuardarPlanAbono(AbPlanNombreInput.Text,
+                TextoCombo(AbPlanTipoCombo),TextoCombo(AbPlanPeriodoCombo),
+                LeerImporte(AbPlanPrecioInput.Text));
+            Mensaje.Text=$"Plan {plan.Nombre} v{plan.Version} creado.";
+            RefrescarAbonados();
+        }
+        catch(Exception ex){ Mensaje.Text="Plan no guardado: "+ex.Message; }
+    }
+
+    private void CrearContratoAbono_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            if(!Guid.TryParse((AbPlanesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var planId))
+                throw new ArgumentException("Elegí un plan.");
+            var contrato=_db.CrearContratoPendiente(AbClienteInput.Text,AbPatenteInput.Text,planId);
+            Mensaje.Text=$"Contrato para {contrato.Patente} creado PENDIENTE. No brinda cobertura hasta ser cobrado.";
+            RefrescarAbonados();
+        }
+        catch(Exception ex){ Mensaje.Text="Contrato no creado: "+ex.Message; }
+    }
+
+    private ContratoAbono ContratoSeleccionado()
+    {
+        int indice=AbContratosList.SelectedIndex;
+        if(indice<0 || indice>=_contratosAbono.Count)
+            throw new ArgumentException("Seleccioná un contrato.");
+        return _contratosAbono[indice];
+    }
+
+    private void CobrarAbono_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoCobroExtra)return;
+        _procesandoCobroExtra=true;
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            var medio=MedioCombo(AbPagoMedioCombo);
+            var recibido=medio==MediosPago.Efectivo?
+                LeerImporte(AbRecibidoInput.Text):contrato.PrecioCentavos;
+            var cobro=_db.CobrarComplemento("Abono",contrato.Id,medio,recibido,
+                AbReferenciaInput.Text,AbVerificadoCheck.IsChecked==true,Guid.NewGuid());
+            Mensaje.Text=$"Abono de {contrato.Patente} activado: {Dinero(cobro.ImporteCentavos)}." +
+                $" Vuelto {Dinero(cobro.VueltoCentavos)}. Cobertura desde el momento del pago.";
+            AbRecibidoInput.Text="";AbReferenciaInput.Text="";AbVerificadoCheck.IsChecked=false;
+            RefrescarAbonados();
+            ActualizarCaja();
+        }
+        catch(Exception ex){ Mensaje.Text="No se confirmó el abono: "+ex.Message; }
+        finally{_procesandoCobroExtra=false;}
+    }
 
     private void ExportarPdf_Click(object sender,RoutedEventArgs e)
     {
