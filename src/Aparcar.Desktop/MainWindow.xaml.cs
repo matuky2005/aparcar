@@ -231,6 +231,7 @@ public sealed partial class MainWindow : Window
 
     private void EfectivoRecibidoInput_TextChanged(object sender, TextChangedEventArgs e)
     {
+        if (VueltoPrevistoText is null) return;
         if (_cotizacion is null) { VueltoPrevistoText.Text = ""; return; }
         try
         {
