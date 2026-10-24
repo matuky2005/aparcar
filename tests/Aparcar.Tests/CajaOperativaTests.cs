@@ -15,6 +15,8 @@ public sealed class CajaOperativaTests
         Directory.CreateDirectory(dir);
         var db=new AparcarDb(Path.Combine(dir,"aparcar.db"));
         db.Inicializar();
+        db.CrearAdministradorInicial("AdminPrueba", "ClavePrueba123");
+        db.IniciarSesion("AdminPrueba", "ClavePrueba123");
         return (db,dir);
     }
 
@@ -120,6 +122,7 @@ public sealed class CajaOperativaTests
             db.ConfirmarEfectivo(c,c.ImporteCentavos,Guid.NewGuid());
             var reabierta=new AparcarDb(db.RutaDb);
             reabierta.Inicializar();
+            reabierta.IniciarSesion("AdminPrueba", "ClavePrueba123");
             Assert.Single(reabierta.ListarCobros());
             Assert.NotNull(reabierta.ObtenerTurnoAbierto());
             Assert.Empty(reabierta.ListarActivas());
