@@ -54,8 +54,8 @@ public sealed class AvanzadoV7Tests
             Assert.Single(antes);
             var segunda=new AparcarDb(db.RutaDb);
             segunda.Inicializar();
-            Assert.Single(segunda.ListarVehiculosAbono(c.Id));
-            Assert.Equal("Completa",segunda.ListarContratosAbono().Single().Modalidad);
+            Assert.Throws<UnauthorizedAccessException>(()=>segunda.ListarVehiculosAbono(c.Id));
+            Assert.Equal("Completa",db.ListarContratosAbono().Single().Modalidad);
         }
         finally{Limpiar(dir);}
     }
