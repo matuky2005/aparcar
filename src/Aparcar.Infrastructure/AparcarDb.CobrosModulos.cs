@@ -217,11 +217,19 @@ public sealed partial class AparcarDb
         cmd.CommandText="""
             SELECT c.Categoria,COALESCE(l.Numero,0),
                 COALESCE(l.Patente,a.Patente),c.MedioPago,c.ImporteCentavos,
-                c.FechaUtc,c.Actor
+                c.FechaUtc,c.Actor,0
             FROM CobrosComplementarios c
             LEFT JOIN OrdenesLavado l ON c.Categoria='Lavadero' AND l.Id=c.ReferenciaId
             LEFT JOIN ContratosAbono a ON c.Categoria='Abono' AND a.Id=c.ReferenciaId
-            WHERE c.FechaUtc >= $desde AND c.FechaUtc < $hasta;
+            WHERE c.FechaUtc >= $desde AND c.FechaUtc < $hasta
+            UNION ALL
+            SELECT d.Categoria,COALESCE(l.Numero,0),
+                COALESCE(l.Patente,a.Patente),'Efectivo',-d.ImporteCentavos,
+                d.FechaUtc,d.AutorizadoPor,1
+            FROM DevolucionesComplementarias d
+            LEFT JOIN OrdenesLavado l ON d.Categoria='Lavadero' AND l.Id=d.ReferenciaId
+            LEFT JOIN ContratosAbono a ON d.Categoria='Abono' AND a.Id=d.ReferenciaId
+            WHERE d.FechaUtc >= $desde AND d.FechaUtc < $hasta;
             """;
         cmd.Parameters.AddWithValue("$desde",Fecha(desdeUtc));
         cmd.Parameters.AddWithValue("$hasta",Fecha(hastaUtc));
@@ -230,7 +238,7 @@ public sealed partial class AparcarDb
         while(r.Read())
             filas.Add(new LineaRecaudacion(r.GetInt64(1),r.GetString(2),
                 r.GetString(3),r.GetInt64(4),ParsearFecha(r.GetString(5)),
-                r.GetString(6),false,r.GetString(0)));
+                r.GetString(6),r.GetInt32(7)==1,r.GetString(0)));
         return filas;
     }
 
