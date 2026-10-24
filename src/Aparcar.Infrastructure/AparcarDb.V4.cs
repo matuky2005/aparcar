@@ -19,7 +19,7 @@ public sealed partial class AparcarDb
             cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM EsquemaVersion WHERE Numero=4)";
             existente = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) == 1;
         }
-        if (!existente) CrearRespaldo();
+        if (!existente) CrearRespaldoInterno();
 
         using var db4 = Abrir();
         using var tx = db4.BeginTransaction();
