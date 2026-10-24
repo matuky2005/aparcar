@@ -311,6 +311,8 @@ public sealed partial class AparcarDb
             throw new InvalidOperationException($"Transición no permitida: {orden.Estado} → {nuevoEstado}.");
         if(nuevoEstado==EstadosLavado.Cancelado && orden.EstadoPago=="Pagado")
             throw new InvalidOperationException("No se cancela una orden cobrada sin devolución contable.");
+        if(nuevoEstado==EstadosLavado.Entregado && orden.EstadoPago!="Pagado")
+            throw new InvalidOperationException("Cobrá la orden antes de entregarla.");
         var nuevoOperario=string.IsNullOrWhiteSpace(operario)?orden.Operario:operario.Trim();
         if(nuevoOperario.Length>80)throw new ArgumentException("Operario demasiado largo.");
         using(var cmd=db.CreateCommand())
