@@ -11,7 +11,7 @@
         <Border Background="#164677" Padding="16,12">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="APARCAR" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                <TextBlock x:Name="Mensaje" Text="v0.3 · Tarifas, caja y efectivo · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.4 · Medios de pago y reportes · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -35,7 +35,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.3 · Local, sin integración fiscal ni pagos electrónicos." Opacity="0.7"/>
+                        <TextBlock Text="Aparcar v0.4 · Declaración manual de pagos externos, sin conciliación bancaria." Opacity="0.7"/>
                         <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
                         <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -77,8 +77,8 @@
 
                 <ScrollViewer x:Name="SalidaPanel" Visibility="Collapsed">
                     <StackPanel Spacing="14" MaxWidth="700" HorizontalAlignment="Left">
-                        <TextBlock Text="Salida y cobro en efectivo" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Buscá por patente, ticket o QR Aparcar. El operador confirma manualmente el efectivo recibido."
+                        <TextBlock Text="Salida y cobranza" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Buscá por patente, ticket o QR. Pagos electrónicos solo después de verificar en su proveedor."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBox x:Name="BusquedaInput" KeyDown="BusquedaInput_KeyDown" Width="320" PlaceholderText="Ticket o patente"/>
@@ -93,14 +93,33 @@
                             </StackPanel>
                         </Border>
                         <TextBlock x:Name="CotizacionVigenciaText" Text="" Opacity="0.7"/>
-                        <TextBlock Text="Efectivo entregado por el cliente (ARS):"/>
-                        <TextBox x:Name="EfectivoRecibidoInput" TextChanged="EfectivoRecibidoInput_TextChanged" PlaceholderText="Ej.: 5000" Width="240"
+                        <TextBlock Text="Medio de pago:"/>
+                        <ComboBox x:Name="MedioPagoCombo" Width="260" HorizontalAlignment="Left"
+                                  SelectedIndex="0" SelectionChanged="MedioPagoCombo_SelectionChanged">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <StackPanel x:Name="EfectivoPanel" Spacing="8">
+                            <TextBlock Text="Efectivo entregado por el cliente (ARS):"/>
+                            <TextBox x:Name="EfectivoRecibidoInput" TextChanged="EfectivoRecibidoInput_TextChanged" PlaceholderText="Ej.: 5000" Width="240"
                                  HorizontalAlignment="Left" KeyDown="EfectivoRecibidoInput_KeyDown"/>
+                        </StackPanel>
+                        <StackPanel x:Name="ElectronicoPanel" Spacing="8" Visibility="Collapsed">
+                            <TextBlock Text="Referencia de pago comprobada (nº operación o autorización)"/>
+                            <TextBox x:Name="ReferenciaElectronicaInput" Width="365"
+                                     MaxLength="200" PlaceholderText="Referencia real del proveedor"/>
+                            <CheckBox x:Name="PagoVerificadoCheck" Content="Verifiqué la acreditación/autorización en el proveedor"/>
+                            <TextBlock Text="Aparcar NO consulta bancos ni pasarelas: esto es una declaración manual."
+                                       TextWrapping="Wrap" Opacity="0.7"/>
+                        </StackPanel>
                         <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
-                        <Button x:Name="ConfirmarSalidaButton" Content="Confirmar efectivo recibido y finalizar salida"
+                        <Button x:Name="ConfirmarSalidaButton" Content="Confirmar cobro y finalizar salida"
                                 Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
                                 IsEnabled="False"/>
-                        <TextBlock Text="Confirmá únicamente después de contar el efectivo. El cobro, el movimiento de caja y la salida se registran juntos. Si cambia la tarifa, volvé a cotizar."
+                        <TextBlock Text="Confirmá solamente un pago efectivamente recibido/verificado. Caja y salida se registran en una misma transacción."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -143,7 +162,7 @@
 
                 <ScrollViewer x:Name="CajaPanel" Visibility="Collapsed">
                     <StackPanel Spacing="12" MaxWidth="800" HorizontalAlignment="Left">
-                        <TextBlock Text="Caja principal — efectivo" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Caja principal — efectivo y medios electrónicos" FontSize="30" FontWeight="Bold"/>
                         <TextBlock x:Name="CajaEstadoText" Text="Sin turno abierto" FontSize="18" FontWeight="SemiBold"
                                    TextWrapping="Wrap"/>
                         <TextBlock Text="APERTURA DE TURNO" FontWeight="Bold"/>
@@ -153,6 +172,25 @@
                         <TextBox x:Name="FondoInicialInput" Width="230" HorizontalAlignment="Left" Text="0"/>
                         <Button x:Name="AbrirCajaButton" Content="Abrir caja" Click="AbrirCaja_Click"
                                 HorizontalAlignment="Left"/>
+                        <TextBlock Text="MOVIMIENTOS DE EFECTIVO" FontWeight="Bold"/>
+                        <ComboBox x:Name="MovimientoTipoCombo" Width="180" SelectedIndex="0" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Depósito" Tag="Deposito"/>
+                            <ComboBoxItem Content="Retiro" Tag="Retiro"/>
+                        </ComboBox>
+                        <TextBox x:Name="MovimientoMontoInput" PlaceholderText="Monto en ARS" Width="235" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="MovimientoMotivoInput" PlaceholderText="Motivo obligatorio" Width="430" MaxLength="300" HorizontalAlignment="Left"/>
+                        <Button Content="Registrar movimiento" Click="MovimientoManual_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="MovimientosCajaList" Width="670" MaxHeight="150" HorizontalAlignment="Left"/>
+                        <TextBlock Text="DEVOLUCIONES DE EFECTIVO" FontWeight="Bold"/>
+                        <TextBlock Text="PIN local básico: no sustituye usuarios y permisos reales." Opacity="0.7"/>
+                        <PasswordBox x:Name="PinInicialBox" PlaceholderText="Crear PIN de supervisor (6-12 dígitos)" Width="340" HorizontalAlignment="Left"/>
+                        <Button x:Name="CrearPinButton" Content="Configurar PIN inicial" Click="CrearPin_Click" HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="CobrosDevolucionCombo" PlaceholderText="Elegí cobro en efectivo" Width="460" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="MotivoDevolucionInput" Width="440" MaxLength="300" HorizontalAlignment="Left" PlaceholderText="Motivo de devolución completa"/>
+                        <TextBox x:Name="AutorizadorInput" Width="340" HorizontalAlignment="Left" PlaceholderText="Nombre del supervisor"/>
+                        <PasswordBox x:Name="PinDevolucionBox" PlaceholderText="PIN de supervisor" Width="230" HorizontalAlignment="Left"/>
+                        <Button Content="Solicitar devolución completa" Click="DevolverEfectivo_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ResultadoDevolucionText" TextWrapping="Wrap"/>
                         <TextBlock Text="CIERRE Y ARQUEO" FontWeight="Bold"/>
                         <TextBlock Text="Efectivo contado en la caja ($)"/>
                         <TextBox x:Name="EfectivoContadoInput" Width="230" HorizontalAlignment="Left"/>
@@ -163,7 +201,7 @@
                         <ListView x:Name="CobrosCajaList" Width="670" MinHeight="160"
                                   HorizontalAlignment="Left"/>
                         <Button Content="Actualizar caja" Click="ActualizarCaja_Click" HorizontalAlignment="Left"/>
-                        <TextBlock Text="v0.3: solo efectivo confirmado manualmente. Faltan usuarios con permisos, pagos digitales, retiros, devoluciones y cierre supervisado."
+                        <TextBlock Text="v0.4: pago externo verificado DECLARADO por operador. Sin autenticación de usuarios ni conciliación bancaria: no habilitado para producción."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -183,9 +221,23 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="ReportesPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Reportes" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Pendiente: filtros, recaudación, PDF y Excel."/>
+                    <StackPanel Spacing="12" MaxWidth="850" HorizontalAlignment="Left">
+                        <TextBlock Text="Reportes de recaudación" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Cobros y devoluciones por fecha efectiva, separados por medio. No son reportes fiscales." TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Fecha desde (dd/MM/aaaa)"/>
+                        <TextBox x:Name="ReporteDesdeInput" Width="210" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fecha hasta inclusive (dd/MM/aaaa)"/>
+                        <TextBox x:Name="ReporteHastaInput" Width="210" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="Consultar recaudación" Click="ConsultarReporte_Click"/>
+                            <Button Content="Exportar Excel (.xlsx)" Click="ExportarExcel_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ReporteTotalesText" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        <ListView x:Name="ReporteFilasList" Width="730" MinHeight="340"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="RutaReporteText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="El Excel exporta exactamente el período consultado. Exportación PDF y filtros avanzados quedan para la siguiente etapa."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
 
