@@ -37,7 +37,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación portable.' }
           if (-not (Test-Path (Join-Path $output 'Aparcar.Desktop.exe'))) { throw 'No se generó Aparcar.Desktop.exe.' }
           $readme = @'
-          APARCAR v0.3 - DEMOSTRACIÓN PARA WINDOWS x64
+          APARCAR v0.4 - DEMOSTRACIÓN PARA WINDOWS x64
 
           Extraer todo el ZIP y ejecutar Aparcar.Desktop.exe.
           No procesar cobros reales: los importes son simulados.
@@ -53,7 +53,7 @@ jobs:
       - name: Subir versión portable para descargar
         uses: actions/upload-artifact@v4
         with:
-          name: Aparcar-v0.3-Windows-x64-Portable
+          name: Aparcar-v0.4-Windows-x64-Portable
           path: ${{ runner.temp }}/Aparcar-Portable-x64/
           if-no-files-found: error
           retention-days: 14
@@ -106,7 +106,7 @@ jobs:
       - name: Subir MSIX de pruebas
         uses: actions/upload-artifact@v4
         with:
-          name: Aparcar-v0.3-Windows-x64-MSIX-Pruebas
+          name: Aparcar-v0.4-Windows-x64-MSIX-Pruebas
           path: ${{ runner.temp }}/Aparcar-MSIX/
           if-no-files-found: error
           retention-days: 14
