@@ -17,6 +17,8 @@ public class EstadiasSqliteTests
         {
             var db = new AparcarDb(Path.Combine(dir, "test.db"));
             db.Inicializar();
+            db.CrearAdministradorInicial("AdminPrueba", "ClavePrueba123");
+            db.IniciarSesion("AdminPrueba", "ClavePrueba123");
             var primero = db.RegistrarIngreso("AF 123 BC", "Auto", "General");
             Assert.True(primero > 0);
             Assert.Single(db.ListarActivas());
