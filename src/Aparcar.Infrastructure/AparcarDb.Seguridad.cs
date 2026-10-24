@@ -22,6 +22,7 @@ public sealed partial class AparcarDb
 
     private void InicializarSeguridad()
     {
+        ResguardarMigracionSeguridad();
         using var db=Abrir();
         using var tx=db.BeginTransaction();
         using var cmd=db.CreateCommand();
@@ -57,6 +58,16 @@ public sealed partial class AparcarDb
             """;
         cmd.ExecuteNonQuery();
         tx.Commit();
+    }
+
+    private void ResguardarMigracionSeguridad()
+    {
+        // Se usa la API de backup de SQLite; jamás se reemplaza la base activa.
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="SELECT COUNT(*) FROM EsquemaVersion WHERE Numero=5";
+        if(Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)==0)
+            CrearRespaldo();
     }
 
     public bool HayAdministrador()
@@ -232,10 +243,10 @@ public sealed partial class AparcarDb
 
     public void ExigirPermiso(string permiso)
     {
-        // Migrations run before the first administrator exists. API callers in a
-        // database without users remain compatible with earlier test fixtures;
-        // the Desktop window blocks all operations until bootstrapped.
-        if(!HayAdministrador())return;
+        // Fallar cerrado: ningún método operativo funciona sin el primer
+        // administrador. La única excepción es CrearAdministradorInicial.
+        if(!HayAdministrador())
+            throw new UnauthorizedAccessException("Configurá el administrador inicial para operar.");
         var sesion=SesionActual;
         if(sesion is null)
             throw new UnauthorizedAccessException("Iniciá sesión para continuar.");
@@ -251,8 +262,21 @@ public sealed partial class AparcarDb
                 throw new UnauthorizedAccessException("Tu cuenta o rol cambió. Volvé a iniciar sesión.");
             }
         }
-        if(!RolesAparcar.Permite(sesion.Rol,permiso))
-            throw new UnauthorizedAccessException($"Tu rol ({sesion.Rol}) no permite esta operación.");
+        // El rol y la vigencia se consultan en SQLite en cada operación. Si otro
+        // administrador revoca la cuenta o modifica el rol, la sesión pierde acceso.
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="SELECT Rol,Activo FROM Usuarios WHERE Id=$id";
+        cmd.Parameters.AddWithValue("$id",sesion.Id.ToString("D"));
+        using var r=cmd.ExecuteReader();
+        if(!r.Read() || r.GetInt32(1)!=1)
+        {
+            _sesionActual=null;
+            throw new UnauthorizedAccessException("El usuario ya no está habilitado.");
+        }
+        var rolActual=r.GetString(0);
+        if(!RolesAparcar.Permite(rolActual,permiso))
+            throw new UnauthorizedAccessException($"Tu rol ({rolActual}) no permite esta operación.");
         _ultimaActividadUtc=DateTimeOffset.UtcNow;
     }
 
