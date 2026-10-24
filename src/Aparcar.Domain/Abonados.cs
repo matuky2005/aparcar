@@ -18,7 +18,7 @@ public static class PeriodicidadesAbono
 
 public sealed record PlanAbono(
     Guid Id,string Nombre,string TipoVehiculo,string Periodicidad,
-    int Version,long PrecioCentavos,bool Activo);
+    int Version,long PrecioCentavos,bool Activo,string Modalidad = "Completa");
 
 public sealed record ContratoAbono(
     Guid Id,string Cliente,string Patente,Guid PlanId,string PlanNombre,
