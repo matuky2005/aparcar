@@ -1,112 +1,28 @@
-name: Aparcar - Compilar y descargar Windows
+name: Aparcar - Validacion manual sin artefactos
 
+# Sin ejecuciones por push y sin publicar ZIP/MSIX.
+# Se habilitará publicación solamente para un hito importante.
 on:
-  push:
-    branches: ["feature/**", main]
   workflow_dispatch:
-
-concurrency:
-  group: aparcar-build-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: aparcar-validacion-manual
+  cancel-in-progress: true
+
 jobs:
-  paquete-windows:
+  validar-windows:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     steps:
-      - name: Obtener código
+      - name: Obtener codigo
         uses: actions/checkout@v4
       - name: Instalar .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Crear solución, ejecutar pruebas y compilar WinUI
+      - name: Compilar y ejecutar pruebas
         shell: pwsh
         run: ./scripts/Preparar-Aparcar.ps1
-
-      - name: Publicar ejecutable portable x64 para pruebas
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $project = 'Aparcar_VisualStudio/src/Aparcar.Desktop/Aparcar.Desktop.csproj'
-          $output = Join-Path $env:RUNNER_TEMP 'Aparcar-Portable-x64'
-          dotnet publish $project -c Release -r win-x64 --self-contained true -o $output -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:AppxPackageSigningEnabled=false
-          if ($LASTEXITCODE -ne 0) { throw 'Falló la publicación portable.' }
-          if (-not (Test-Path (Join-Path $output 'Aparcar.Desktop.exe'))) { throw 'No se generó Aparcar.Desktop.exe.' }
-          $readme = @'
-          APARCAR v0.4 - DEMOSTRACIÓN PARA WINDOWS x64
-
-          Extraer todo el ZIP y ejecutar Aparcar.Desktop.exe.
-          No procesar cobros reales: los importes son simulados.
-
-          Los datos se guardan fuera de la carpeta del programa:
-          %USERPROFILE%\Aparcar\Datos\aparcar.db
-
-          Si Windows bloquea la ejecución, revisá el origen del archivo.
-          No desactives SmartScreen ni las protecciones del sistema para continuar.
-          '@
-          Set-Content -Path (Join-Path $output 'LEEME.txt') -Value $readme -Encoding utf8
-
-      - name: Subir versión portable para descargar
-        uses: actions/upload-artifact@v4
-        with:
-          name: Aparcar-v0.4-Windows-x64-Portable
-          path: ${{ runner.temp }}/Aparcar-Portable-x64/
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Generar MSIX de pruebas sin certificado
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $project = 'Aparcar_VisualStudio/src/Aparcar.Desktop/Aparcar.Desktop.csproj'
-          $out = Join-Path $env:RUNNER_TEMP 'Aparcar-MSIX'
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          dotnet publish $project -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir="$out\"
-          if ($LASTEXITCODE -ne 0) { throw 'Falló la generación MSIX.' }
-          $msix = Get-ChildItem -LiteralPath $out -Filter '*.msix' -Recurse | Select-Object -First 1
-          if (-not $msix) { throw 'No se encontró un MSIX generado.' }
-          Write-Host "MSIX generado: $($msix.FullName)"
-
-      - name: Firmar MSIX con certificado temporal de pruebas
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $out = Join-Path $env:RUNNER_TEMP 'Aparcar-MSIX'
-          $msix = Get-ChildItem -LiteralPath $out -Filter '*.msix' -Recurse | Select-Object -First 1
-          if (-not $msix) { throw 'No hay MSIX para firmar.' }
-
-          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=AppPublisher' -CertStoreLocation 'Cert:\CurrentUser\My' -KeyExportPolicy NonExportable -NotAfter (Get-Date).AddMonths(3)
-          Export-Certificate -Cert $cert -FilePath (Join-Path $out 'Aparcar-Pruebas.cer') | Out-Null
-
-          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-          $signTool = Get-ChildItem -Path $kits -Recurse -File -Filter 'signtool.exe' |
-            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
-            Sort-Object FullName -Descending | Select-Object -First 1
-          if (-not $signTool) { throw 'No se encontró signtool x64 en el runner.' }
-          & $signTool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint /s My $msix.FullName
-          if ($LASTEXITCODE -ne 0) { throw 'No se pudo firmar el MSIX de pruebas.' }
-          # Firma creada y aplicada. No importamos certificados a almacenes de confianza
-          # en runners no interactivos: puede abrir un diálogo y bloquear el job.
-          # La validación de confianza se realiza al instalar el paquete de pruebas.
-          Write-Host "MSIX firmado con certificado temporal: $($cert.Thumbprint)"
-
-          @'
-          APARCAR MSIX DE PRUEBAS (NO ES LA VERSIÓN MICROSOFT STORE)
-          El archivo .cer es SOLO la clave pública del certificado temporal.
-          Para instalar este MSIX de prueba se debe confiar en su certificado
-          desde Windows, después de verificar su procedencia.
-          El certificado cambia en cada compilación; no se usa para producción.
-          No se incluye ninguna clave privada.
-          '@ | Set-Content -Path (Join-Path $out 'LEEME-INSTALACION.txt') -Encoding utf8
-
-      - name: Subir MSIX de pruebas
-        uses: actions/upload-artifact@v4
-        with:
-          name: Aparcar-v0.4-Windows-x64-MSIX-Pruebas
-          path: ${{ runner.temp }}/Aparcar-MSIX/
-          if-no-files-found: error
-          retention-days: 14
