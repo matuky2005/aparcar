@@ -11,7 +11,7 @@ namespace Aparcar.Infrastructure;
 /// <summary>
 /// Persistencia MONOUSUARIO de demostración. No admite cajas en red.
 /// </summary>
-public sealed class AparcarDb
+public sealed partial class AparcarDb
 {
     private readonly string _connectionString;
     public string RutaDb { get; }
@@ -74,6 +74,7 @@ public sealed class AparcarDb
             """;
         cmd.ExecuteNonQuery();
         tx.Commit();
+        InicializarTickets();
     }
 
     public static string NormalizarPatente(string texto)
@@ -95,6 +96,7 @@ public sealed class AparcarDb
 
         using var db = Abrir();
         using var tx = db.BeginTransaction();
+        var estadiaId = Guid.NewGuid().ToString("D");
         using var cmd = db.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = """
@@ -103,7 +105,7 @@ public sealed class AparcarDb
             VALUES($id,$patente,$normalizada,$tipo,$sector,$fecha,'Activa');
             SELECT last_insert_rowid();
             """;
-        cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
+        cmd.Parameters.AddWithValue("$id", estadiaId);
         cmd.Parameters.AddWithValue("$patente", normalizada);
         cmd.Parameters.AddWithValue("$normalizada", normalizada);
         cmd.Parameters.AddWithValue("$tipo", tipoVehiculo);
@@ -112,6 +114,7 @@ public sealed class AparcarDb
         try
         {
             var ticket = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
+            GuardarToken(db, tx, estadiaId);
             tx.Commit();
             return ticket;
         }
@@ -145,11 +148,14 @@ public sealed class AparcarDb
         cmd.CommandText = """
             SELECT Id,Ticket,Patente,TipoVehiculo,Sector,IngresoUtc,SalidaUtc,Estado
             FROM Estadias WHERE Estado='Activa'
-              AND (PatenteNormalizada=$patente OR CAST(Ticket AS TEXT)=$ticket)
+              AND (PatenteNormalizada=$patente OR CAST(Ticket AS TEXT)=$ticket
+                OR EXISTS(SELECT 1 FROM TicketsAcceso t
+                    WHERE t.EstadiaId=Estadias.Id AND t.TokenQr=$token))
             LIMIT 1;
             """;
         cmd.Parameters.AddWithValue("$patente", NormalizarPatente(texto));
         cmd.Parameters.AddWithValue("$ticket", texto.TrimStart('0') is { Length: > 0 } n ? n : "0");
+        cmd.Parameters.AddWithValue("$token", texto.StartsWith("APARCAR:", StringComparison.OrdinalIgnoreCase) ? texto["APARCAR:".Length..].Trim().ToUpperInvariant() : texto.ToUpperInvariant());
         using var reader = cmd.ExecuteReader();
         return reader.Read() ? Leer(reader) : null;
     }
