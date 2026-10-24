@@ -239,6 +239,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Button Content="Consultar recaudación" Click="ConsultarReporte_Click"/>
                             <Button Content="Exportar Excel (.xlsx)" Click="ExportarExcel_Click"/>
+                            <Button Content="Exportar PDF (.pdf)" Click="ExportarPdf_Click"/>
                         </StackPanel>
                         <TextBlock x:Name="ReporteTotalesText" TextWrapping="Wrap" FontWeight="SemiBold"/>
                         <ListView x:Name="ReporteFilasList" Width="730" MinHeight="340"
