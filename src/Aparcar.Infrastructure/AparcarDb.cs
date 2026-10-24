@@ -76,6 +76,7 @@ public sealed partial class AparcarDb
         tx.Commit();
         InicializarTickets();
         InicializarFinanzas();
+        InicializarV4();
     }
 
     public static string NormalizarPatente(string texto)
