@@ -14,7 +14,7 @@ function Invoke-Dotnet {
     if ($LASTEXITCODE -ne 0) { throw "Fallo dotnet $($Arguments -join ' ') (codigo $LASTEXITCODE)." }
 }
 
-if (-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') {
+if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) {
     throw 'Esta solución WinUI 3 se prepara en Windows, no Linux/macOS.'
 }
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
