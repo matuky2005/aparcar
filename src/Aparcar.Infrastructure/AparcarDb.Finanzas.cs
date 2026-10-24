@@ -157,6 +157,7 @@ public sealed partial class AparcarDb
 
     public List<TarifaOperativa> ListarTarifas()
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db = Abrir();
         var lista = new List<TarifaOperativa>();
         foreach (var tipo in new[] {"Auto","Moto","Camioneta"})
@@ -167,6 +168,7 @@ public sealed partial class AparcarDb
     public TarifaOperativa CambiarTarifa(string tipo,long primera,long fraccion,
         int minutosFraccion,long tope,int cortesia)
     {
+        ExigirPermiso(PermisosAparcar.Tarifas);
         if (tipo is not ("Auto" or "Moto" or "Camioneta"))
             throw new ArgumentException("Tipo de vehículo inválido.",nameof(tipo));
         var temporal = new TarifaOperativa(0,tipo,0,primera,fraccion,minutosFraccion,tope,cortesia);
@@ -190,6 +192,7 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$cortesia",cortesia);
         cmd.Parameters.AddWithValue("$fecha",DateTimeOffset.UtcNow.ToString("O"));
         cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Tarifa.Actualizar",tipo,$"Nueva versión {actual.Version+1}");
         tx.Commit();
         return TarifaActual(db,null,tipo);
     }
@@ -224,12 +227,14 @@ public sealed partial class AparcarDb
 
     public TarifaOperativa ObtenerTarifaDeEstadia(Guid estadiaId)
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
         return TarifaDeEstadia(db,null,estadiaId);
     }
 
     public TurnoCajaOperativo? ObtenerTurnoAbierto()
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
         return LeerTurno(db,null);
     }
@@ -263,6 +268,7 @@ public sealed partial class AparcarDb
 
     public TurnoCajaOperativo AbrirTurno(string operador,long fondoCentavos)
     {
+        ExigirPermiso(PermisosAparcar.AbrirCaja);
         if(string.IsNullOrWhiteSpace(operador) || operador.Trim().Length > 80)
             throw new ArgumentException("Identificá al operador (1 a 80 caracteres).");
         if(fondoCentavos < 0)throw new ArgumentOutOfRangeException(nameof(fondoCentavos));
@@ -281,12 +287,14 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$fecha",DateTimeOffset.UtcNow.ToString("O"));
         cmd.Parameters.AddWithValue("$fondo",fondoCentavos);
         cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Caja.Abrir",operador.Trim(),$"Fondo inicial {fondoCentavos} centavos");
         tx.Commit();
         return LeerTurno(db,null)!;
     }
 
     public ArqueoCierre CerrarTurno(Guid turnoId,long contadoCentavos)
     {
+        ExigirPermiso(PermisosAparcar.CerrarCaja);
         if(contadoCentavos < 0)throw new ArgumentOutOfRangeException(nameof(contadoCentavos));
         using var db=Abrir();
         using var tx=db.BeginTransaction();
@@ -308,12 +316,14 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$diferencia",diferencia);
         cmd.Parameters.AddWithValue("$id",turnoId.ToString("D"));
         if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("El turno cambió de estado.");
+        AuditarSesion(db,tx,"Caja.Cerrar",turnoId.ToString("D"),$"Esperado={abierto.EsperadoCentavos}; contado={contadoCentavos}; diferencia={diferencia}");
         tx.Commit();
         return new ArqueoCierre(turnoId,abierto.EsperadoCentavos,contadoCentavos,diferencia,ahora);
     }
 
     public CotizacionOperativa CotizarSalida(Guid estadiaId)
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
         return CotizarSalidaInterno(db,null,estadiaId,DateTimeOffset.UtcNow);
     }
@@ -350,6 +360,7 @@ public sealed partial class AparcarDb
     public CobroEfectivoConfirmado ConfirmarEfectivo(
         CotizacionOperativa cotizacion,long entregadoCentavos,Guid claveOperacion)
     {
+        ExigirPermiso(PermisosAparcar.Cobro);
         var confirmado=ConfirmarPago(cotizacion,MediosPago.Efectivo,
             entregadoCentavos,"",false,claveOperacion);
         return new CobroEfectivoConfirmado(confirmado.Id,confirmado.EstadiaId,
@@ -364,6 +375,7 @@ public sealed partial class AparcarDb
 
     public List<CobroListado> ListarCobros(int max=100)
     {
+        ExigirPermiso(PermisosAparcar.Reportes);
         if(max is < 1 or > 1000)throw new ArgumentOutOfRangeException(nameof(max));
         using var db=Abrir();
         using var cmd=db.CreateCommand();
