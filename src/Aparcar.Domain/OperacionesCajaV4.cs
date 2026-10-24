@@ -33,7 +33,8 @@ public sealed record ResumenCajaV4(
 
 public sealed record LineaRecaudacion(
     long Ticket, string Patente, string MedioPago, long ImporteCentavos,
-    DateTimeOffset FechaUtc, string Operador, bool Devuelto);
+    DateTimeOffset FechaUtc, string Operador, bool Devuelto,
+    string Origen = "Estacionamiento");
 
 public sealed record ResumenRecaudacion(
     long CobrosBrutosCentavos, long DevolucionesCentavos,
