@@ -209,6 +209,7 @@ public sealed partial class MainWindow : Window
 
     private void Mostrar(string pantalla)
     {
+        if(_db is null)return;
         if(_db.SesionActual is null)
         {
             if(Navegacion.Visibility==Visibility.Visible)BloquearInterfaz();
@@ -498,12 +499,18 @@ public sealed partial class MainWindow : Window
             MovimientosCajaList.ItemsSource=_db.ListarMovimientosManuales(30).Select(m=>
                 $"{m.FechaUtc.ToLocalTime():dd/MM HH:mm} · {m.Tipo} · {Dinero(m.ImporteCentavos)} · {m.Motivo}").ToList();
             CobrosDevolucionCombo.Items.Clear();
-            foreach(var c in _db.CobrosEfectivoParaDevolver(100).Where(c=>!c.Devuelto))
-                CobrosDevolucionCombo.Items.Add(new ComboBoxItem{
-                    Content=$"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
-                    Tag=c.Id.ToString("D")
-                });
-            CrearPinButton.IsEnabled=!_db.ExistePinSupervisor();
+            var rol=_db.SesionActual?.Rol??"";
+            var puedeDevolver=RolesAparcar.Permite(rol,PermisosAparcar.Devolucion);
+            CobrosDevolucionCombo.IsEnabled=puedeDevolver;
+            if(puedeDevolver)
+                foreach(var c in _db.CobrosEfectivoParaDevolver(100).Where(c=>!c.Devuelto))
+                    CobrosDevolucionCombo.Items.Add(new ComboBoxItem{
+                        Content=$"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
+                        Tag=c.Id.ToString("D")
+                    });
+            CrearPinButton.IsEnabled=
+                RolesAparcar.Permite(rol,PermisosAparcar.Usuarios) &&
+                !_db.ExistePinSupervisor();
         }
         catch (Exception ex) { Mensaje.Text = "Error al cargar caja: "+ex.Message; }
     }
@@ -794,6 +801,23 @@ public sealed partial class MainWindow : Window
     }
 
     private void ConsultarReporte_Click(object sender,RoutedEventArgs e) => ConsultarReporteActual();
+
+    private void ExportarPdf_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Reportes);
+            var rango=FechasReporte();
+            var informe=_db.ReporteRecaudacion(rango.Desde,rango.Hasta);
+            var destino=ExportadorPdf.Guardar(informe,rango.DiaInicio,rango.DiaFin);
+            RutaReporteText.Text="PDF generado: "+destino;
+            Mensaje.Text="Reporte PDF generado correctamente.";
+        }
+        catch(Exception ex)
+        {
+            Mensaje.Text="No se pudo generar PDF: "+ex.Message;
+        }
+    }
 
     private void ExportarExcel_Click(object sender,RoutedEventArgs e)
     {
