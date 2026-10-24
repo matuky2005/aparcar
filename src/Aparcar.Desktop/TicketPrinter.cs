@@ -32,6 +32,54 @@ internal static class TicketPrinter
         documento.Print();
     }
 
+    /// <summary>Recibo no fiscal: acredita un cobro confirmado por el operador.</summary>
+    public static void ImprimirCobro(CobroEfectivoConfirmado cobro,string impresora,int anchoMm)
+    {
+        if (string.IsNullOrWhiteSpace(impresora))
+            throw new InvalidOperationException("Seleccioná una impresora en Configuración.");
+        using var documento=new PrintDocument();
+        documento.PrinterSettings.PrinterName=impresora;
+        if(!documento.PrinterSettings.IsValid)
+            throw new InvalidOperationException("La impresora no está disponible en Windows.");
+        int ancho=anchoMm==58 ? 228 : 315;
+        documento.DocumentName=$"Aparcar cobro {cobro.Ticket:D7}";
+        documento.PrintController=new StandardPrintController();
+        documento.DefaultPageSettings.PaperSize=new PaperSize("Recibo Aparcar",ancho,550);
+        documento.DefaultPageSettings.Margins=new Margins(0,0,0,0);
+        documento.PrintPage+=(_,e)=>
+        {
+            if(e.Graphics is null)throw new InvalidOperationException("No se puede dibujar el recibo.");
+            var g=e.Graphics;
+            g.PageUnit=GraphicsUnit.Display;
+            g.TranslateTransform(-e.PageSettings.HardMarginX,-e.PageSettings.HardMarginY);
+            g.Clear(Color.White);
+            using var t=new Font("Arial",14f,FontStyle.Bold);
+            using var b=new Font("Arial",10f,FontStyle.Bold);
+            using var n=new Font("Arial",9f,FontStyle.Regular);
+            using var c=new StringFormat { Alignment=StringAlignment.Center };
+            float y=15;
+            void Linea(string valor,Font fuente,int altura=26,bool centrado=false)
+            {
+                g.DrawString(valor,fuente,Brushes.Black,new RectangleF(12,y,ancho-24,altura),
+                    centrado?c:StringFormat.GenericDefault);
+                y+=altura;
+            }
+            Linea("APARCAR",t,34,true);
+            Linea("COMPROBANTE NO FISCAL",b,30,true);
+            Linea($"TICKET #{cobro.Ticket:D7}",b);
+            Linea($"FECHA: {cobro.FechaUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}",n);
+            Linea("MEDIO: EFECTIVO",n);
+            Linea($"TOTAL: {(cobro.ImporteCentavos/100m):N2}",b);
+            Linea($"RECIBIDO: {(cobro.EfectivoRecibidoCentavos/100m):N2}",n);
+            Linea($"VUELTO: {(cobro.VueltoCentavos/100m):N2}",b);
+            y+=8;
+            Linea("Gracias por su visita.",n,25,true);
+            Linea("No reemplaza factura ni ticket fiscal.",n,30,true);
+            e.HasMorePages=false;
+        };
+        documento.Print();
+    }
+
     private static void PintarIngreso(PrintPageEventArgs e, TicketIngreso ticket, int ancho)
     {
         if (e.Graphics is null) throw new InvalidOperationException("El controlador no generó superficie de impresión.");
