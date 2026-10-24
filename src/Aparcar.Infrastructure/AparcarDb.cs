@@ -79,6 +79,7 @@ public sealed partial class AparcarDb
         InicializarV4();
         InicializarSeguridad();
         InicializarModulos();
+        InicializarV7();
     }
 
     public static string NormalizarPatente(string texto)
