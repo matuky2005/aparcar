@@ -17,6 +17,8 @@ public sealed class TicketsTests
         {
             var db = new AparcarDb(Path.Combine(dir,"aparcar.db"));
             db.Inicializar();
+            db.CrearAdministradorInicial("AdminPrueba", "ClavePrueba123");
+            db.IniciarSesion("AdminPrueba", "ClavePrueba123");
             var n1 = db.RegistrarIngreso("AA111AA", "Auto", "General");
             var n2 = db.RegistrarIngreso("BB222BB", "Moto", "General");
             var t1 = db.ObtenerTicket(n1);
@@ -61,6 +63,8 @@ public sealed class TicketsTests
             }
             var data = new AparcarDb(ruta);
             data.Inicializar();
+            data.CrearAdministradorInicial("AdminPrueba", "ClavePrueba123");
+            data.IniciarSesion("AdminPrueba", "ClavePrueba123");
             var ticket = data.ObtenerTicket(1);
             Assert.Equal("AF123BC",ticket.Patente);
             Assert.Equal(48,ticket.TokenQr.Length);
