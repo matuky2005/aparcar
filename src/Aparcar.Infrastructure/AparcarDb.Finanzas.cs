@@ -21,7 +21,7 @@ public sealed partial class AparcarDb
             yaMigrado = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) == 1;
         }
         // Respaldo coherente antes de tocar bases de versiones anteriores.
-        if (!yaMigrado) CrearRespaldo();
+        if (!yaMigrado) CrearRespaldoInterno();
 
         using var conexion = Abrir();
         using var tx = conexion.BeginTransaction();
