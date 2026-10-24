@@ -869,7 +869,7 @@ public sealed partial class MainWindow : Window
                 $"Devoluciones {Dinero(datos.DevolucionesCentavos)} · Neto {Dinero(datos.CobrosNetosCentavos)}\n" +
                 $"Efectivo neto {Dinero(datos.EfectivoCentavos)} · Electrónicos {Dinero(datos.ElectronicosCentavos)}";
             ReporteFilasList.ItemsSource=datos.Lineas.Select(x=>
-                $"{x.FechaUtc.ToLocalTime():dd/MM HH:mm} · #{x.Ticket:D7} · {x.Patente} · " +
+                $"{x.FechaUtc.ToLocalTime():dd/MM HH:mm} · {x.Origen} #{x.Ticket:D7} · {x.Patente} · " +
                 $"{x.MedioPago} · {Dinero(x.ImporteCentavos)} · {x.Operador}").ToList();
             RutaReporteText.Text="";
         }
