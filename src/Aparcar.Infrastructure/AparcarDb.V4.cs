@@ -92,11 +92,17 @@ public sealed partial class AparcarDb
             SELECT COALESCE(SUM(p.ImporteCentavos),0) FROM CobrosCaja p
             JOIN CobroMedios m ON m.CobroId=p.Id
             WHERE p.TurnoCajaId=$turno AND m.MedioPago='Efectivo'
+            """,id) + ScalarLong(db,tx,"""
+            SELECT COALESCE(SUM(ImporteCentavos),0) FROM CobrosComplementarios
+            WHERE TurnoCajaId=$turno AND MedioPago='Efectivo'
             """,id);
         long electronic=ScalarLong(db,tx,"""
             SELECT COALESCE(SUM(p.ImporteCentavos),0) FROM CobrosCaja p
             JOIN CobroMedios m ON m.CobroId=p.Id
             WHERE p.TurnoCajaId=$turno AND m.MedioPago!='Efectivo'
+            """,id) + ScalarLong(db,tx,"""
+            SELECT COALESCE(SUM(ImporteCentavos),0) FROM CobrosComplementarios
+            WHERE TurnoCajaId=$turno AND MedioPago!='Efectivo'
             """,id);
         long deposits=ScalarLong(db,tx,"""
             SELECT COALESCE(SUM(ImporteCentavos),0) FROM MovimientosManuales
@@ -220,6 +226,7 @@ public sealed partial class AparcarDb
         var fecha=DateTimeOffset.UtcNow;
         if(fecha>cotizacion.VenceUtc)throw new InvalidOperationException("La cotización venció.");
         var vigente=CotizarSalidaInterno(db,tx,cotizacion.EstadiaId,fecha);
+        VerificarLavadoAntesSalida(db,tx,cotizacion.EstadiaId);
         if(vigente.ImporteCentavos!=cotizacion.ImporteCentavos ||
            vigente.TarifaVersion!=cotizacion.TarifaVersion)
             throw new InvalidOperationException("El precio cambió. Volvé a cotizar.");
