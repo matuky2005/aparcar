@@ -589,6 +589,14 @@ public sealed partial class MainWindow : Window
                         Content=$"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
                         Tag=c.Id.ToString("D")
                     });
+            DevolucionComplementoCombo.Items.Clear();
+            DevolucionComplementoCombo.IsEnabled=puedeDevolver;
+            if(puedeDevolver)
+                foreach(var c in _db.ListarComplementosReembolsables())
+                    DevolucionComplementoCombo.Items.Add(new ComboBoxItem{
+                        Content=$"{c.Categoria} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
+                        Tag=c.CobroId.ToString("D")
+                    });
             CrearPinButton.IsEnabled=
                 RolesAparcar.Permite(rol,PermisosAparcar.Usuarios) &&
                 !_db.ExistePinSupervisor();
@@ -999,12 +1007,12 @@ public sealed partial class MainWindow : Window
             foreach(var plan in _planesAbono)
                 AbPlanesCombo.Items.Add(new ComboBoxItem
                 {
-                    Content=$"{plan.Nombre} · {plan.TipoVehiculo} · {plan.Periodicidad} · {Dinero(plan.PrecioCentavos)}",
+                    Content=$"{plan.Nombre} · {plan.TipoVehiculo} · {plan.Periodicidad} / {plan.Modalidad} · {Dinero(plan.PrecioCentavos)}",
                     Tag=plan.Id.ToString("D")
                 });
             _contratosAbono=_db.ListarContratosAbono();
             AbContratosList.ItemsSource=_contratosAbono.Select(c=>
-                $"{c.Cliente} · {c.Patente} · {c.PlanNombre} · {c.Estado}" +
+                $"{c.Cliente} · {c.Patente} · {c.PlanNombre} / {c.Modalidad} · {c.Estado}" +
                 (c.FinUtc is null?" · Sin cobertura":$" · Vence {c.FinUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}")).ToList();
         }
         catch(Exception ex){ Mensaje.Text="Abonados: "+ex.Message; }
@@ -1016,7 +1024,8 @@ public sealed partial class MainWindow : Window
         {
             var plan=_db.GuardarPlanAbono(AbPlanNombreInput.Text,
                 TextoCombo(AbPlanTipoCombo),TextoCombo(AbPlanPeriodoCombo),
-                LeerImporte(AbPlanPrecioInput.Text));
+                LeerImporte(AbPlanPrecioInput.Text),
+                (AbPlanModalidadCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??ModalidadesAbono.Completa);
             Mensaje.Text=$"Plan {plan.Nombre} v{plan.Version} creado.";
             RefrescarAbonados();
         }
@@ -1043,6 +1052,91 @@ public sealed partial class MainWindow : Window
         if(indice<0 || indice>=_contratosAbono.Count)
             throw new ArgumentException("Seleccioná un contrato.");
         return _contratosAbono[indice];
+    }
+
+
+    private void AbContratosList_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(AbVehiculosText is null || AbContratosList.SelectedIndex<0 ||
+           AbContratosList.SelectedIndex>=_contratosAbono.Count)return;
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            var vehiculos=_db.ListarVehiculosAbono(contrato.Id);
+            AbVehiculosText.Text="Patentes autorizadas: "+string.Join(", ",vehiculos.Select(v=>v.Patente));
+        }
+        catch(Exception ex){AbVehiculosText.Text="No se pudo listar patentes: "+ex.Message;}
+    }
+
+    private void AgregarPatenteAbono_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            _db.AgregarVehiculoAbono(contrato.Id,AbPatenteExtraInput.Text);
+            Mensaje.Text="Patente añadida al contrato pendiente.";
+            AbContratosList_SelectionChanged(sender,new SelectionChangedEventArgs(
+                System.Collections.Generic.Array.Empty<object>(),System.Collections.Generic.Array.Empty<object>()));
+        }
+        catch(Exception ex){Mensaje.Text="No se agregó la patente: "+ex.Message;}
+    }
+
+    private void QuitarPatenteAbono_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            _db.QuitarVehiculoAbono(contrato.Id,AbPatenteExtraInput.Text);
+            Mensaje.Text="Patente quitada del contrato pendiente.";
+            AbContratosList_SelectionChanged(sender,new SelectionChangedEventArgs(
+                System.Collections.Generic.Array.Empty<object>(),System.Collections.Generic.Array.Empty<object>()));
+        }
+        catch(Exception ex){Mensaje.Text="No se quitó la patente: "+ex.Message;}
+    }
+
+    private void RenovarAbono_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            if(!Guid.TryParse((AbPlanesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var planId))
+                throw new ArgumentException("Elegí el plan con el que renovarás el contrato.");
+            var renovacion=_db.CrearRenovacion(contrato.Id,planId);
+            Mensaje.Text=$"Renovación de {contrato.Patente} pendiente de cobro. Número de contrato: {renovacion.Id}.";
+            RefrescarAbonados();
+        }
+        catch(Exception ex){Mensaje.Text="No se creó la renovación: "+ex.Message;}
+    }
+
+    private async void DevolverComplemento_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            if(!Guid.TryParse((DevolucionComplementoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var cobroId))throw new ArgumentException("Elegí un cobro para devolver.");
+            var dialogo=new ContentDialog{
+                Title="Devolución completa de complemento",
+                Content="Esta acción registra una salida de efectivo y cancela el servicio o la cobertura. No se puede deshacer borrando el registro.",
+                PrimaryButtonText="Confirmar devolución",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
+            var devolucion=_db.DevolverComplementoEfectivo(cobroId,
+                DevolucionComplementoMotivoInput.Text,DevolucionComplementoSupervisorInput.Text,
+                DevolucionComplementoPin.Password);
+            Mensaje.Text=$"Devolución de {devolucion.Categoria} registrada: {Dinero(devolucion.ImporteCentavos)}.";
+            DevolucionComplementoMotivoInput.Text="";
+            DevolucionComplementoPin.Password="";
+            ActualizarCaja();
+        }
+        catch(Exception ex)
+        {
+            DevolucionComplementoPin.Password="";
+            Mensaje.Text="Devolución no registrada: "+ex.Message;
+        }
     }
 
     private void CobrarAbono_Click(object sender,RoutedEventArgs e)
