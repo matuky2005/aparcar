@@ -77,6 +77,7 @@ public sealed partial class AparcarDb
         InicializarTickets();
         InicializarFinanzas();
         InicializarV4();
+        InicializarSeguridad();
     }
 
     public static string NormalizarPatente(string texto)
@@ -88,6 +89,7 @@ public sealed partial class AparcarDb
 
     public long RegistrarIngreso(string patente, string tipoVehiculo, string? sector)
     {
+        ExigirPermiso(PermisosAparcar.Ingreso);
         var normalizada = NormalizarPatente(patente);
         if (normalizada.Length is < 3 or > 20)
             throw new ArgumentException("Ingresá una patente o identificador de 3 a 20 caracteres.");
@@ -118,6 +120,7 @@ public sealed partial class AparcarDb
             var ticket = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
             GuardarToken(db, tx, estadiaId);
             AsignarTarifaAlIngresar(db, tx, estadiaId, tipoVehiculo);
+            AuditarSesion(db,tx,"Vehiculo.Ingreso",estadiaId,$"Ticket {ticket} · {tipoVehiculo}");
             tx.Commit();
             return ticket;
         }
@@ -130,6 +133,7 @@ public sealed partial class AparcarDb
 
     public List<Estadia> ListarActivas()
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
@@ -144,6 +148,7 @@ public sealed partial class AparcarDb
 
     public Estadia? BuscarActiva(string ticketOPatente)
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         var texto = ticketOPatente?.Trim() ?? "";
         if (texto.Length == 0) return null;
         using var db = Abrir();
@@ -169,6 +174,7 @@ public sealed partial class AparcarDb
     /// </summary>
     public SalidaPrueba RegistrarSalidaPrueba(Guid estadiaId)
     {
+        ExigirPermiso(PermisosAparcar.SalidaPrueba);
         using var db = Abrir();
         using var tx = db.BeginTransaction();
         Estadia? estadia;
@@ -215,6 +221,7 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$fecha", ahora.ToString("O"));
             cmd.ExecuteNonQuery();
         }
+        AuditarSesion(db,tx,"Vehiculo.SalidaPrueba",estadiaId.ToString("D"),$"Importe ficticio {importe} centavos");
         tx.Commit();
         return new SalidaPrueba(estadia.Ticket, estadia.Patente, importe, ahora);
     }
