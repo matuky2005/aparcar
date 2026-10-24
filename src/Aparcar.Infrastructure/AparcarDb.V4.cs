@@ -117,6 +117,7 @@ public sealed partial class AparcarDb
 
     public ResumenCajaV4? ObtenerResumenCaja()
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
         return ResumenInterno(db,null);
     }
@@ -124,6 +125,7 @@ public sealed partial class AparcarDb
     public MovimientoCajaManual RegistrarMovimientoManual(
         string tipo,long importeCentavos,string motivo,string operador)
     {
+        ExigirPermiso(PermisosAparcar.MovimientosCaja);
         if(tipo is not ("Deposito" or "Retiro"))throw new ArgumentException("Tipo de movimiento inválido.");
         if(importeCentavos<=0)throw new ArgumentOutOfRangeException(nameof(importeCentavos));
         if(string.IsNullOrWhiteSpace(motivo) || motivo.Trim().Length<5 || motivo.Length>300)
@@ -151,12 +153,14 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$operador",operador.Trim());
         cmd.Parameters.AddWithValue("$fecha",fecha.ToString("O"));
         cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Caja.Movimiento",id.ToString("D"),$"{tipo} {importeCentavos}; motivo {motivo.Trim()}");
         tx.Commit();
         return new MovimientoCajaManual(id,resumen.TurnoId,tipo,importeCentavos,motivo.Trim(),operador.Trim(),fecha);
     }
 
     public List<MovimientoCajaManual> ListarMovimientosManuales(int max=80)
     {
+        ExigirPermiso(PermisosAparcar.Reportes);
         using var db=Abrir();
         using var cmd=db.CreateCommand();
         cmd.CommandText="""
@@ -180,6 +184,7 @@ public sealed partial class AparcarDb
         CotizacionOperativa cotizacion,string medio,long entregadoCentavos,
         string referencia,bool comprobanteVerificado,Guid claveOperacion)
     {
+        ExigirPermiso(PermisosAparcar.Cobro);
         if(!MediosPago.EsValido(medio))throw new ArgumentException("Medio de pago inválido.");
         if(claveOperacion==Guid.Empty)throw new ArgumentException("Se necesita una clave única.");
         var efectivo=medio==MediosPago.Efectivo;
@@ -285,6 +290,7 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$id",cotizacion.EstadiaId.ToString("D"));
             if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("La estadía ya estaba cerrada.");
         }
+        AuditarSesion(db,tx,"Caja.Cobro",cobroId.ToString("D"),$"Medio={medio}; importe={vigente.ImporteCentavos}; ticket={vigente.Ticket}");
         tx.Commit();
         return new CobroConfirmadoV4(cobroId,cotizacion.EstadiaId,vigente.Ticket,medio,
             vigente.ImporteCentavos,entregadoCentavos,vuelto,efectivo?"":referencia.Trim(),fecha);
@@ -297,12 +303,14 @@ public sealed partial class AparcarDb
 
     public bool ExistePinSupervisor()
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
         return ScalarLong(db,null,"SELECT COUNT(*) FROM AutorizacionLocalCaja WHERE Clave='Supervisor'")>0;
     }
 
     public void ConfigurarPinSupervisorInicial(string pin)
     {
+        ExigirPermiso(PermisosAparcar.Usuarios);
         if(pin is null || pin.Length<6 || pin.Length>12 || !pin.All(char.IsDigit))
             throw new ArgumentException("El PIN debe tener de 6 a 12 dígitos.");
         using var db=Abrir();
@@ -319,7 +327,7 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$salt",salt);
         cmd.Parameters.AddWithValue("$hash",hash);
         cmd.Parameters.AddWithValue("$iteraciones",iteraciones);
-        try { cmd.ExecuteNonQuery(); tx.Commit(); }
+        try { cmd.ExecuteNonQuery(); AuditarSesion(db,tx,"Supervisor.PinInicial","Caja","PIN configurado"); tx.Commit(); }
         catch(SqliteException ex) when(ex.SqliteErrorCode==19)
         { throw new InvalidOperationException("El PIN ya está configurado.",ex); }
     }
@@ -343,6 +351,7 @@ public sealed partial class AparcarDb
     public DevolucionEfectivo DevolverCobroEfectivo(
         Guid cobroId,string motivo,string autorizador,string pin)
     {
+        ExigirPermiso(PermisosAparcar.Devolucion);
         if(string.IsNullOrWhiteSpace(motivo) || motivo.Trim().Length<8 || motivo.Length>300)
             throw new ArgumentException("Explicá el motivo (mínimo 8 caracteres).");
         if(string.IsNullOrWhiteSpace(autorizador) || autorizador.Trim().Length>80)
@@ -387,12 +396,14 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$fecha",ahora.ToString("O"));
             cmd.ExecuteNonQuery();
         }
+        AuditarSesion(db,tx,"Caja.Devolucion",cobroId.ToString("D"),$"Importe={importe}; autorizador={autorizador.Trim()}; motivo={motivo.Trim()}");
         tx.Commit();
         return new DevolucionEfectivo(id,cobroId,turno.TurnoId,ticket,importe,motivo.Trim(),autorizador.Trim(),ahora);
     }
 
     public List<(Guid Id,long Ticket,string Patente,long ImporteCentavos,bool Devuelto)> CobrosEfectivoParaDevolver(int max=100)
     {
+        ExigirPermiso(PermisosAparcar.Devolucion);
         using var db=Abrir();
         using var cmd=db.CreateCommand();
         cmd.CommandText="""
@@ -412,6 +423,7 @@ public sealed partial class AparcarDb
 
     public ResumenRecaudacion ReporteRecaudacion(DateTimeOffset desdeUtc,DateTimeOffset hastaUtc)
     {
+        ExigirPermiso(PermisosAparcar.Reportes);
         if(hastaUtc<=desdeUtc)throw new ArgumentException("El período final debe ser posterior al inicial.");
         using var db=Abrir();
         using var cmd=db.CreateCommand();
