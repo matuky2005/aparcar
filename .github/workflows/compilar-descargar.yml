@@ -3,6 +3,8 @@ name: Aparcar - Validacion manual sin artefactos
 # Sin ejecuciones por push y sin publicar ZIP/MSIX.
 # Se habilitará publicación solamente para un hito importante.
 on:
+  push:
+    branches: ["feature/base-winui-sqlite-v0.1"]
   workflow_dispatch:
 
 permissions:
