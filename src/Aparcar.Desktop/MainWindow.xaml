@@ -25,13 +25,13 @@
                 <NavigationViewItem Content="Salida (prueba)" Tag="salida" Icon="Forward"/>
                 <NavigationViewItem Content="Vehículos presentes" Tag="presentes" Icon="List"/>
                 <NavigationViewItem Content="Tarifas demo" Tag="tarifas" Icon="Calculator"/>
-                <NavigationViewItem Content="Caja" Tag="caja" Icon="View"/>
+                <NavigationViewItem Content="Caja" Tag="caja" Icon="Library"/>
                 <NavigationViewItem Content="Lavadero" Tag="lavadero" Icon="Setting"/>
                 <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
                 <NavigationViewItem Content="Reportes" Tag="reportes" Icon="Document"/>
                 <NavigationViewItem Content="Configuración" Tag="config" Icon="Setting"/>
             </NavigationView.MenuItems>
-            <Grid Padding="24">
+            <Grid Margin="24">
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
