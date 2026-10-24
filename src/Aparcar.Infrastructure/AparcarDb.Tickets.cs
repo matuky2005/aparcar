@@ -75,6 +75,7 @@ public sealed partial class AparcarDb
 
     public TicketIngreso ObtenerTicket(long numero)
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
@@ -97,6 +98,7 @@ public sealed partial class AparcarDb
 
     public void RegistrarImpresion(Guid estadiaId, string impresora, bool enviado, string detalle)
     {
+        ExigirPermiso(PermisosAparcar.Impresion);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
@@ -114,6 +116,7 @@ public sealed partial class AparcarDb
 
     public string? ObtenerPreferencia(string clave)
     {
+        ExigirPermiso(PermisosAparcar.Consulta);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = "SELECT Valor FROM PreferenciasDispositivos WHERE Clave=$clave";
@@ -123,6 +126,7 @@ public sealed partial class AparcarDb
 
     public void GuardarPreferencia(string clave, string valor)
     {
+        ExigirPermiso(PermisosAparcar.Usuarios);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
