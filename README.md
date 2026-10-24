@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.5 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.6 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,36 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.6: Lavadero y Abonados
+
+Sin generar ZIP/MSIX ni publicar versiones instalables, se incorporan nuevos módulos a la misma base SQLite.
+
+### Lavadero
+- Catálogo de servicios por clase de vehículo, con **precios versionados**. Las órdenes existentes conservan su precio original.
+- Órdenes independientes o vinculadas a una estadía activa (misma patente y clase).
+- Operario, observaciones e historial de estados: pendiente → en proceso → terminado → entregado. Cancelación solo antes de iniciar, y nunca de una orden cobrada.
+- Cobros separados del estacionamiento; efectivo o medios externos manualmente verificados. **No se cobra dos veces** una misma orden.
+- Una salida vinculada se bloquea mientras el lavado no esté pagado y entregado.
+
+### Abonados
+- Planes completos **24 horas** semanales, quincenales o mensuales, con versiones históricas.
+- Cada contrato comienza **pendiente y sin cobertura**. Pasa a activo exclusivamente después de registrar un cobro en una caja abierta.
+- Cobertura por patente/tipo, desde la activación hasta el vencimiento; sin retroactividad y sin solapamientos vigentes.
+- Al salir, solo se descuenta el estacionamiento cuando el abono cubre **todo** el período de la estadía. Si vence durante esa estadía, se aplica la tarifa normal; la facturación parcial por franjas se diseñará posteriormente.
+- Renovación por nuevo contrato al terminar la vigencia anterior; todavía no admite flotas, plaza reservada ni planes nocturnos.
+
+### Caja y reportes
+- Un solo cobro complementario por orden/contrato, con clave de operación idempotente.
+- Los ingresos en efectivo de ambos módulos suman al efectivo esperado, y los electrónicos solo al total de otros medios.
+- Recaudación Excel/PDF registra origen Estacionamiento/Lavadero/Abono, sin mezclar conceptos.
+- Migración de esquema v6 con respaldo SQLite previo. Sin borrar operaciones anteriores.
+
+**Limitaciones de v0.6:** los medios externos siguen siendo una verificación **declarada** por el empleado; aún faltan devoluciones de cobros complementarios, renovaciones prorrateadas, facturación fiscal, eventos antifraude y pruebas reales de impresora. No utilizar con dinero de clientes.
+
+### Validación sin artefactos
+
+Se mantiene una sola tarea de validación manual en GitHub Actions. No produce ni sube paquetes. Las versiones descargables se reanudarán únicamente cuando lleguemos a un hito importante.
 
 ## Funcionalidad implementada (rama de trabajo)
 
