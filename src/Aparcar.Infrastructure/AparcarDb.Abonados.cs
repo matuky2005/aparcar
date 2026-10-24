@@ -8,7 +8,7 @@ namespace Aparcar.Infrastructure;
 
 public sealed partial class AparcarDb
 {
-    public PlanAbono GuardarPlanAbono(string nombre,string tipo,string periodicidad,long precioCentavos)
+    public PlanAbono GuardarPlanAbono(string nombre,string tipo,string periodicidad,long precioCentavos,string modalidad="Completa")
     {
         ExigirPermiso(PermisosAparcar.AbonosAdministrar);
         if(string.IsNullOrWhiteSpace(nombre)||nombre.Trim().Length is < 3 or > 80)
@@ -16,6 +16,7 @@ public sealed partial class AparcarDb
         if(!TipoHabilitado(tipo))throw new ArgumentException("Tipo de vehículo inválido.");
         _=PeriodicidadesAbono.CalcularVencimiento(DateTimeOffset.UtcNow,periodicidad);
         if(precioCentavos<0)throw new ArgumentOutOfRangeException(nameof(precioCentavos));
+        if(!ModalidadesAbono.EsValida(modalidad))throw new ArgumentException("Modalidad inválida.");
         var limpio=nombre.Trim();
         using var db=Abrir();using var tx=db.BeginTransaction();
         int version;
@@ -49,8 +50,8 @@ public sealed partial class AparcarDb
             cmd.Transaction=tx;
             cmd.CommandText="""
                 INSERT INTO PlanesAbono(Id,Nombre,TipoVehiculo,Periodicidad,
-                    Version,PrecioCentavos,Activo,CreadoUtc)
-                VALUES($id,$nombre,$tipo,$periodo,$version,$precio,1,$fecha);
+                    Version,PrecioCentavos,Activo,CreadoUtc,Modalidad)
+                VALUES($id,$nombre,$tipo,$periodo,$version,$precio,1,$fecha,$modalidad);
                 """;
             cmd.Parameters.AddWithValue("$id",id.ToString("D"));
             cmd.Parameters.AddWithValue("$nombre",limpio);
@@ -58,13 +59,14 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$periodo",periodicidad);
             cmd.Parameters.AddWithValue("$version",version);
             cmd.Parameters.AddWithValue("$precio",precioCentavos);
+            cmd.Parameters.AddWithValue("$modalidad",modalidad);
             cmd.Parameters.AddWithValue("$fecha",Fecha(DateTimeOffset.UtcNow));
             cmd.ExecuteNonQuery();
         }
         AuditarSesion(db,tx,"Abono.PlanVersion",id.ToString("D"),
             $"Plan={limpio}; tipo={tipo}; período={periodicidad}; v={version}; precio={precioCentavos}");
         tx.Commit();
-        return new PlanAbono(id,limpio,tipo,periodicidad,version,precioCentavos,true);
+        return new PlanAbono(id,limpio,tipo,periodicidad,version,precioCentavos,true,modalidad);
     }
 
     public List<PlanAbono> ListarPlanesAbono(bool activos=true)
@@ -72,7 +74,7 @@ public sealed partial class AparcarDb
         ExigirPermiso(PermisosAparcar.AbonosConsultar);
         using var db=Abrir();using var cmd=db.CreateCommand();
         cmd.CommandText="""
-            SELECT Id,Nombre,TipoVehiculo,Periodicidad,Version,PrecioCentavos,Activo
+            SELECT Id,Nombre,TipoVehiculo,Periodicidad,Version,PrecioCentavos,Activo,Modalidad
             FROM PlanesAbono WHERE ($todos=1 OR Activo=1)
             ORDER BY Nombre,Version DESC;
             """;
@@ -80,7 +82,7 @@ public sealed partial class AparcarDb
         using var r=cmd.ExecuteReader();
         var lista=new List<PlanAbono>();
         while(r.Read())lista.Add(new PlanAbono(Guid.Parse(r.GetString(0)),r.GetString(1),
-            r.GetString(2),r.GetString(3),r.GetInt32(4),r.GetInt64(5),r.GetInt32(6)!=0));
+            r.GetString(2),r.GetString(3),r.GetInt32(4),r.GetInt64(5),r.GetInt32(6)!=0,r.GetString(7)));
         return lista;
     }
 
@@ -92,19 +94,19 @@ public sealed partial class AparcarDb
         var plate=NormalizarPatente(patente);
         if(plate.Length is < 3 or > 20)throw new ArgumentException("Patente inválida.");
         using var db=Abrir();using var tx=db.BeginTransaction();
-        string nombre,tipo,periodo;long precio;
+        string nombre,tipo,periodo,modalidad;long precio;
         using(var cmd=db.CreateCommand())
         {
             cmd.Transaction=tx;
             cmd.CommandText="""
-                SELECT Nombre,TipoVehiculo,Periodicidad,PrecioCentavos FROM PlanesAbono
+                SELECT Nombre,TipoVehiculo,Periodicidad,PrecioCentavos,Modalidad FROM PlanesAbono
                 WHERE Id=$id AND Activo=1;
                 """;
             cmd.Parameters.AddWithValue("$id",planId.ToString("D"));
             using var r=cmd.ExecuteReader();
             if(!r.Read())throw new InvalidOperationException("El plan no está vigente.");
             nombre=r.GetString(0);tipo=r.GetString(1);
-            periodo=r.GetString(2);precio=r.GetInt64(3);
+            periodo=r.GetString(2);precio=r.GetInt64(3);modalidad=r.GetString(4);
         }
         // No se crean contratos pendientes duplicados para un mismo plan/vehículo.
         using(var cmd=db.CreateCommand())
@@ -125,9 +127,9 @@ public sealed partial class AparcarDb
             cmd.Transaction=tx;
             cmd.CommandText="""
                 INSERT INTO ContratosAbono(Id,Cliente,Patente,PlanId,PlanNombre,TipoVehiculo,
-                    Periodicidad,PrecioCentavos,InicioUtc,FinUtc,Estado,ReferenciaCobro,CreadoUtc)
+                    Periodicidad,PrecioCentavos,InicioUtc,FinUtc,Estado,ReferenciaCobro,CreadoUtc,Modalidad)
                 VALUES($id,$cliente,$patente,$plan,$nombre,$tipo,$periodo,$precio,
-                    NULL,NULL,'Pendiente','',$fecha);
+                    NULL,NULL,'Pendiente','',$fecha,$modalidad);
                 """;
             cmd.Parameters.AddWithValue("$id",id.ToString("D"));
             cmd.Parameters.AddWithValue("$cliente",cliente.Trim());
@@ -137,26 +139,36 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$tipo",tipo);
             cmd.Parameters.AddWithValue("$periodo",periodo);
             cmd.Parameters.AddWithValue("$precio",precio);
+            cmd.Parameters.AddWithValue("$modalidad",modalidad);
             cmd.Parameters.AddWithValue("$fecha",Fecha(DateTimeOffset.UtcNow));
+            cmd.ExecuteNonQuery();
+        }
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="INSERT INTO AbonoVehiculos(ContratoId,Patente,TipoVehiculo) VALUES($id,$patente,$tipo)";
+            cmd.Parameters.AddWithValue("$id",id.ToString("D"));
+            cmd.Parameters.AddWithValue("$patente",plate);
+            cmd.Parameters.AddWithValue("$tipo",tipo);
             cmd.ExecuteNonQuery();
         }
         AuditarSesion(db,tx,"Abono.ContratoPendiente",id.ToString("D"),
             $"Cliente={cliente.Trim()}; patente={plate}; plan={nombre}");
         tx.Commit();
         return new ContratoAbono(id,cliente.Trim(),plate,planId,nombre,tipo,periodo,
-            precio,null,null,"Pendiente","");
+            precio,null,null,"Pendiente","",modalidad);
     }
 
     private const string ColumnasContrato="""
         Id,Cliente,Patente,PlanId,PlanNombre,TipoVehiculo,Periodicidad,
-        PrecioCentavos,InicioUtc,FinUtc,Estado,ReferenciaCobro
+        PrecioCentavos,InicioUtc,FinUtc,Estado,ReferenciaCobro,Modalidad
         """;
 
     private static ContratoAbono LeerContrato(SqliteDataReader r) => new(
         Guid.Parse(r.GetString(0)),r.GetString(1),r.GetString(2),Guid.Parse(r.GetString(3)),
         r.GetString(4),r.GetString(5),r.GetString(6),r.GetInt64(7),
         r.IsDBNull(8)?null:ParsearFecha(r.GetString(8)),
-        r.IsDBNull(9)?null:ParsearFecha(r.GetString(9)),r.GetString(10),r.GetString(11));
+        r.IsDBNull(9)?null:ParsearFecha(r.GetString(9)),r.GetString(10),r.GetString(11),r.GetString(12));
 
     public List<ContratoAbono> ListarContratosAbono(int max=150)
     {
@@ -177,17 +189,20 @@ public sealed partial class AparcarDb
         using var cmd=db.CreateCommand();
         cmd.Transaction=tx;
         cmd.CommandText="""
-            SELECT EXISTS(
-              SELECT 1 FROM ContratosAbono WHERE Patente=$patente
-              AND TipoVehiculo=$tipo AND Estado='Activo'
-              AND InicioUtc<=$desde AND FinUtc>$hasta
-            );
+            SELECT c.Modalidad,c.InicioUtc,c.FinUtc FROM ContratosAbono c
+            JOIN AbonoVehiculos v ON v.ContratoId=c.Id
+            WHERE v.Patente=$patente AND v.TipoVehiculo=$tipo
+                AND c.Estado='Activo' AND c.InicioUtc<=$desde AND c.FinUtc>=$hasta;
             """;
-        cmd.Parameters.AddWithValue("$patente",patente);
+        cmd.Parameters.AddWithValue("$patente",NormalizarPatente(patente));
         cmd.Parameters.AddWithValue("$tipo",tipo);
         cmd.Parameters.AddWithValue("$desde",Fecha(desde));
         cmd.Parameters.AddWithValue("$hasta",Fecha(hasta));
-        return Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)==1;
+        using var r=cmd.ExecuteReader();
+        while(r.Read())
+            if(ModalidadesAbono.CubreHorario(r.GetString(0),desde,hasta))
+                return true;
+        return false;
     }
 
     public CoberturaAbono? BuscarCobertura(string patente,string tipo,DateTimeOffset fecha)
@@ -195,16 +210,21 @@ public sealed partial class AparcarDb
         ExigirPermiso(PermisosAparcar.AbonosConsultar);
         using var db=Abrir();using var cmd=db.CreateCommand();
         cmd.CommandText="""
-            SELECT Id,InicioUtc,FinUtc FROM ContratosAbono
-            WHERE Patente=$patente AND TipoVehiculo=$tipo AND Estado='Activo'
-              AND InicioUtc<=$fecha AND FinUtc>$fecha
-            ORDER BY FinUtc DESC LIMIT 1;
+            SELECT c.Id,c.InicioUtc,c.FinUtc,c.Modalidad FROM ContratosAbono c
+            JOIN AbonoVehiculos v ON v.ContratoId=c.Id
+            WHERE v.Patente=$patente AND v.TipoVehiculo=$tipo AND c.Estado='Activo'
+                AND c.InicioUtc<=$fecha AND c.FinUtc>$fecha
+            ORDER BY c.FinUtc DESC;
             """;
-        cmd.Parameters.AddWithValue("$patente",NormalizarPatente(patente));
+        var normalizada=NormalizarPatente(patente);
+        cmd.Parameters.AddWithValue("$patente",normalizada);
         cmd.Parameters.AddWithValue("$tipo",tipo);
         cmd.Parameters.AddWithValue("$fecha",Fecha(fecha));
         using var r=cmd.ExecuteReader();
-        return r.Read()?new CoberturaAbono(Guid.Parse(r.GetString(0)),NormalizarPatente(patente),
-            ParsearFecha(r.GetString(1)),ParsearFecha(r.GetString(2))):null;
+        while(r.Read())
+            if(ModalidadesAbono.CubreHorario(r.GetString(3),fecha,fecha))
+                return new CoberturaAbono(Guid.Parse(r.GetString(0)),normalizada,
+                    ParsearFecha(r.GetString(1)),ParsearFecha(r.GetString(2)));
+        return null;
     }
 }
