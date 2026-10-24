@@ -17,6 +17,8 @@ public sealed class OperacionesV4Tests
         Directory.CreateDirectory(dir);
         var db=new AparcarDb(Path.Combine(dir,"aparcar.db"));
         db.Inicializar();
+        db.CrearAdministradorInicial("AdminPrueba", "ClavePrueba123");
+        db.IniciarSesion("AdminPrueba", "ClavePrueba123");
         return(db,dir);
     }
 
@@ -135,6 +137,7 @@ public sealed class OperacionesV4Tests
             Assert.Equal(2,reporte.Lineas.Count);
             var copia=new AparcarDb(db.RutaDb);
             copia.Inicializar();
+            copia.IniciarSesion("AdminPrueba", "ClavePrueba123");
             Assert.Single(copia.CobrosEfectivoParaDevolver().Where(x=>x.Devuelto));
         }
         finally { Finalizar(dir); }
