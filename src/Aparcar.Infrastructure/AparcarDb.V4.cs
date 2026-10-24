@@ -115,6 +115,9 @@ public sealed partial class AparcarDb
         long refunds=ScalarLong(db,tx,"""
             SELECT COALESCE(SUM(ImporteCentavos),0) FROM DevolucionesCaja
             WHERE TurnoId=$turno
+            """,id) + ScalarLong(db,tx,"""
+            SELECT COALESCE(SUM(ImporteCentavos),0) FROM DevolucionesComplementarias
+            WHERE TurnoId=$turno
             """,id);
         return new ResumenCajaV4(turno.Id,turno.Operador,turno.FondoInicialCentavos,
             cash,electronic,deposits,withdrawals,refunds,
