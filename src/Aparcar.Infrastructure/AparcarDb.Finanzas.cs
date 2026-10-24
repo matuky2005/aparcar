@@ -254,6 +254,8 @@ public sealed partial class AparcarDb
                     WHERE m.TurnoId=c.Id AND m.Tipo='Retiro'),0),
                 COALESCE((SELECT SUM(d.ImporteCentavos) FROM DevolucionesCaja d
                     WHERE d.TurnoId=c.Id),0)
+                + COALESCE((SELECT SUM(d.ImporteCentavos) FROM DevolucionesComplementarias d
+                    WHERE d.TurnoId=c.Id),0)
             FROM TurnosCaja c WHERE c.Estado='Abierta' LIMIT 1;
             """;
         using var r=cmd.ExecuteReader();
