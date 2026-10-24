@@ -245,7 +245,9 @@ public sealed partial class AparcarDb
         cmd.Transaction=tx;
         cmd.CommandText="""
             SELECT c.Id,c.Operador,c.AperturaUtc,c.FondoInicialCentavos,
-                COALESCE((SELECT SUM(p.ImporteNetoCentavos) FROM MovimientosEfectivo p WHERE p.TurnoCajaId=c.Id),0),
+                COALESCE((SELECT SUM(p.ImporteNetoCentavos) FROM MovimientosEfectivo p WHERE p.TurnoCajaId=c.Id),0)
+                + COALESCE((SELECT SUM(x.ImporteCentavos) FROM CobrosComplementarios x
+                    WHERE x.TurnoCajaId=c.Id AND x.MedioPago='Efectivo'),0),
                 COALESCE((SELECT SUM(m.ImporteCentavos) FROM MovimientosManuales m
                     WHERE m.TurnoId=c.Id AND m.Tipo='Deposito'),0),
                 COALESCE((SELECT SUM(m.ImporteCentavos) FROM MovimientosManuales m
@@ -350,10 +352,11 @@ public sealed partial class AparcarDb
             inicio=DateTimeOffset.Parse(r.GetString(3),CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind);
         }
         var tarifa=TarifaDeEstadia(db,tx,estadiaId);
-        var total=MotorTarifas.CalcularCentavos(tarifa,ahora-inicio);
+        var cubierto=CoberturaDisponible(db,tx,patente,tipo,inicio,ahora);
+        var total=cubierto?0:MotorTarifas.CalcularCentavos(tarifa,ahora-inicio);
         Guid? turno=LeerTurno(db,tx)?.Id;
         return new CotizacionOperativa(estadiaId,ticket,patente,tipo,ahora,
-            ahora.AddMinutes(2),total,tarifa.Version,turno);
+            ahora.AddMinutes(2),total,tarifa.Version,turno,cubierto);
     }
 
     // Compatibilidad con el método v0.3: la lógica vive ahora en ConfirmarPago.
