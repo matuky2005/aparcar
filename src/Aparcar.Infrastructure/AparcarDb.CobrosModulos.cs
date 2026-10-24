@@ -181,4 +181,29 @@ public sealed partial class AparcarDb
         if(Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)>0)
             throw new InvalidOperationException("Hay lavados pendientes de cobrar o entregar. Resolvelos en Lavadero antes de finalizar la salida.");
     }
+    private List<LineaRecaudacion> LeerCobrosComplementarios(
+        DateTimeOffset desdeUtc,DateTimeOffset hastaUtc)
+    {
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="""
+            SELECT c.Categoria,COALESCE(l.Numero,0),
+                COALESCE(l.Patente,a.Patente),c.MedioPago,c.ImporteCentavos,
+                c.FechaUtc,c.Actor
+            FROM CobrosComplementarios c
+            LEFT JOIN OrdenesLavado l ON c.Categoria='Lavadero' AND l.Id=c.ReferenciaId
+            LEFT JOIN ContratosAbono a ON c.Categoria='Abono' AND a.Id=c.ReferenciaId
+            WHERE c.FechaUtc >= $desde AND c.FechaUtc < $hasta;
+            """;
+        cmd.Parameters.AddWithValue("$desde",Fecha(desdeUtc));
+        cmd.Parameters.AddWithValue("$hasta",Fecha(hastaUtc));
+        using var r=cmd.ExecuteReader();
+        var filas=new List<LineaRecaudacion>();
+        while(r.Read())
+            filas.Add(new LineaRecaudacion(r.GetInt64(1),r.GetString(2),
+                r.GetString(3),r.GetInt64(4),ParsearFecha(r.GetString(5)),
+                r.GetString(6),false,r.GetString(0)));
+        return filas;
+    }
+
 }
