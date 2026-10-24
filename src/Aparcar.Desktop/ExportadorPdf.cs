@@ -93,7 +93,7 @@ internal static class ExportadorPdf
         foreach(var linea in lineas)
         {
             var precio=(linea.ImporteCentavos/100m).ToString("N2",Argentina);
-            var medio=linea.Devuelto?"Devol. efectivo":linea.MedioPago;
+            var medio=linea.Devuelto?"Devol. efectivo":(linea.Origen=="Estacionamiento"?linea.MedioPago:$"{linea.Origen}/{linea.MedioPago}");
             string[] c={
                 linea.FechaUtc.ToLocalTime().ToString("dd/MM HH:mm"),
                 linea.Ticket.ToString("D7",CultureInfo.InvariantCulture),
