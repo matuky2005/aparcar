@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.6 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.7 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,21 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.7 — Abonos avanzados y devoluciones
+
+**Validación de código:** GitHub Actions [ejecución 40143983902](https://github.com/matuky2005/aparcar/actions/runs/40143983902) · **34/34 pruebas aprobadas**, compilación WinUI correcta, **sin artefactos publicados**.
+
+- **Hasta cinco vehículos por contrato** de un mismo tipo (auto, moto o camioneta). El administrador puede agregar/quitar patentes **antes de activar** el abono. Una vez cobrado queda congelada la lista de vehículos autorizados.
+- **Renovaciones anticipadas:** se crea un contrato pendiente que copia las patentes autorizadas del contrato anterior; tras pagar, comienza **al vencer la cobertura anterior**. Si ya venció, comienza desde el nuevo pago. Se comprueba que ningún vehículo tenga coberturas activas superpuestas.
+- **Planes nocturnos:** junto con modalidad 24 horas, se incorpora cobertura de **20:00 a 08:00** según el huso horario local de la PC del estacionamiento. Se bonifica el estacionamiento únicamente cuando **toda la estadía** cae dentro de una noche cubierta y del mismo contrato vigente. No hay cobros prorrateados ni división de una estadía entre dos abonos consecutivos.
+- **Devoluciones de Lavadero y Abonos:** únicamente **completas, en efectivo, con PIN del supervisor** y en caja abierta. Nunca se declara automáticamente un reembolso bancario o de tarjeta. Se bloquea la devolución de lavados entregados y de contratos de abono que registren estadías posteriores a la activación. Cada devolución se registra una sola vez, con auditoría, y cancela la orden o contrato correspondiente.
+- **Caja y reportes:** las devoluciones complementarias restan efectivo esperado y figuran como movimientos negativos en recaudación Excel/PDF por su fecha efectiva.
+- **Migración SQLite v7:** respaldo previo, copia de la patente principal de contratos antiguos, conservación de cobros, estadías, órdenes y tarifas. No se borran datos de v0.6.
+
+**Limitaciones de producción:** falta vinculación probatoria y conciliación automática con pagos externos, control de horarios por sucursal en lugar de depender del PC, devoluciones parciales, pruebas de impresión en hardware, controles de manipulación de base fuera del equipo, reportes fiscales y pruebas de integración completas en un estacionamiento real.
+
+El workflow sigue **manual**. No se generan MSIX, portables ni otros artefactos hasta un hito de producto.
 
 ## Validación v0.6
 
