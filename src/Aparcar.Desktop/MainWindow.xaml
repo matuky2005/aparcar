@@ -11,7 +11,7 @@
         <Border Background="#164677" Padding="16,12">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="APARCAR" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                <TextBlock x:Name="Mensaje" Text="v0.2 · Ingreso y ticket térmico · Cobros simulados"
+                <TextBlock x:Name="Mensaje" Text="v0.3 · Tarifas, caja y efectivo · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -22,9 +22,9 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Inicio" Tag="inicio" Icon="Home"/>
                 <NavigationViewItem Content="Nuevo ingreso" Tag="ingreso" Icon="Add"/>
-                <NavigationViewItem Content="Salida (prueba)" Tag="salida" Icon="Forward"/>
+                <NavigationViewItem Content="Salida y cobro" Tag="salida" Icon="Forward"/>
                 <NavigationViewItem Content="Vehículos presentes" Tag="presentes" Icon="List"/>
-                <NavigationViewItem Content="Tarifas demo" Tag="tarifas" Icon="Calculator"/>
+                <NavigationViewItem Content="Tarifas" Tag="tarifas" Icon="Calculator"/>
                 <NavigationViewItem Content="Caja" Tag="caja" Icon="Library"/>
                 <NavigationViewItem Content="Lavadero" Tag="lavadero" Icon="Setting"/>
                 <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
@@ -35,7 +35,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.1 — circuito local de demostración." Opacity="0.7"/>
+                        <TextBlock Text="Aparcar v0.3 · Local, sin integración fiscal ni pagos electrónicos." Opacity="0.7"/>
                         <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
                         <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -77,8 +77,8 @@
 
                 <ScrollViewer x:Name="SalidaPanel" Visibility="Collapsed">
                     <StackPanel Spacing="14" MaxWidth="700" HorizontalAlignment="Left">
-                        <TextBlock Text="Salida de demostración" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Buscá por patente, ticket o QR Aparcar. No se procesa dinero."
+                        <TextBlock Text="Salida y cobro en efectivo" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Buscá por patente, ticket o QR Aparcar. El operador confirma manualmente el efectivo recibido."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBox x:Name="BusquedaInput" KeyDown="BusquedaInput_KeyDown" Width="320" PlaceholderText="Ticket o patente"/>
@@ -92,10 +92,15 @@
                                            FontWeight="Bold" Foreground="#164677"/>
                             </StackPanel>
                         </Border>
-                        <Button x:Name="ConfirmarSalidaButton" Content="Finalizar estadía de prueba"
+                        <TextBlock x:Name="CotizacionVigenciaText" Text="" Opacity="0.7"/>
+                        <TextBlock Text="Efectivo entregado por el cliente (ARS):"/>
+                        <TextBox x:Name="EfectivoRecibidoInput" PlaceholderText="Ej.: 5000" Width="240"
+                                 HorizontalAlignment="Left" KeyDown="EfectivoRecibidoInput_KeyDown"/>
+                        <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
+                        <Button x:Name="ConfirmarSalidaButton" Content="Confirmar efectivo recibido y finalizar salida"
                                 Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
                                 IsEnabled="False"/>
-                        <TextBlock Text="Esta acción FINALIZA la estadía local y conserva un importe SIMULADO. No crea un cobro ni una operación de caja."
+                        <TextBlock Text="Confirmá únicamente después de contar el efectivo. El cobro, el movimiento de caja y la salida se registran juntos. Si cambia la tarifa, volvé a cotizar."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -109,24 +114,57 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="TarifasPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="12" MaxWidth="650" HorizontalAlignment="Left">
-                        <TextBlock Text="Tarifas ilustrativas" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Precios fijos para verificar el cálculo. No usarlos para cobrar."
+                    <StackPanel Spacing="12" MaxWidth="680" HorizontalAlignment="Left">
+                        <TextBlock Text="Tarifas configurables" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Una tarifa nueva se aplica a los próximos ingresos. Las estadías anteriores conservan sus precios." TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="TipoTarifaCombo" Width="250" HorizontalAlignment="Left"
+                                  SelectionChanged="TipoTarifaCombo_SelectionChanged">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBlock x:Name="VersionTarifaText" Text=""/>
+                        <TextBlock Text="Primera hora ($)"/>
+                        <TextBox x:Name="PrimeraHoraInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fracción adicional ($)"/>
+                        <TextBox x:Name="FraccionPrecioInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Minutos por fracción"/>
+                        <TextBox x:Name="MinutosFraccionInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Máximo por 24 horas ($)"/>
+                        <TextBox x:Name="TopeDiaInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cortesía inicial en minutos"/>
+                        <TextBox x:Name="CortesiaInput" Width="230" HorizontalAlignment="Left"/>
+                        <Button Content="Guardar nueva versión de tarifa" Click="GuardarTarifa_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="IMPORTANTE: aún no existe control de roles. No utilizar esta versión con operadores no autorizados."
                                    TextWrapping="Wrap" Opacity="0.7"/>
-                        <TextBlock Text="Auto: primera hora $2.000; cada 30 minutos adicionales $1.000; máximo por 24 h $12.000."
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="Moto: primera hora $1.000; fracción $500; máximo por 24 h $6.000." TextWrapping="Wrap"/>
-                        <TextBlock Text="Camioneta: primera hora $3.000; fracción $1.500; máximo por 24 h $18.000." TextWrapping="Wrap"/>
-                        <TextBlock Text="Cortesía de 10 minutos cuando la estadía completa no supera ese tiempo." TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="CajaPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Caja y turnos" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Pendiente: apertura de caja, cobros confirmados, arqueos y cierres."
+                    <StackPanel Spacing="12" MaxWidth="800" HorizontalAlignment="Left">
+                        <TextBlock Text="Caja principal — efectivo" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock x:Name="CajaEstadoText" Text="Sin turno abierto" FontSize="18" FontWeight="SemiBold"
                                    TextWrapping="Wrap"/>
-                        <TextBlock Text="La versión 0.1 no admite cobros reales." Opacity="0.7"/>
+                        <TextBlock Text="APERTURA DE TURNO" FontWeight="Bold"/>
+                        <TextBlock Text="Operador responsable"/>
+                        <TextBox x:Name="OperadorCajaInput" Width="320" HorizontalAlignment="Left" PlaceholderText="Nombre o identificador"/>
+                        <TextBlock Text="Fondo inicial ($)"/>
+                        <TextBox x:Name="FondoInicialInput" Width="230" HorizontalAlignment="Left" Text="0"/>
+                        <Button x:Name="AbrirCajaButton" Content="Abrir caja" Click="AbrirCaja_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="CIERRE Y ARQUEO" FontWeight="Bold"/>
+                        <TextBlock Text="Efectivo contado en la caja ($)"/>
+                        <TextBox x:Name="EfectivoContadoInput" Width="230" HorizontalAlignment="Left"/>
+                        <Button x:Name="CerrarCajaButton" Content="Cerrar turno y registrar arqueo" Click="CerrarCaja_Click"
+                                HorizontalAlignment="Left" IsEnabled="False"/>
+                        <TextBlock x:Name="UltimoArqueoText" Text="" TextWrapping="Wrap"/>
+                        <TextBlock Text="ÚLTIMOS COBROS" FontWeight="Bold"/>
+                        <ListView x:Name="CobrosCajaList" Width="670" MinHeight="160"
+                                  HorizontalAlignment="Left"/>
+                        <Button Content="Actualizar caja" Click="ActualizarCaja_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="v0.3: solo efectivo confirmado manualmente. Faltan usuarios con permisos, pagos digitales, retiros, devoluciones y cierre supervisado."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
 
