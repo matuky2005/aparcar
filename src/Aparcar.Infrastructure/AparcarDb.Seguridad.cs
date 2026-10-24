@@ -67,7 +67,7 @@ public sealed partial class AparcarDb
         using var cmd=db.CreateCommand();
         cmd.CommandText="SELECT COUNT(*) FROM EsquemaVersion WHERE Numero=5";
         if(Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)==0)
-            CrearRespaldo();
+            CrearRespaldoInterno();
     }
 
     public bool HayAdministrador()
