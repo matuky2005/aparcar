@@ -21,6 +21,7 @@ public sealed partial class MainWindow : Window
     private int _anchoTicket = 80;
     private CotizacionOperativa? _cotizacion;
     private Guid _claveCobro = Guid.Empty;
+    private ResumenRecaudacion? _reporteActual;
 
     public MainWindow()
     {
@@ -39,6 +40,8 @@ public sealed partial class MainWindow : Window
         AutoImprimirCheck.IsChecked = _db.ObtenerPreferencia("AutoImprimir") != "false";
         TipoTarifaCombo.SelectedIndex = 0;
         ActualizarCaja();
+        ReporteDesdeInput.Text=DateTime.Today.ToString("dd/MM/yyyy");
+        ReporteHastaInput.Text=DateTime.Today.ToString("dd/MM/yyyy");
         Navegacion.SelectedItem = Navegacion.MenuItems[0];
         Refrescar();
     }
@@ -71,6 +74,7 @@ public sealed partial class MainWindow : Window
         if (pantalla == "salida") BusquedaInput.Focus(FocusState.Programmatic);
         if (pantalla == "caja") ActualizarCaja();
         if (pantalla == "tarifas") MostrarTarifaSeleccionada();
+        if (pantalla == "reportes") ConsultarReporteActual();
     }
 
     private void IrIngreso_Click(object sender, RoutedEventArgs e) =>
@@ -156,8 +160,13 @@ public sealed partial class MainWindow : Window
                 ? "Contá el efectivo y confirmá el cobro."
                 : "Para cobrar primero abrí un turno en Caja.";
             EfectivoRecibidoInput.Text = "";
+            ReferenciaElectronicaInput.Text = "";
+            PagoVerificadoCheck.IsChecked = false;
             VueltoPrevistoText.Text = "";
-            EfectivoRecibidoInput.Focus(FocusState.Programmatic);
+            if(MedioSeleccionado()==MediosPago.Efectivo)
+                EfectivoRecibidoInput.Focus(FocusState.Programmatic);
+            else
+                ReferenciaElectronicaInput.Focus(FocusState.Programmatic);
         }
         catch (Exception ex)
         {
@@ -169,29 +178,48 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private string MedioSeleccionado() =>
+        (MedioPagoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? MediosPago.Efectivo;
+
+    private void MedioPagoCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(EfectivoPanel is null || ElectronicoPanel is null)return;
+        var cash=MedioSeleccionado()==MediosPago.Efectivo;
+        EfectivoPanel.Visibility=cash?Visibility.Visible:Visibility.Collapsed;
+        ElectronicoPanel.Visibility=cash?Visibility.Collapsed:Visibility.Visible;
+        if(_cotizacion is null)return;
+        VueltoPrevistoText.Text=cash ? "" :
+            "Total externo exacto por verificar: "+Dinero(_cotizacion.ImporteCentavos);
+    }
+
     private void ConfirmarSalida_Click(object sender, RoutedEventArgs e)
     {
         if (_cotizacion is null || _claveCobro == Guid.Empty) return;
+        var medio=MedioSeleccionado();
         long entregado;
-        try { entregado = LeerImporte(EfectivoRecibidoInput.Text); }
-        catch (Exception ex)
+        try
         {
-            Mensaje.Text = "Efectivo recibido: " + ex.Message;
-            return;
+            entregado=medio==MediosPago.Efectivo
+                ? LeerImporte(EfectivoRecibidoInput.Text)
+                : _cotizacion.ImporteCentavos;
         }
+        catch(Exception ex){ Mensaje.Text="Importe: "+ex.Message;return; }
 
         ConfirmarSalidaButton.IsEnabled = false;
         try
         {
-            var cobro = _db.ConfirmarEfectivo(_cotizacion, entregado, _claveCobro);
-            Mensaje.Text = $"Cobro #{cobro.Ticket:D7} registrado: {Dinero(cobro.ImporteCentavos)}" +
-                           $" · Vuelto {Dinero(cobro.VueltoCentavos)}.";
+            var cobro=_db.ConfirmarPago(_cotizacion,medio,entregado,
+                ReferenciaElectronicaInput.Text,PagoVerificadoCheck.IsChecked==true,_claveCobro);
+            Mensaje.Text = $"Ticket #{cobro.Ticket:D7} cobrado por {medio}: {Dinero(cobro.ImporteCentavos)}" +
+                (medio==MediosPago.Efectivo ? $" · Vuelto {Dinero(cobro.VueltoCentavos)}." : " · Confirmación externa declarada.");
             SalidaDetalleText.Text = "Cobro y salida confirmados. Buscá el siguiente vehículo.";
             SalidaImporteText.Text = "";
             CotizacionVigenciaText.Text = "";
             VueltoPrevistoText.Text = "";
             BusquedaInput.Text = "";
             EfectivoRecibidoInput.Text = "";
+            ReferenciaElectronicaInput.Text = "";
+            PagoVerificadoCheck.IsChecked = false;
             _cotizacion = null;
             _estadiaSeleccionada = null;
             _claveCobro = Guid.Empty;
@@ -204,10 +232,8 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             Mensaje.Text = "No se confirmó la operación: " + ex.Message +
-                           " Revisá el estado antes de volver a cobrar.";
+                " Consultá la estadía y caja antes de reintentar.";
             ConfirmarSalidaButton.IsEnabled = false;
-            // Para evitar cobrar un importe antiguo se fuerza una nueva cotización.
-            // Si ya se guardó, el siguiente escaneo encontrará la estadía finalizada.
             _cotizacion = null;
         }
     }
@@ -297,15 +323,28 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                CajaEstadoText.Text = $"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
-                    $"\nFondo: {Dinero(turno.FondoInicialCentavos)} · Cobros: {Dinero(turno.CobradoCentavos)}" +
-                    $" · Efectivo esperado: {Dinero(turno.EsperadoCentavos)}";
+                var resumen=_db.ObtenerResumenCaja()!;
+                CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
+                    $"\nFondo {Dinero(resumen.FondoInicialCentavos)} · Efectivo cobrado {Dinero(resumen.CobrosEfectivoCentavos)}" +
+                    $" · Electrónicos {Dinero(resumen.CobrosElectronicosCentavos)}" +
+                    $"\nDepósitos {Dinero(resumen.DepositosCentavos)} · Retiros {Dinero(resumen.RetirosCentavos)}" +
+                    $" · Devoluciones {Dinero(resumen.DevolucionesEfectivoCentavos)}" +
+                    $"\nEFECTIVO ESPERADO: {Dinero(resumen.EfectivoEsperadoCentavos)}";
                 AbrirCajaButton.IsEnabled = false;
                 CerrarCajaButton.IsEnabled = true;
             }
             CobrosCajaList.ItemsSource = _db.ListarCobros(60).Select(c =>
                 $"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}" +
                 $" · {c.FechaUtc.ToLocalTime():dd/MM HH:mm} · {c.Operador}").ToList();
+            MovimientosCajaList.ItemsSource=_db.ListarMovimientosManuales(30).Select(m=>
+                $"{m.FechaUtc.ToLocalTime():dd/MM HH:mm} · {m.Tipo} · {Dinero(m.ImporteCentavos)} · {m.Motivo}").ToList();
+            CobrosDevolucionCombo.Items.Clear();
+            foreach(var c in _db.CobrosEfectivoParaDevolver(100).Where(c=>!c.Devuelto))
+                CobrosDevolucionCombo.Items.Add(new ComboBoxItem{
+                    Content=$"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
+                    Tag=c.Id.ToString("D")
+                });
+            CrearPinButton.IsEnabled=!_db.ExistePinSupervisor();
         }
         catch (Exception ex) { Mensaje.Text = "Error al cargar caja: "+ex.Message; }
     }
@@ -352,11 +391,13 @@ public sealed partial class MainWindow : Window
         catch(Exception ex){ Mensaje.Text="No se pudo cerrar caja: "+ex.Message; }
     }
 
-    private void ImprimirCobroSeguro(CobroEfectivoConfirmado cobro)
+    private void ImprimirCobroSeguro(CobroConfirmadoV4 cobro)
     {
         try
         {
-            TicketPrinter.ImprimirCobro(cobro,_impresora ?? "",_anchoTicket);
+            var recibo=new CobroEfectivoConfirmado(cobro.Id,cobro.EstadiaId,cobro.Ticket,
+                cobro.ImporteCentavos,cobro.EntregadoCentavos,cobro.VueltoCentavos,cobro.FechaUtc);
+            TicketPrinter.ImprimirCobro(recibo,_impresora ?? "",_anchoTicket,cobro.MedioPago);
             _db.RegistrarImpresion(cobro.EstadiaId,_impresora ?? "",true,
                 "Recibo de cobro: enviado al controlador Windows");
             Mensaje.Text += " Recibo no fiscal enviado a impresora.";
@@ -491,6 +532,121 @@ public sealed partial class MainWindow : Window
             Ingresar_Click(sender, new RoutedEventArgs());
         else return;
         e.Handled = true;
+    }
+
+    private void MovimientoManual_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var tipo=(MovimientoTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+            var turno=_db.ObtenerTurnoAbierto() ??
+                throw new InvalidOperationException("Abrí primero la caja.");
+            var movimiento=_db.RegistrarMovimientoManual(tipo,LeerImporte(MovimientoMontoInput.Text),
+                MovimientoMotivoInput.Text,turno.Operador);
+            Mensaje.Text=$"{movimiento.Tipo} registrado: {Dinero(movimiento.ImporteCentavos)}.";
+            MovimientoMontoInput.Text="";
+            MovimientoMotivoInput.Text="";
+            ActualizarCaja();
+        }
+        catch(Exception ex){ Mensaje.Text="Movimiento no registrado: "+ex.Message; }
+    }
+
+    private void CrearPin_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ConfigurarPinSupervisorInicial(PinInicialBox.Password);
+            PinInicialBox.Password="";
+            Mensaje.Text="PIN inicial configurado. No es un sistema de roles/autenticación.";
+            ActualizarCaja();
+        }
+        catch(Exception ex){ Mensaje.Text="No se configuró PIN: "+ex.Message; }
+    }
+
+    private async void DevolverEfectivo_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var tag=(CobrosDevolucionCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            if(!Guid.TryParse(tag,out var cobroId))
+                throw new ArgumentException("Seleccioná un cobro en efectivo sin devolver.");
+            if(_db.ObtenerTurnoAbierto() is null)
+                throw new InvalidOperationException("Abrí un turno para registrar una devolución.");
+            var dialogo=new ContentDialog
+            {
+                Title="Confirmar devolución completa",
+                Content="Esta operación registra una salida física de efectivo y no podrá revertirse eliminando el historial. ¿Confirmás que se entregará el dinero al cliente?",
+                PrimaryButtonText="Registrar devolución",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
+            var dev=_db.DevolverCobroEfectivo(cobroId,MotivoDevolucionInput.Text,
+                AutorizadorInput.Text,PinDevolucionBox.Password);
+            PinDevolucionBox.Password="";
+            ResultadoDevolucionText.Text=$"Devolución #{dev.Ticket:D7}: {Dinero(dev.ImporteCentavos)} · {dev.Motivo}";
+            Mensaje.Text="Devolución registrada y descontada del efectivo esperado.";
+            ActualizarCaja();
+        }
+        catch(Exception ex)
+        {
+            PinDevolucionBox.Password="";
+            Mensaje.Text="No se registró devolución: "+ex.Message;
+        }
+    }
+
+    private (DateTimeOffset Desde,DateTimeOffset Hasta,DateTime DiaInicio,DateTime DiaFin) FechasReporte()
+    {
+        var cultura=CultureInfo.GetCultureInfo("es-AR");
+        if(!DateTime.TryParseExact(ReporteDesdeInput.Text.Trim(),"dd/MM/yyyy",cultura,
+            DateTimeStyles.None,out var inicio) ||
+           !DateTime.TryParseExact(ReporteHastaInput.Text.Trim(),"dd/MM/yyyy",cultura,
+            DateTimeStyles.None,out var fin))
+            throw new ArgumentException("Ingresá fechas dd/MM/aaaa válidas.");
+        if(fin.Date<inicio.Date || (fin.Date-inicio.Date).TotalDays>366)
+            throw new ArgumentException("El período debe ser de 1 a 367 días.");
+        var desde=new DateTimeOffset(inicio.Date,TimeZoneInfo.Local.GetUtcOffset(inicio.Date)).ToUniversalTime();
+        var finExclusivo=fin.Date.AddDays(1);
+        var hasta=new DateTimeOffset(finExclusivo,TimeZoneInfo.Local.GetUtcOffset(finExclusivo)).ToUniversalTime();
+        return(desde,hasta,inicio.Date,fin.Date);
+    }
+
+    private void ConsultarReporteActual()
+    {
+        try
+        {
+            var rango=FechasReporte();
+            var datos=_db.ReporteRecaudacion(rango.Desde,rango.Hasta);
+            _reporteActual=datos;
+            ReporteTotalesText.Text=$"Cobros {Dinero(datos.CobrosBrutosCentavos)} · " +
+                $"Devoluciones {Dinero(datos.DevolucionesCentavos)} · Neto {Dinero(datos.CobrosNetosCentavos)}\n" +
+                $"Efectivo neto {Dinero(datos.EfectivoCentavos)} · Electrónicos {Dinero(datos.ElectronicosCentavos)}";
+            ReporteFilasList.ItemsSource=datos.Lineas.Select(x=>
+                $"{x.FechaUtc.ToLocalTime():dd/MM HH:mm} · #{x.Ticket:D7} · {x.Patente} · " +
+                $"{x.MedioPago} · {Dinero(x.ImporteCentavos)} · {x.Operador}").ToList();
+            RutaReporteText.Text="";
+        }
+        catch(Exception ex)
+        {
+            _reporteActual=null;
+            Mensaje.Text="Error en el reporte: "+ex.Message;
+        }
+    }
+
+    private void ConsultarReporte_Click(object sender,RoutedEventArgs e) => ConsultarReporteActual();
+
+    private void ExportarExcel_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var fechas=FechasReporte();
+            var datos=_db.ReporteRecaudacion(fechas.Desde,fechas.Hasta);
+            var archivo=ExportadorExcel.Guardar(datos,fechas.DiaInicio,fechas.DiaFin);
+            RutaReporteText.Text="Excel generado: "+archivo;
+            Mensaje.Text="Archivo Excel generado correctamente.";
+        }
+        catch(Exception ex){ Mensaje.Text="No se pudo generar Excel: "+ex.Message; }
     }
 
     private void Respaldar_Click(object sender, RoutedEventArgs e)
