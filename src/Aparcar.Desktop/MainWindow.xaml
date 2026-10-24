@@ -94,7 +94,7 @@
                         </Border>
                         <TextBlock x:Name="CotizacionVigenciaText" Text="" Opacity="0.7"/>
                         <TextBlock Text="Efectivo entregado por el cliente (ARS):"/>
-                        <TextBox x:Name="EfectivoRecibidoInput" PlaceholderText="Ej.: 5000" Width="240"
+                        <TextBox x:Name="EfectivoRecibidoInput" TextChanged="EfectivoRecibidoInput_TextChanged" PlaceholderText="Ej.: 5000" Width="240"
                                  HorizontalAlignment="Left" KeyDown="EfectivoRecibidoInput_KeyDown"/>
                         <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
                         <Button x:Name="ConfirmarSalidaButton" Content="Confirmar efectivo recibido y finalizar salida"
