@@ -268,7 +268,25 @@
                             <ComboBoxItem Content="Consulta"/>
                         </ComboBox>
                         <Button Content="Crear usuario" Click="CrearUsuario_Click" HorizontalAlignment="Left"/>
-                        <ListView x:Name="ListaUsuarios" Width="640" MinHeight="260" HorizontalAlignment="Left"/>
+                        <ListView x:Name="ListaUsuarios" Width="640" MinHeight="200"
+                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                        <TextBlock Text="EDITAR CUENTA SELECCIONADA" FontWeight="SemiBold"/>
+                        <TextBlock Text="Rol nuevo"/>
+                        <ComboBox x:Name="RolCambioCombo" Width="250" SelectedIndex="2" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Administrador"/>
+                            <ComboBoxItem Content="Supervisor"/>
+                            <ComboBoxItem Content="Cajero"/>
+                            <ComboBoxItem Content="Lavadero"/>
+                            <ComboBoxItem Content="Consulta"/>
+                        </ComboBox>
+                        <Button Content="Cambiar rol seleccionado" Click="CambiarRolUsuario_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Restablecer contraseña de la cuenta seleccionada"/>
+                        <PasswordBox x:Name="ResetPasswordBox" Width="350" HorizontalAlignment="Left"/>
+                        <Button Content="Restablecer contraseña" Click="RestablecerUsuario_Click"
+                                HorizontalAlignment="Left"/>
+                        <Button Content="Desactivar cuenta seleccionada" Click="DesactivarUsuario_Click"
+                                HorizontalAlignment="Left"/>
                     </StackPanel>
                 </ScrollViewer>
                 <ScrollViewer x:Name="AuditoriaPanel" Visibility="Collapsed">
