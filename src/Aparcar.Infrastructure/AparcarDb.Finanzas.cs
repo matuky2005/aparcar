@@ -240,16 +240,25 @@ public sealed partial class AparcarDb
         cmd.Transaction=tx;
         cmd.CommandText="""
             SELECT c.Id,c.Operador,c.AperturaUtc,c.FondoInicialCentavos,
-                COALESCE((SELECT SUM(p.ImporteCentavos) FROM CobrosCaja p WHERE p.TurnoCajaId=c.Id),0)
+                COALESCE((SELECT SUM(p.ImporteNetoCentavos) FROM MovimientosEfectivo p WHERE p.TurnoCajaId=c.Id),0),
+                COALESCE((SELECT SUM(m.ImporteCentavos) FROM MovimientosManuales m
+                    WHERE m.TurnoId=c.Id AND m.Tipo='Deposito'),0),
+                COALESCE((SELECT SUM(m.ImporteCentavos) FROM MovimientosManuales m
+                    WHERE m.TurnoId=c.Id AND m.Tipo='Retiro'),0),
+                COALESCE((SELECT SUM(d.ImporteCentavos) FROM DevolucionesCaja d
+                    WHERE d.TurnoId=c.Id),0)
             FROM TurnosCaja c WHERE c.Estado='Abierta' LIMIT 1;
             """;
         using var r=cmd.ExecuteReader();
         if(!r.Read())return null;
         var fondo=r.GetInt64(3);
         var cobrado=r.GetInt64(4);
+        var depositos=r.GetInt64(5);
+        var retiros=r.GetInt64(6);
+        var devoluciones=r.GetInt64(7);
         return new TurnoCajaOperativo(Guid.Parse(r.GetString(0)),r.GetString(1),
             DateTimeOffset.Parse(r.GetString(2),CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind),
-            fondo,cobrado,checked(fondo+cobrado),true);
+            fondo,cobrado,checked(fondo+cobrado+depositos-retiros-devoluciones),true);
     }
 
     public TurnoCajaOperativo AbrirTurno(string operador,long fondoCentavos)
@@ -337,94 +346,15 @@ public sealed partial class AparcarDb
             ahora.AddMinutes(2),total,tarifa.Version,turno);
     }
 
+    // Compatibilidad con el método v0.3: la lógica vive ahora en ConfirmarPago.
     public CobroEfectivoConfirmado ConfirmarEfectivo(
         CotizacionOperativa cotizacion,long entregadoCentavos,Guid claveOperacion)
     {
-        if(claveOperacion==Guid.Empty)throw new ArgumentException("La clave de operación es obligatoria.");
-        using var db=Abrir();
-        using var tx=db.BeginTransaction();
-        // Reintentos devuelven el comprobante original, nunca cargan dos veces.
-        using(var buscar=db.CreateCommand())
-        {
-            buscar.Transaction=tx;
-            buscar.CommandText="""
-                SELECT Id,EstadiaId,Ticket,ImporteCentavos,EntregadoCentavos,
-                    VueltoCentavos,FechaUtc FROM CobrosCaja WHERE ClaveOperacion=$clave;
-                """;
-            buscar.Parameters.AddWithValue("$clave",claveOperacion.ToString("D"));
-            using var r=buscar.ExecuteReader();
-            if(r.Read())
-            {
-                var anterior=LeerCobro(r);
-                if(anterior.EstadiaId!=cotizacion.EstadiaId || anterior.EfectivoRecibidoCentavos!=entregadoCentavos)
-                    throw new InvalidOperationException("La clave de operación fue reutilizada con datos distintos.");
-                return anterior;
-            }
-        }
-        var turno=LeerTurno(db,tx);
-        if(turno is null)throw new InvalidOperationException("Abrí una caja antes de cobrar.");
-        if(cotizacion.TurnoId != turno.Id)
-            throw new InvalidOperationException("La caja cambió. Volvé a cotizar.");
-        var ahora=DateTimeOffset.UtcNow;
-        if(ahora>cotizacion.VenceUtc)
-            throw new InvalidOperationException("La cotización venció. Volvé a calcular el total.");
-        var definitiva=CotizarSalidaInterno(db,tx,cotizacion.EstadiaId,ahora);
-        if(definitiva.ImporteCentavos != cotizacion.ImporteCentavos ||
-           definitiva.TarifaVersion != cotizacion.TarifaVersion)
-            throw new InvalidOperationException("El importe cambió. Volvé a cotizar antes de cobrar.");
-        if(entregadoCentavos<definitiva.ImporteCentavos)
-            throw new InvalidOperationException("El efectivo recibido es inferior al importe.");
-        var vuelta=checked(entregadoCentavos-definitiva.ImporteCentavos);
-        var cobroId=Guid.NewGuid();
-
-        using(var cmd=db.CreateCommand())
-        {
-            cmd.Transaction=tx;
-            cmd.CommandText="""
-                INSERT INTO CobrosCaja(Id,ClaveOperacion,EstadiaId,TurnoCajaId,Ticket,
-                    ImporteCentavos,EntregadoCentavos,VueltoCentavos,FechaUtc)
-                VALUES($id,$clave,$estadia,$turno,$ticket,$importe,$entregado,$vuelto,$fecha);
-                """;
-            cmd.Parameters.AddWithValue("$id",cobroId.ToString("D"));
-            cmd.Parameters.AddWithValue("$clave",claveOperacion.ToString("D"));
-            cmd.Parameters.AddWithValue("$estadia",cotizacion.EstadiaId.ToString("D"));
-            cmd.Parameters.AddWithValue("$turno",turno.Id.ToString("D"));
-            cmd.Parameters.AddWithValue("$ticket",definitiva.Ticket);
-            cmd.Parameters.AddWithValue("$importe",definitiva.ImporteCentavos);
-            cmd.Parameters.AddWithValue("$entregado",entregadoCentavos);
-            cmd.Parameters.AddWithValue("$vuelto",vuelta);
-            cmd.Parameters.AddWithValue("$fecha",ahora.ToString("O"));
-            cmd.ExecuteNonQuery();
-        }
-        using(var cmd=db.CreateCommand())
-        {
-            cmd.Transaction=tx;
-            cmd.CommandText="""
-                INSERT INTO MovimientosEfectivo(Id,CobroId,TurnoCajaId,ImporteNetoCentavos,FechaUtc)
-                VALUES($id,$cobro,$turno,$importe,$fecha);
-                """;
-            cmd.Parameters.AddWithValue("$id",Guid.NewGuid().ToString("D"));
-            cmd.Parameters.AddWithValue("$cobro",cobroId.ToString("D"));
-            cmd.Parameters.AddWithValue("$turno",turno.Id.ToString("D"));
-            cmd.Parameters.AddWithValue("$importe",definitiva.ImporteCentavos);
-            cmd.Parameters.AddWithValue("$fecha",ahora.ToString("O"));
-            cmd.ExecuteNonQuery();
-        }
-        using(var cmd=db.CreateCommand())
-        {
-            cmd.Transaction=tx;
-            cmd.CommandText="""
-                UPDATE Estadias SET Estado='Finalizada',SalidaUtc=$fecha
-                WHERE Id=$id AND Estado='Activa';
-                """;
-            cmd.Parameters.AddWithValue("$fecha",ahora.ToString("O"));
-            cmd.Parameters.AddWithValue("$id",cotizacion.EstadiaId.ToString("D"));
-            if(cmd.ExecuteNonQuery()!=1)
-                throw new InvalidOperationException("La estadía ya finalizó.");
-        }
-        tx.Commit();
-        return new CobroEfectivoConfirmado(cobroId,cotizacion.EstadiaId,definitiva.Ticket,
-            definitiva.ImporteCentavos,entregadoCentavos,vuelta,ahora);
+        var confirmado=ConfirmarPago(cotizacion,MediosPago.Efectivo,
+            entregadoCentavos,"",false,claveOperacion);
+        return new CobroEfectivoConfirmado(confirmado.Id,confirmado.EstadiaId,
+            confirmado.Ticket,confirmado.ImporteCentavos,
+            confirmado.EntregadoCentavos,confirmado.VueltoCentavos,confirmado.FechaUtc);
     }
 
     private static CobroEfectivoConfirmado LeerCobro(SqliteDataReader r) => new(
