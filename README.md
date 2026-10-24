@@ -2,7 +2,25 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: versión técnica 0.4 — NO apta para cobros reales ni para producción.**
+> **Estado: código de desarrollo v0.5 — NO apto para uso comercial ni cobros reales.**
+
+## Etapa v0.5: usuarios, permisos y auditoría
+
+**Código validado en Windows:** 26 pruebas automáticas y compilación WinUI 3 correctas en el [run de validación](https://github.com/matuky2005/aparcar/actions/runs/40122769179). No se publicaron archivos descargables.
+
+- Al arrancar por primera vez, se debe crear un **administrador** con contraseña propia; sin él, las operaciones de negocio están bloqueadas.
+- Inicio de sesión por empleado; roles Administrador, Supervisor, Cajero, Lavadero y Consulta, con verificación de permisos **también en la capa de persistencia**.
+- Contraseñas cifradas irreversiblemente mediante PBKDF2-SHA256 con sal aleatoria; bloqueo temporal por cinco fallos, sin contraseñas predefinidas.
+- Administrador: creación y mantenimiento de usuarios, revocación de acceso y restablecimiento de claves. Se impide desactivar al último administrador activo.
+- Auditoría enlazada por hashes de ingreso/salida, cobros, ajustes de tarifa, apertura/cierre de caja, devoluciones, cambios de usuarios e inicios de sesión.
+- Sesiones con expiración por inactividad. Los permisos de una cuenta desactivada o cuyo rol cambia dejan de habilitar operaciones.
+- Migración de esquema a versión 5 sin vaciar datos: respaldos automáticos internos antes de migrar.
+
+**Limitaciones:** los registros de auditoría pueden alterarse por quien controla físicamente el archivo SQLite; la cadena ayuda a detectar cambios, no es protección criptográfica externa. Quedan pendientes permisos granulares por sucursal, segunda caja, autenticación de supervisión de transacciones, cifrado/protección del directorio de datos y pruebas reales del operador.
+
+### Regla de CI durante el desarrollo
+
+El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
 
 ## Funcionalidad implementada (rama de trabajo)
 
