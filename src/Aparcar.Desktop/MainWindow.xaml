@@ -1,0 +1,160 @@
+<Window
+    x:Class="Aparcar.Desktop.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="#164677" Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="APARCAR" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="Mensaje" Text="v0.1 · Demostración — No utilizar para cobros reales"
+                           Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <NavigationView x:Name="Navegacion" Grid.Row="1"
+                        PaneDisplayMode="Left" IsBackButtonVisible="Collapsed"
+                        SelectionChanged="Navegacion_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Inicio" Tag="inicio" Icon="Home"/>
+                <NavigationViewItem Content="Nuevo ingreso" Tag="ingreso" Icon="Add"/>
+                <NavigationViewItem Content="Salida (prueba)" Tag="salida" Icon="Forward"/>
+                <NavigationViewItem Content="Vehículos presentes" Tag="presentes" Icon="List"/>
+                <NavigationViewItem Content="Tarifas demo" Tag="tarifas" Icon="Calculator"/>
+                <NavigationViewItem Content="Caja" Tag="caja" Icon="View"/>
+                <NavigationViewItem Content="Lavadero" Tag="lavadero" Icon="Setting"/>
+                <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
+                <NavigationViewItem Content="Reportes" Tag="reportes" Icon="Document"/>
+                <NavigationViewItem Content="Configuración" Tag="config" Icon="Setting"/>
+            </NavigationView.MenuItems>
+            <Grid Padding="24">
+                <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
+                    <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
+                        <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Aparcar v0.1 — circuito local de demostración." Opacity="0.7"/>
+                        <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
+                        <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="Nuevo ingreso" Click="IrIngreso_Click"/>
+                            <Button Content="Buscar salida" Click="IrSalida_Click"/>
+                            <Button Content="Actualizar" Click="Actualizar_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="Últimos vehículos presentes" FontWeight="SemiBold" FontSize="18"/>
+                        <ListView x:Name="ResumenActivosList" MinHeight="240" Width="640" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="IngresoPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="650" HorizontalAlignment="Left">
+                        <TextBlock Text="Registrar ingreso" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Los datos se guardan en SQLite antes de cualquier impresión." Opacity="0.7"/>
+                        <TextBlock Text="Patente o identificador"/>
+                        <TextBox x:Name="PatenteInput" PlaceholderText="Ej.: AF123BC" MaxLength="20" Width="360" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Tipo de vehículo"/>
+                        <ComboBox x:Name="TipoInput" SelectedIndex="0" Width="240" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBlock Text="Sector"/>
+                        <TextBox x:Name="SectorInput" Text="General" Width="360" HorizontalAlignment="Left"/>
+                        <Button Content="Guardar ingreso" Click="Ingresar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="La impresión de tickets QR todavía no está implementada."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="SalidaPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="700" HorizontalAlignment="Left">
+                        <TextBlock Text="Salida de demostración" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Buscá por patente o número de ticket. No se procesa dinero."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBox x:Name="BusquedaInput" Width="320" PlaceholderText="Ticket o patente"/>
+                            <Button Content="Buscar" Click="Buscar_Click"/>
+                        </StackPanel>
+                        <Border Background="#E9F2FF" CornerRadius="10" Padding="18">
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="SalidaDetalleText" Text="Buscá una estadía activa."
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="SalidaImporteText" Text="" FontSize="30"
+                                           FontWeight="Bold" Foreground="#164677"/>
+                            </StackPanel>
+                        </Border>
+                        <Button x:Name="ConfirmarSalidaButton" Content="Finalizar estadía de prueba"
+                                Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
+                                IsEnabled="False"/>
+                        <TextBlock Text="Esta acción FINALIZA la estadía local y conserva un importe SIMULADO. No crea un cobro ni una operación de caja."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="PresentesPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="750" HorizontalAlignment="Left">
+                        <TextBlock Text="Vehículos presentes" FontSize="30" FontWeight="Bold"/>
+                        <Button Content="Actualizar listado" Click="Actualizar_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="PresentesList" MinHeight="380" Width="640" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="TarifasPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="650" HorizontalAlignment="Left">
+                        <TextBlock Text="Tarifas ilustrativas" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Precios fijos para verificar el cálculo. No usarlos para cobrar."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Auto: primera hora $2.000; cada 30 minutos adicionales $1.000; máximo por 24 h $12.000."
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Moto: primera hora $1.000; fracción $500; máximo por 24 h $6.000." TextWrapping="Wrap"/>
+                        <TextBlock Text="Camioneta: primera hora $3.000; fracción $1.500; máximo por 24 h $18.000." TextWrapping="Wrap"/>
+                        <TextBlock Text="Cortesía de 10 minutos cuando la estadía completa no supera ese tiempo." TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="CajaPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Caja y turnos" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Pendiente: apertura de caja, cobros confirmados, arqueos y cierres."
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="La versión 0.1 no admite cobros reales." Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="LavaderoPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Lavadero" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Módulo pendiente: catálogo, órdenes y estados de trabajo."/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="AbonadosPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Abonados" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Módulo pendiente: planes, contratos, vehículos autorizados y vencimientos."/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="ReportesPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Reportes" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Pendiente: filtros, recaudación, PDF y Excel."/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="ConfigPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="Configuración técnica" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Base SQLite local (una PC, una cuenta Windows):"/>
+                        <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <Button Content="Crear respaldo consistente" Click="Respaldar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="El respaldo se guarda en Documentos/Aparcar/Respaldos. Copiá además una copia fuera de esta computadora."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>
