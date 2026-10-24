@@ -55,6 +55,8 @@ public sealed partial class AparcarDb
         long importe;
         string descripcion,patente;
         string? periodicidad=null;
+        string? renovacionDe=null;
+        DateTimeOffset inicioCobertura=ahora;
         DateTimeOffset ahora=DateTimeOffset.UtcNow;
         if(categoria=="Lavadero")
         {
@@ -77,7 +79,7 @@ public sealed partial class AparcarDb
             using var cmd=db.CreateCommand();
             cmd.Transaction=tx;
             cmd.CommandText="""
-                SELECT PrecioCentavos,Estado,Patente,PlanNombre,Periodicidad
+                SELECT PrecioCentavos,Estado,Patente,PlanNombre,Periodicidad,RenovacionDe
                 FROM ContratosAbono WHERE Id=$id;
                 """;
             cmd.Parameters.AddWithValue("$id",referenciaId.ToString("D"));
@@ -87,6 +89,7 @@ public sealed partial class AparcarDb
             if(r.GetString(1)!="Pendiente")
                 throw new InvalidOperationException("El contrato ya fue activado o cancelado.");
             patente=r.GetString(2);descripcion=r.GetString(3);periodicidad=r.GetString(4);
+            renovacionDe=r.IsDBNull(5)?null:r.GetString(5);
         }
         if(!efectivo && recibidoCentavos!=importe)
             throw new InvalidOperationException("El importe electrónico tiene que ser exactamente el valor pendiente.");
@@ -96,16 +99,40 @@ public sealed partial class AparcarDb
 
         if(categoria=="Abono")
         {
+            if(renovacionDe is not null)
+            {
+                using var origen=db.CreateCommand();
+                origen.Transaction=tx;
+                origen.CommandText="""
+                    SELECT FinUtc FROM ContratosAbono
+                    WHERE Id=$id AND Estado='Activo' AND TipoVehiculo=
+                        (SELECT TipoVehiculo FROM ContratosAbono WHERE Id=$nuevo);
+                    """;
+                origen.Parameters.AddWithValue("$id",renovacionDe);
+                origen.Parameters.AddWithValue("$nuevo",referenciaId.ToString("D"));
+                var previo=origen.ExecuteScalar() as string;
+                if(previo is null)
+                    throw new InvalidOperationException("La renovación perdió su contrato de origen.");
+                var finAnterior=ParsearFecha(previo);
+                if(finAnterior>inicioCobertura)inicioCobertura=finAnterior;
+            }
+            var finNueva=PeriodicidadesAbono.CalcularVencimiento(inicioCobertura,periodicidad!);
             using var cmd=db.CreateCommand();
             cmd.Transaction=tx;
             cmd.CommandText="""
-                SELECT COUNT(*) FROM ContratosAbono
-                WHERE Patente=$patente AND Estado='Activo' AND FinUtc>$ahora;
+                SELECT COUNT(*) FROM ContratosAbono c
+                JOIN AbonoVehiculos existentes ON existentes.ContratoId=c.Id
+                JOIN AbonoVehiculos nuevos ON nuevos.ContratoId=$nuevo
+                  AND nuevos.Patente=existentes.Patente
+                  AND nuevos.TipoVehiculo=existentes.TipoVehiculo
+                WHERE c.Estado='Activo' AND c.Id!=$nuevo
+                  AND c.InicioUtc<$fin AND c.FinUtc>$inicio;
                 """;
-            cmd.Parameters.AddWithValue("$patente",patente);
-            cmd.Parameters.AddWithValue("$ahora",Fecha(ahora));
+            cmd.Parameters.AddWithValue("$nuevo",referenciaId.ToString("D"));
+            cmd.Parameters.AddWithValue("$inicio",Fecha(inicioCobertura));
+            cmd.Parameters.AddWithValue("$fin",Fecha(finNueva));
             if(Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)>0)
-                throw new InvalidOperationException("La patente ya tiene un abono vigente. No se cobrará otro período superpuesto.");
+                throw new InvalidOperationException("Algún vehículo ya tiene cobertura superpuesta con otro contrato.");
         }
 
         var id=Guid.NewGuid();
@@ -147,11 +174,12 @@ public sealed partial class AparcarDb
             else
             {
                 cmd.CommandText="""
-                    UPDATE ContratosAbono SET Estado='Activo',InicioUtc=$ahora,
+                    UPDATE ContratosAbono SET Estado='Activo',InicioUtc=$inicio,
                         FinUtc=$fin,ReferenciaCobro=$cobro
                     WHERE Id=$id AND Estado='Pendiente';
                     """;
-                cmd.Parameters.AddWithValue("$fin",Fecha(PeriodicidadesAbono.CalcularVencimiento(ahora,periodicidad!)));
+                cmd.Parameters.AddWithValue("$inicio",Fecha(inicioCobertura));
+                cmd.Parameters.AddWithValue("$fin",Fecha(PeriodicidadesAbono.CalcularVencimiento(inicioCobertura,periodicidad!)));
                 cmd.Parameters.AddWithValue("$cobro",id.ToString("D"));
             }
             cmd.Parameters.AddWithValue("$id",referenciaId.ToString("D"));
