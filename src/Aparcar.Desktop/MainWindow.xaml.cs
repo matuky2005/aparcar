@@ -36,15 +36,165 @@ public sealed partial class MainWindow : Window
         _db.Inicializar();
 
         RutaDatosText.Text = _db.RutaDb;
-        CargarImpresoras();
-        AutoImprimirCheck.IsChecked = _db.ObtenerPreferencia("AutoImprimir") != "false";
-        TipoTarifaCombo.SelectedIndex = 0;
-        ActualizarCaja();
+        Navegacion.Visibility=Visibility.Collapsed;
+        PantallaAcceso.Visibility=Visibility.Visible;
         ReporteDesdeInput.Text=DateTime.Today.ToString("dd/MM/yyyy");
         ReporteHastaInput.Text=DateTime.Today.ToString("dd/MM/yyyy");
-        Navegacion.SelectedItem = Navegacion.MenuItems[0];
+        MostrarAcceso();
+        // Expiración de la sesión también cuando el operador no toca la interfaz.
+        var reloj=DispatcherQueue.CreateTimer();
+        reloj.Interval=TimeSpan.FromSeconds(20);
+        reloj.IsRepeating=true;
+        reloj.Tick+=(_,_)=>{
+            if(Navegacion.Visibility==Visibility.Visible && _db.SesionActual is null)
+                BloquearInterfaz();
+        };
+        reloj.Start();
+    }
+
+    private void MostrarAcceso()
+    {
+        bool necesitaAdmin=!_db.HayAdministrador();
+        PrimerAdministradorPanel.Visibility=necesitaAdmin?Visibility.Visible:Visibility.Collapsed;
+        LoginPanel.Visibility=necesitaAdmin?Visibility.Collapsed:Visibility.Visible;
+        AccesoMensaje.Text="";
+        LoginPasswordBox.Password="";
+        AdminInicialPasswordBox.Password="";
+        PantallaAcceso.Visibility=Visibility.Visible;
+        Navegacion.Visibility=Visibility.Collapsed;
+        SalirButton.Visibility=Visibility.Collapsed;
+        UsuarioActivoTexto.Text="Sin sesión";
+    }
+
+    private void BloquearInterfaz()
+    {
+        _db.CerrarSesion();
+        MostrarAcceso();
+    }
+
+    private void DesbloquearInterfaz(UsuarioSesion sesion)
+    {
+        PantallaAcceso.Visibility=Visibility.Collapsed;
+        Navegacion.Visibility=Visibility.Visible;
+        SalirButton.Visibility=Visibility.Visible;
+        UsuarioActivoTexto.Text=$"{sesion.Usuario} · {sesion.Rol}";
+        var rol=sesion.Rol;
+        MenuUsuarios.Visibility=RolesAparcar.Permite(rol,PermisosAparcar.Usuarios)
+            ?Visibility.Visible:Visibility.Collapsed;
+        MenuAuditoria.Visibility=RolesAparcar.Permite(rol,PermisosAparcar.Auditoria)
+            ?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[1]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.Ingreso)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[2]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.Cobro)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[4]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.Tarifas)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[5]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.AbrirCaja)?Visibility.Visible:Visibility.Collapsed;
+        ((NavigationViewItem)Navegacion.MenuItems[9]).Visibility=
+            RolesAparcar.Permite(rol,PermisosAparcar.Usuarios)?Visibility.Visible:Visibility.Collapsed;
+        CargarImpresoras();
+        AutoImprimirCheck.IsChecked=_db.ObtenerPreferencia("AutoImprimir")!="false";
+        TipoTarifaCombo.SelectedIndex=0;
+        Navegacion.SelectedItem=Navegacion.MenuItems[0];
         Refrescar();
     }
+
+    private void CrearAdministradorInicial_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var nombre=AdminInicialUsuarioInput.Text.Trim();
+            var contrasena=AdminInicialPasswordBox.Password;
+            _db.CrearAdministradorInicial(nombre,contrasena);
+            var sesion=_db.IniciarSesion(nombre,contrasena);
+            AdminInicialPasswordBox.Password="";
+            DesbloquearInterfaz(sesion);
+            Mensaje.Text="Administrador inicial creado. Configurá los demás usuarios en Seguridad.";
+        }
+        catch(Exception ex)
+        {
+            AdminInicialPasswordBox.Password="";
+            AccesoMensaje.Text=ex.Message;
+        }
+    }
+
+    private void Login_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sesion=_db.IniciarSesion(LoginUsuarioInput.Text,LoginPasswordBox.Password);
+            LoginPasswordBox.Password="";
+            DesbloquearInterfaz(sesion);
+            Mensaje.Text=$"Sesión iniciada por {sesion.Usuario}.";
+        }
+        catch(Exception ex)
+        {
+            LoginPasswordBox.Password="";
+            AccesoMensaje.Text=ex.Message;
+        }
+    }
+
+    private void CerrarSesion_Click(object sender,RoutedEventArgs e)
+    {
+        try { _db.CerrarSesion(); }
+        finally { MostrarAcceso(); }
+    }
+
+    private void CrearUsuario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Usuarios);
+            var rol=(NuevoRolCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+            var creado=_db.CrearUsuario(NuevoUsuarioInput.Text,
+                NuevaContrasenaBox.Password,rol);
+            NuevaContrasenaBox.Password="";
+            NuevoUsuarioInput.Text="";
+            Mensaje.Text=$"Usuario {creado.Nombre} ({creado.Rol}) creado.";
+            RefrescarUsuarios();
+        }
+        catch(Exception ex)
+        {
+            NuevaContrasenaBox.Password="";
+            Mensaje.Text="No se pudo crear el usuario: "+ex.Message;
+        }
+    }
+
+    private void RefrescarUsuarios()
+    {
+        try
+        {
+            ListaUsuarios.ItemsSource=_db.ListarUsuarios()
+                .Select(u=>$"{u.Nombre} · {u.Rol} · {(u.Activo?"Activo":"Deshabilitado")}").ToList();
+        }
+        catch(Exception ex){Mensaje.Text="Usuarios: "+ex.Message;}
+    }
+
+    private void CargarAuditoria()
+    {
+        try
+        {
+            ListaAuditoria.ItemsSource=_db.ListarAuditoria(200)
+                .Select(a=>$"#{a.Secuencia} {a.FechaUtc.ToLocalTime():dd/MM HH:mm:ss} · {a.Actor} · {a.Accion} · {a.Detalle}")
+                .ToList();
+        }
+        catch(Exception ex){Mensaje.Text="Auditoría: "+ex.Message;}
+    }
+
+    private void VerificarAuditoria_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var ok=_db.VerificarCadenaAuditoria();
+            AuditoriaEstadoText.Text=ok?"Cadena de auditoría consistente.":"ATENCIÓN: cadena de auditoría alterada o incompleta.";
+            CargarAuditoria();
+        }
+        catch(Exception ex){MensagearSeguridad(ex);}
+    }
+
+    private void MensagearSeguridad(Exception ex) =>
+        Mensaje.Text="Error de seguridad: "+ex.Message;
 
     private static string Dinero(long centavos) =>
         (centavos / 100m).ToString("C2",
@@ -59,6 +209,13 @@ public sealed partial class MainWindow : Window
 
     private void Mostrar(string pantalla)
     {
+        if(_db.SesionActual is null)
+        {
+            if(Navegacion.Visibility==Visibility.Visible)BloquearInterfaz();
+            return;
+        }
+        UsuariosPanel.Visibility=pantalla=="usuarios"?Visibility.Visible:Visibility.Collapsed;
+        AuditoriaPanel.Visibility=pantalla=="auditoria"?Visibility.Visible:Visibility.Collapsed;
         InicioPanel.Visibility = pantalla == "inicio" ? Visibility.Visible : Visibility.Collapsed;
         IngresoPanel.Visibility = pantalla == "ingreso" ? Visibility.Visible : Visibility.Collapsed;
         SalidaPanel.Visibility = pantalla == "salida" ? Visibility.Visible : Visibility.Collapsed;
@@ -75,6 +232,8 @@ public sealed partial class MainWindow : Window
         if (pantalla == "caja") ActualizarCaja();
         if (pantalla == "tarifas") MostrarTarifaSeleccionada();
         if (pantalla == "reportes") ConsultarReporteActual();
+        if (pantalla == "usuarios") RefrescarUsuarios();
+        if (pantalla == "auditoria") CargarAuditoria();
     }
 
     private void IrIngreso_Click(object sender, RoutedEventArgs e) =>
