@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.4 · Medios de pago y reportes · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.5 · Usuarios, permisos, auditoría y PDF · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -43,7 +43,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.4 · Declaración manual de pagos externos, sin conciliación bancaria." Opacity="0.7"/>
+                        <TextBlock Text="Aparcar v0.5 · Datos locales · Versión técnica no fiscal." Opacity="0.7"/>
                         <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
                         <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
