@@ -215,16 +215,121 @@
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="LavaderoPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="12">
+                    <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Lavadero" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Módulo pendiente: catálogo, órdenes y estados de trabajo."/>
+                        <TextBlock Text="Órdenes de trabajo y cobros separados del estacionamiento. No generan otro ingreso del vehículo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="CATÁLOGO DE SERVICIOS" FontWeight="SemiBold"/>
+                        <TextBox x:Name="LavServicioNombreInput" Width="360" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre (ej.: Lavado completo)"/>
+                        <ComboBox x:Name="LavServicioTipoCombo" SelectedIndex="0" Width="220"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBox x:Name="LavServicioPrecioInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Precio ARS"/>
+                        <Button x:Name="LavGuardarServicioButton" Content="Guardar nueva versión del servicio"
+                                Click="GuardarServicioLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="NUEVA ORDEN" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LavServiciosCombo" Width="480" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar servicio"/>
+                        <TextBox x:Name="LavPatenteInput" Width="240" HorizontalAlignment="Left"
+                                 PlaceholderText="Patente"/>
+                        <TextBox x:Name="LavOperarioInput" Width="320" HorizontalAlignment="Left"
+                                 PlaceholderText="Operario asignado"/>
+                        <TextBox x:Name="LavObservacionesInput" Width="480" MaxLength="500"
+                                 HorizontalAlignment="Left" PlaceholderText="Observaciones"/>
+                        <CheckBox x:Name="LavVincularEstadiaCheck"
+                                  Content="Vincular a una estadía activa de esta patente"/>
+                        <Button x:Name="LavCrearOrdenButton" Content="Crear orden de lavado"
+                                Click="CrearOrdenLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="ÓRDENES (seleccioná una)" FontWeight="SemiBold"/>
+                        <ListView x:Name="LavOrdenesList" Width="710" Height="185"
+                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                        <ComboBox x:Name="LavEstadoCombo" Width="215" HorizontalAlignment="Left"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="EnProceso" Tag="EnProceso"/>
+                            <ComboBoxItem Content="Terminado" Tag="Terminado"/>
+                            <ComboBoxItem Content="Entregado" Tag="Entregado"/>
+                            <ComboBoxItem Content="Cancelado" Tag="Cancelado"/>
+                        </ComboBox>
+                        <Button x:Name="LavCambiarEstadoButton" Content="Actualizar estado de la orden seleccionada"
+                                Click="CambiarEstadoLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="COBRAR ORDEN SELECCIONADA" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LavPagoMedioCombo" Width="230" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <TextBox x:Name="LavRecibidoInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Efectivo entregado / total externo"/>
+                        <TextBox x:Name="LavReferenciaInput" Width="420" HorizontalAlignment="Left"
+                                 PlaceholderText="Referencia de pago externo"/>
+                        <CheckBox x:Name="LavVerificadoCheck"
+                                  Content="Verifiqué el pago externo en su proveedor"/>
+                        <Button x:Name="LavCobrarButton" Content="Confirmar cobro de lavado"
+                                Click="CobrarLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Los pagos externos se verifican manualmente. El pago de la orden se registra una sola vez."
+                                   Opacity="0.7" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
 
                 <ScrollViewer x:Name="AbonadosPanel" Visibility="Collapsed">
-                    <StackPanel Spacing="12">
+                    <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Abonados" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Módulo pendiente: planes, contratos, vehículos autorizados y vencimientos."/>
+                        <TextBlock Text="Planes de cobertura completa (24 horas) con renovación por nuevo contrato. La cobertura comienza al cobrar, no antes."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="CATÁLOGO DE PLANES" FontWeight="SemiBold"/>
+                        <TextBox x:Name="AbPlanNombreInput" Width="370" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre del plan"/>
+                        <ComboBox x:Name="AbPlanTipoCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <ComboBox x:Name="AbPlanPeriodoCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="2">
+                            <ComboBoxItem Content="Semanal"/>
+                            <ComboBoxItem Content="Quincenal"/>
+                            <ComboBoxItem Content="Mensual"/>
+                        </ComboBox>
+                        <TextBox x:Name="AbPlanPrecioInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Precio ARS"/>
+                        <Button x:Name="AbGuardarPlanButton" Content="Guardar versión de plan"
+                                Click="GuardarPlanAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="NUEVO ABONO PENDIENTE" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="AbPlanesCombo" Width="500" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar plan"/>
+                        <TextBox x:Name="AbClienteInput" Width="400" HorizontalAlignment="Left"
+                                 PlaceholderText="Cliente"/>
+                        <TextBox x:Name="AbPatenteInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Patente"/>
+                        <Button x:Name="AbCrearContratoButton" Content="Crear contrato pendiente"
+                                Click="CrearContratoAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="CONTRATOS (seleccioná uno pendiente para cobrar)" FontWeight="SemiBold"/>
+                        <ListView x:Name="AbContratosList" Width="710" Height="185"
+                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                        <TextBlock Text="ACTIVAR MEDIANTE COBRO" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="AbPagoMedioCombo" Width="230" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <TextBox x:Name="AbRecibidoInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Efectivo recibido / total externo"/>
+                        <TextBox x:Name="AbReferenciaInput" Width="430" HorizontalAlignment="Left"
+                                 PlaceholderText="Referencia de pago externo"/>
+                        <CheckBox x:Name="AbVerificadoCheck"
+                                  Content="Verifiqué el pago externo en el proveedor"/>
+                        <Button x:Name="AbCobrarButton" Content="Cobrar y activar contrato pendiente"
+                                Click="CobrarAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="No se otorga cobertura retroactiva. Si el abono vence durante una estadía, se aplica la tarifa normal de esa estadía."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
 
