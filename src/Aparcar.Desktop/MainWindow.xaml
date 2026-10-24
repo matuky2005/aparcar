@@ -199,6 +199,19 @@
                         <PasswordBox x:Name="PinDevolucionBox" PlaceholderText="PIN de supervisor" Width="230" HorizontalAlignment="Left"/>
                         <Button Content="Solicitar devolución completa" Click="DevolverEfectivo_Click" HorizontalAlignment="Left"/>
                         <TextBlock x:Name="ResultadoDevolucionText" TextWrapping="Wrap"/>
+                        <TextBlock Text="DEVOLUCIONES DE LAVADERO Y ABONOS (SOLO EFECTIVO)" FontWeight="Bold"/>
+                        <ComboBox x:Name="DevolucionComplementoCombo" Width="530"
+                                  HorizontalAlignment="Left" PlaceholderText="Elegir cobro complementario"/>
+                        <TextBox x:Name="DevolucionComplementoMotivoInput" Width="440"
+                                 HorizontalAlignment="Left" MaxLength="300" PlaceholderText="Motivo (mínimo 8 caracteres)"/>
+                        <TextBox x:Name="DevolucionComplementoSupervisorInput" Width="330"
+                                 HorizontalAlignment="Left" PlaceholderText="Supervisor que autoriza"/>
+                        <PasswordBox x:Name="DevolucionComplementoPin" Width="230"
+                                     HorizontalAlignment="Left" PlaceholderText="PIN del supervisor"/>
+                        <Button Content="Registrar devolución completa del complemento"
+                                Click="DevolverComplemento_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Un abono utilizado o un lavado ya entregado no admite devolución automática."
+                                   Opacity="0.7" TextWrapping="Wrap"/>
                         <TextBlock Text="CIERRE Y ARQUEO" FontWeight="Bold"/>
                         <TextBlock Text="Efectivo contado en la caja ($)"/>
                         <TextBox x:Name="EfectivoContadoInput" Width="230" HorizontalAlignment="Left"/>
@@ -281,7 +294,7 @@
                 <ScrollViewer x:Name="AbonadosPanel" Visibility="Collapsed">
                     <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Abonados" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Planes de cobertura completa (24 horas) con renovación por nuevo contrato. La cobertura comienza al cobrar, no antes."
+                        <TextBlock Text="Cobertura 24 horas o nocturna (20:00–08:00). Renovaciones, hasta 5 patentes y pago antes de activar."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock Text="CATÁLOGO DE PLANES" FontWeight="SemiBold"/>
                         <TextBox x:Name="AbPlanNombreInput" Width="370" HorizontalAlignment="Left"
@@ -295,6 +308,12 @@
                             <ComboBoxItem Content="Semanal"/>
                             <ComboBoxItem Content="Quincenal"/>
                             <ComboBoxItem Content="Mensual"/>
+                        </ComboBox>
+                        <TextBlock Text="Modalidad de cobertura"/>
+                        <ComboBox x:Name="AbPlanModalidadCombo" Width="240" SelectedIndex="0"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="24 horas" Tag="Completa"/>
+                            <ComboBoxItem Content="Nocturna 20:00–08:00" Tag="Nocturna"/>
                         </ComboBox>
                         <TextBox x:Name="AbPlanPrecioInput" Width="220" HorizontalAlignment="Left"
                                  PlaceholderText="Precio ARS"/>
@@ -311,7 +330,20 @@
                                 Click="CrearContratoAbono_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="CONTRATOS (seleccioná uno pendiente para cobrar)" FontWeight="SemiBold"/>
                         <ListView x:Name="AbContratosList" Width="710" Height="185"
-                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                                  HorizontalAlignment="Left" SelectionMode="Single"
+                                  SelectionChanged="AbContratosList_SelectionChanged"/>
+                        <TextBlock Text="GESTIÓN DE PATENTES Y RENOVACIONES" FontWeight="SemiBold"/>
+                        <TextBlock Text="Seleccioná contrato pendiente para editar patentes; uno activo para renovarlo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="AbPatenteExtraInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Otra patente autorizada"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Añadir patente" Click="AgregarPatenteAbono_Click"/>
+                            <Button Content="Quitar patente" Click="QuitarPatenteAbono_Click"/>
+                        </StackPanel>
+                        <Button Content="Crear renovación del contrato seleccionado con el plan elegido"
+                                Click="RenovarAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="AbVehiculosText" TextWrapping="Wrap"/>
                         <TextBlock Text="ACTIVAR MEDIANTE COBRO" FontWeight="SemiBold"/>
                         <ComboBox x:Name="AbPagoMedioCombo" Width="230" HorizontalAlignment="Left" SelectedIndex="0">
                             <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
@@ -328,7 +360,7 @@
                                   Content="Verifiqué el pago externo en el proveedor"/>
                         <Button x:Name="AbCobrarButton" Content="Cobrar y activar contrato pendiente"
                                 Click="CobrarAbono_Click" HorizontalAlignment="Left"/>
-                        <TextBlock Text="No se otorga cobertura retroactiva. Si el abono vence durante una estadía, se aplica la tarifa normal de esa estadía."
+                        <TextBlock Text="Cobertura sin retroactividad. La permanencia debe estar completamente dentro del horario y vigencia. Una renovación anticipada empieza al vencer la anterior."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -350,7 +382,7 @@
                         <ListView x:Name="ReporteFilasList" Width="730" MinHeight="340"
                                   HorizontalAlignment="Left"/>
                         <TextBlock x:Name="RutaReporteText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                        <TextBlock Text="El Excel exporta exactamente el período consultado. Exportación PDF y filtros avanzados quedan para la siguiente etapa."
+                        <TextBlock Text="Excel y PDF exportan exactamente el período consultado; no son documentos fiscales."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
