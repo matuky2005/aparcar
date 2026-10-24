@@ -262,21 +262,8 @@ public sealed partial class AparcarDb
                 throw new UnauthorizedAccessException("Tu cuenta o rol cambió. Volvé a iniciar sesión.");
             }
         }
-        // El rol y la vigencia se consultan en SQLite en cada operación. Si otro
-        // administrador revoca la cuenta o modifica el rol, la sesión pierde acceso.
-        using var db=Abrir();
-        using var cmd=db.CreateCommand();
-        cmd.CommandText="SELECT Rol,Activo FROM Usuarios WHERE Id=$id";
-        cmd.Parameters.AddWithValue("$id",sesion.Id.ToString("D"));
-        using var r=cmd.ExecuteReader();
-        if(!r.Read() || r.GetInt32(1)!=1)
-        {
-            _sesionActual=null;
-            throw new UnauthorizedAccessException("El usuario ya no está habilitado.");
-        }
-        var rolActual=r.GetString(0);
-        if(!RolesAparcar.Permite(rolActual,permiso))
-            throw new UnauthorizedAccessException($"Tu rol ({rolActual}) no permite esta operación.");
+        if(!RolesAparcar.Permite(sesion.Rol,permiso))
+            throw new UnauthorizedAccessException($"Tu rol ({sesion.Rol}) no permite esta operación.");
         _ultimaActividadUtc=DateTimeOffset.UtcNow;
     }
 
