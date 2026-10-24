@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
     private CotizacionOperativa? _cotizacion;
     private Guid _claveCobro = Guid.Empty;
     private ResumenRecaudacion? _reporteActual;
+    private System.Collections.Generic.List<UsuarioListado> _usuariosActuales = new();
 
     public MainWindow()
     {
@@ -165,10 +166,71 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            ListaUsuarios.ItemsSource=_db.ListarUsuarios()
+            _usuariosActuales=_db.ListarUsuarios();
+            ListaUsuarios.ItemsSource=_usuariosActuales
                 .Select(u=>$"{u.Nombre} · {u.Rol} · {(u.Activo?"Activo":"Deshabilitado")}").ToList();
         }
         catch(Exception ex){Mensaje.Text="Usuarios: "+ex.Message;}
+    }
+
+    private UsuarioListado SeleccionUsuario()
+    {
+        _db.ExigirPermiso(PermisosAparcar.Usuarios);
+        var index=ListaUsuarios.SelectedIndex;
+        if(index<0 || index>=_usuariosActuales.Count)
+            throw new ArgumentException("Seleccioná una cuenta de la lista.");
+        return _usuariosActuales[index];
+    }
+
+    private void CambiarRolUsuario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var usuario=SeleccionUsuario();
+            var rol=(RolCambioCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+            _db.CambiarRolUsuario(usuario.Id,rol);
+            Mensaje.Text=$"Rol de {usuario.Nombre} actualizado a {rol}.";
+            RefrescarUsuarios();
+        }
+        catch(Exception ex){ Mensaje.Text="No se cambió el rol: "+ex.Message; }
+    }
+
+    private async void DesactivarUsuario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var usuario=SeleccionUsuario();
+            var confirmacion=new ContentDialog
+            {
+                Title="Desactivar usuario",
+                Content=$"Se bloqueará el acceso de {usuario.Nombre}. ¿Confirmás?",
+                PrimaryButtonText="Desactivar",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await confirmacion.ShowAsync()!=ContentDialogResult.Primary)return;
+            _db.DesactivarUsuario(usuario.Id);
+            Mensaje.Text=$"Usuario {usuario.Nombre} desactivado.";
+            RefrescarUsuarios();
+        }
+        catch(Exception ex){ Mensaje.Text="No se desactivó: "+ex.Message; }
+    }
+
+    private void RestablecerUsuario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var usuario=SeleccionUsuario();
+            _db.RestablecerContrasenaUsuario(usuario.Id,ResetPasswordBox.Password);
+            ResetPasswordBox.Password="";
+            Mensaje.Text=$"Contraseña restablecida de {usuario.Nombre}.";
+        }
+        catch(Exception ex)
+        {
+            ResetPasswordBox.Password="";
+            Mensaje.Text="No se restableció contraseña: "+ex.Message;
+        }
     }
 
     private void CargarAuditoria()
