@@ -16,6 +16,11 @@ public static class PermisosAparcar
     public const string Usuarios = "Seguridad.Usuarios";
     public const string Auditoria = "Seguridad.Auditoria";
     public const string Respaldo = "Seguridad.Respaldo";
+    public const string LavaderoConsultar = "Lavadero.Consultar";
+    public const string LavaderoOperar = "Lavadero.Operar";
+    public const string LavaderoCatalogo = "Lavadero.Catalogo";
+    public const string AbonosConsultar = "Abonos.Consultar";
+    public const string AbonosAdministrar = "Abonos.Administrar";
 }
 
 public static class RolesAparcar
@@ -37,13 +42,17 @@ public static class RolesAparcar
              PermisosAparcar.CerrarCaja or PermisosAparcar.MovimientosCaja or
              PermisosAparcar.Devolucion or PermisosAparcar.Reportes or
              PermisosAparcar.Impresion or PermisosAparcar.Respaldo or
-             PermisosAparcar.Auditoria) ||
+             PermisosAparcar.Auditoria or PermisosAparcar.LavaderoConsultar or
+             PermisosAparcar.LavaderoOperar or PermisosAparcar.LavaderoCatalogo or
+             PermisosAparcar.AbonosConsultar or PermisosAparcar.AbonosAdministrar) ||
         rol == Cajero && permiso is
             (PermisosAparcar.Ingreso or PermisosAparcar.Consulta or
              PermisosAparcar.Cobro or PermisosAparcar.AbrirCaja or
              PermisosAparcar.CerrarCaja or PermisosAparcar.Reportes or
-             PermisosAparcar.Impresion) ||
-        rol == Lavadero && permiso == PermisosAparcar.Consulta ||
+             PermisosAparcar.Impresion or PermisosAparcar.LavaderoConsultar or
+             PermisosAparcar.AbonosConsultar) ||
+        rol == Lavadero && permiso is (PermisosAparcar.Consulta or
+             PermisosAparcar.LavaderoConsultar or PermisosAparcar.LavaderoOperar) ||
         rol == Consulta && permiso is
             (PermisosAparcar.Consulta or PermisosAparcar.Reportes);
 }
