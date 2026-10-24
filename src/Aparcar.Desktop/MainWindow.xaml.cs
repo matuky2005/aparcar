@@ -197,6 +197,8 @@ public sealed partial class MainWindow : Window
             _claveCobro = Guid.Empty;
             Refrescar();
             ActualizarCaja();
+            if (AutoImprimirCheck.IsChecked == true)
+                ImprimirCobroSeguro(cobro);
             BusquedaInput.Focus(FocusState.Programmatic);
         }
         catch (Exception ex)
@@ -348,6 +350,24 @@ public sealed partial class MainWindow : Window
             ActualizarCaja();
         }
         catch(Exception ex){ Mensaje.Text="No se pudo cerrar caja: "+ex.Message; }
+    }
+
+    private void ImprimirCobroSeguro(CobroEfectivoConfirmado cobro)
+    {
+        try
+        {
+            TicketPrinter.ImprimirCobro(cobro,_impresora ?? "",_anchoTicket);
+            _db.RegistrarImpresion(cobro.EstadiaId,_impresora ?? "",true,
+                "Recibo de cobro: enviado al controlador Windows");
+            Mensaje.Text += " Recibo no fiscal enviado a impresora.";
+        }
+        catch (Exception ex)
+        {
+            try { _db.RegistrarImpresion(cobro.EstadiaId,_impresora ?? "",false,
+                    "Error imprimiendo recibo de cobro: "+ex.Message); }
+            catch { /* Conservar el error de impresión original. */ }
+            Mensaje.Text += " EL COBRO ESTÁ CONFIRMADO, pero falló el recibo: "+ex.Message;
+        }
     }
 
     private void CargarImpresoras()
