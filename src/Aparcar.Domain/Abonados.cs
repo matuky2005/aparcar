@@ -22,8 +22,8 @@ public sealed record PlanAbono(
 
 public sealed record ContratoAbono(
     Guid Id,string Cliente,string Patente,Guid PlanId,string PlanNombre,
-    string TipoVehiculo,string Periodicidad,DateTimeOffset InicioUtc,
-    DateTimeOffset FinUtc,string Estado,string ReferenciaCobro);
+    string TipoVehiculo,string Periodicidad,long PrecioCentavos,DateTimeOffset? InicioUtc,
+    DateTimeOffset? FinUtc,string Estado,string ReferenciaCobro);
 
 public sealed record CoberturaAbono(Guid ContratoId,string Patente,DateTimeOffset DesdeUtc,
     DateTimeOffset HastaUtc);
