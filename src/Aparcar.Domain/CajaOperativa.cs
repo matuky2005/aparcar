@@ -12,7 +12,8 @@ public sealed record ArqueoCierre(
 public sealed record CotizacionOperativa(
     Guid EstadiaId, long Ticket, string Patente, string TipoVehiculo,
     DateTimeOffset FechaCalculoUtc, DateTimeOffset VenceUtc,
-    long ImporteCentavos, int TarifaVersion, Guid? TurnoId);
+    long ImporteCentavos, int TarifaVersion, Guid? TurnoId,
+    bool CubiertoPorAbono=false);
 
 public sealed record CobroEfectivoConfirmado(
     Guid Id, Guid EstadiaId, long Ticket, long ImporteCentavos,
