@@ -33,7 +33,7 @@ internal static class TicketPrinter
     }
 
     /// <summary>Recibo no fiscal: acredita un cobro confirmado por el operador.</summary>
-    public static void ImprimirCobro(CobroEfectivoConfirmado cobro,string impresora,int anchoMm)
+    public static void ImprimirCobro(CobroEfectivoConfirmado cobro,string impresora,int anchoMm,string medioPago = "Efectivo")
     {
         if (string.IsNullOrWhiteSpace(impresora))
             throw new InvalidOperationException("Seleccioná una impresora en Configuración.");
@@ -68,7 +68,7 @@ internal static class TicketPrinter
             Linea("COMPROBANTE NO FISCAL",b,30,true);
             Linea($"TICKET #{cobro.Ticket:D7}",b);
             Linea($"FECHA: {cobro.FechaUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}",n);
-            Linea("MEDIO: EFECTIVO",n);
+            Linea($"MEDIO: {medioPago.ToUpperInvariant()}",n);
             Linea($"TOTAL: {(cobro.ImporteCentavos/100m):N2}",b);
             Linea($"RECIBIDO: {(cobro.EfectivoRecibidoCentavos/100m):N2}",n);
             Linea($"VUELTO: {(cobro.VueltoCentavos/100m):N2}",b);
