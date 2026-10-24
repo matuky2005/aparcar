@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: versión técnica 0.2 — NO apta para cobros reales ni para producción.**
+> **Estado: versión técnica 0.3 — NO apta para cobros reales ni para producción.**
 
 ## Funcionalidad implementada (rama de trabajo)
 
@@ -18,6 +18,20 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 - Reimpresión por número de ticket sin duplicar el ingreso, más registro de intentos y fallos de impresión.
 - Migración conservadora: incorpora tokens QR a estadías anteriores y **no borra la base existente**.
 - Pruebas automatizadas para tarifas, ingreso duplicado, salida y reingreso.
+
+## Operación nueva v0.3 — caja y tarifas
+
+Esta versión agrega un primer circuito de **cobro en efectivo confirmado manualmente**, no integración con bancos ni una habilitación fiscal.
+
+1. Abrí **Tarifas** y definí los importes para auto, moto y camioneta (montos en ARS, con fracción y tope de 24 h). Al guardar se crea una nueva versión. La tarifa asignada en el ingreso no cambia durante la estadía.
+2. Entrá a **Caja**, indicá un operador y el fondo para vuelto y abrí un turno. Solo se admite una caja local abierta por vez.
+3. En **Salida y cobro** buscá por ticket, patente o QR. El programa calcula el saldo a partir de la tarifa de ingreso, lo cotiza por 2 minutos y exige volver a calcular si cambia el importe.
+4. Ingresá cuánto efectivo recibiste, comprobá el vuelto y presioná **Confirmar efectivo recibido y finalizar salida**. El cobro, el movimiento de efectivo y la salida se guardan juntos en SQLite.
+5. En **Caja** consultá la recaudación y registrá el efectivo contado para cerrar el turno. Se guarda esperado, contado y diferencia.
+
+**No usar todavía con dinero de clientes:** faltan usuarios autenticados, control de permisos, devoluciones, retiro de efectivo, conciliación y pruebas físicas del flujo. No contempla tarjetas ni transferencias. Una entrada de efectivo registrada presupone que el cajero realmente recibió el dinero.
+
+El esquema se migra automáticamente, con respaldo consistente previo a la migración. Los cobros simulados de v0.1/v0.2 **no se incorporan** a caja. Cada estadía recibe una versión de tarifa propia.
 
 ## Requisitos
 
@@ -43,7 +57,7 @@ Después abrí `Aparcar_VisualStudio\Aparcar.sln`, seleccioná la plataforma **x
 
 El script crea la solución a partir de la **plantilla oficial WinUI 3 empaquetada** (single-project MSIX), incorpora los archivos fuente de este repositorio, instala la dependencia de SQLite, ejecuta las pruebas y compila. Detiene la ejecución si ya existe la carpeta `Aparcar_VisualStudio`, para no sobrescribir trabajo previo.
 
-GitHub Actions genera artefactos descargables: versión portable y MSIX firmado con certificado TEMPORAL de pruebas. El MSIX **no está certificado por Microsoft Store**; su identidad de prueba puede variar. Para probar sin instalar el certificado, usá la versión portable.
+GitHub Actions genera artefactos descargables de v0.3: versión portable y MSIX firmado con certificado TEMPORAL de pruebas. El MSIX **no está certificado por Microsoft Store**; su identidad de prueba puede variar. Para probar sin instalar el certificado, usá la versión portable.
 
 ## Dónde están los datos
 
