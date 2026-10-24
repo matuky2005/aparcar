@@ -12,10 +12,10 @@ public sealed partial class AparcarDb
     private void InicializarModulos()
     {
         using(var ver=Abrir())
-        using(var cmd=ver.CreateCommand())
+        using(var verCmd=ver.CreateCommand())
         {
-            cmd.CommandText="SELECT COUNT(*) FROM EsquemaVersion WHERE Numero=6";
-            if(Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture)==0)
+            verCmd.CommandText="SELECT COUNT(*) FROM EsquemaVersion WHERE Numero=6";
+            if(Convert.ToInt64(verCmd.ExecuteScalar(),CultureInfo.InvariantCulture)==0)
                 CrearRespaldoInterno(); // Antes del cambio, fuera del paquete MSIX.
         }
         using var db=Abrir();
