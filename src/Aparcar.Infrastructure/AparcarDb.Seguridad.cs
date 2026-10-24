@@ -367,6 +367,104 @@ public sealed partial class AparcarDb
         tx.Commit();
     }
 
+    /// <summary>
+    /// Modifica rol/estado con autorización de administrador. Jamás permite
+    /// revocar el último administrador activo o deshabilitar la propia cuenta.
+    /// </summary>
+    public UsuarioListado ModificarUsuario(Guid id,string rol,bool activo)
+    {
+        ExigirPermiso(PermisosAparcar.Usuarios);
+        if(!RolesAparcar.Valido(rol))throw new ArgumentException("Rol desconocido.");
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        string nombre,rolAnterior,fecha;
+        bool activoAnterior;
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="SELECT Nombre,Rol,Activo,CreadoUtc FROM Usuarios WHERE Id=$id";
+            cmd.Parameters.AddWithValue("$id",id.ToString("D"));
+            using var reader=cmd.ExecuteReader();
+            if(!reader.Read())throw new ArgumentException("El usuario indicado no existe.");
+            nombre=reader.GetString(0);
+            rolAnterior=reader.GetString(1);
+            activoAnterior=reader.GetInt32(2)==1;
+            fecha=reader.GetString(3);
+        }
+        if(id==_sesionActual?.Id && (!activo || rol!=RolesAparcar.Administrador))
+            throw new InvalidOperationException("No podés desactivar ni reducir el rol de tu propia cuenta.");
+        if(rolAnterior==RolesAparcar.Administrador && activoAnterior &&
+            (!activo || rol!=RolesAparcar.Administrador))
+        {
+            using var check=db.CreateCommand();
+            check.Transaction=tx;
+            check.CommandText="SELECT COUNT(*) FROM Usuarios WHERE Activo=1 AND Rol='Administrador'";
+            if(Convert.ToInt64(check.ExecuteScalar(),CultureInfo.InvariantCulture)<=1)
+                throw new InvalidOperationException("No se puede revocar el último administrador activo.");
+        }
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="UPDATE Usuarios SET Rol=$rol,Activo=$activo WHERE Id=$id";
+            cmd.Parameters.AddWithValue("$rol",rol);
+            cmd.Parameters.AddWithValue("$activo",activo?1:0);
+            cmd.Parameters.AddWithValue("$id",id.ToString("D"));
+            if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("No se actualizó el usuario.");
+        }
+        AuditarSesion(db,tx,"Usuario.Modificar",id.ToString("D"),
+            $"Rol {rolAnterior}->{rol}; activo {activoAnterior}->{activo}");
+        tx.Commit();
+        return new UsuarioListado(id,nombre,rol,activo,
+            DateTimeOffset.Parse(fecha,CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind));
+    }
+
+    /// <summary>Permite al usuario autenticado renovar su propia contraseña.</summary>
+    public void CambiarMiContrasena(string anterior,string nueva)
+    {
+        ExigirPermiso(PermisosAparcar.Consulta);
+        var sesion=_sesionActual!;
+        ValidarCredenciales(sesion.Usuario,nueva);
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        byte[] salt,hash;
+        int iter;
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="SELECT Salt,Hash,Iteraciones FROM Usuarios WHERE Id=$id";
+            cmd.Parameters.AddWithValue("$id",sesion.Id.ToString("D"));
+            using var reader=cmd.ExecuteReader();
+            if(!reader.Read())throw new UnauthorizedAccessException("Usuario no disponible.");
+            salt=(byte[])reader.GetValue(0);
+            hash=(byte[])reader.GetValue(1);
+            iter=reader.GetInt32(2);
+        }
+        var prueba=Rfc2898DeriveBytes.Pbkdf2(anterior??"",salt,iter,
+            HashAlgorithmName.SHA256,hash.Length);
+        if(!CryptographicOperations.FixedTimeEquals(prueba,hash))
+            throw new UnauthorizedAccessException("Contraseña actual incorrecta.");
+        var nuevoSalt=RandomNumberGenerator.GetBytes(24);
+        var nuevoHash=Rfc2898DeriveBytes.Pbkdf2(nueva,nuevoSalt,IteracionesContrasena,
+            HashAlgorithmName.SHA256,32);
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="""
+                UPDATE Usuarios SET Salt=$salt,Hash=$hash,Iteraciones=$iter,
+                    Fallos=0,BloqueoHastaUtc=NULL WHERE Id=$id
+                """;
+            cmd.Parameters.AddWithValue("$salt",nuevoSalt);
+            cmd.Parameters.AddWithValue("$hash",nuevoHash);
+            cmd.Parameters.AddWithValue("$iter",IteracionesContrasena);
+            cmd.Parameters.AddWithValue("$id",sesion.Id.ToString("D"));
+            if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("No se actualizó la contraseña.");
+        }
+        AuditarSesion(db,tx,"Usuario.Contrasena",sesion.Id.ToString("D"),
+            "Contraseña cambiada por el titular");
+        tx.Commit();
+        _sesionActual=null; // Se obliga a ingresar de nuevo con la nueva clave.
+    }
+
     public List<UsuarioListado> ListarUsuarios()
     {
         ExigirPermiso(PermisosAparcar.Usuarios);
