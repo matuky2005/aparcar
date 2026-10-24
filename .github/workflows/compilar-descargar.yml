@@ -3,8 +3,11 @@ name: Aparcar - Compilar y descargar Windows
 on:
   push:
     branches: ["feature/**", main]
-  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: aparcar-build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
