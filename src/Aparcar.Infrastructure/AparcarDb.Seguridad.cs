@@ -239,9 +239,108 @@ public sealed partial class AparcarDb
         var sesion=SesionActual;
         if(sesion is null)
             throw new UnauthorizedAccessException("Iniciá sesión para continuar.");
+        using(var db=Abrir())
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.CommandText="SELECT Rol,Activo FROM Usuarios WHERE Id=$id";
+            cmd.Parameters.AddWithValue("$id",sesion.Id.ToString("D"));
+            using var r=cmd.ExecuteReader();
+            if(!r.Read() || r.GetInt32(1)!=1 || r.GetString(0)!=sesion.Rol)
+            {
+                _sesionActual=null;
+                throw new UnauthorizedAccessException("Tu cuenta o rol cambió. Volvé a iniciar sesión.");
+            }
+        }
         if(!RolesAparcar.Permite(sesion.Rol,permiso))
             throw new UnauthorizedAccessException($"Tu rol ({sesion.Rol}) no permite esta operación.");
         _ultimaActividadUtc=DateTimeOffset.UtcNow;
+    }
+
+    private static (Guid Id,string Rol,bool Activo) LeerUsuarioDestino(
+        SqliteConnection db,SqliteTransaction tx,Guid usuarioId)
+    {
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="SELECT Id,Rol,Activo FROM Usuarios WHERE Id=$id";
+        cmd.Parameters.AddWithValue("$id",usuarioId.ToString("D"));
+        using var r=cmd.ExecuteReader();
+        if(!r.Read())throw new ArgumentException("Usuario inexistente.");
+        return(Guid.Parse(r.GetString(0)),r.GetString(1),r.GetInt32(2)==1);
+    }
+
+    private static long ContarAdministradores(SqliteConnection db,SqliteTransaction tx)
+    {
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="SELECT COUNT(*) FROM Usuarios WHERE Rol='Administrador' AND Activo=1";
+        return Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture);
+    }
+
+    public void CambiarRolUsuario(Guid usuarioId,string nuevoRol)
+    {
+        ExigirPermiso(PermisosAparcar.Usuarios);
+        if(!RolesAparcar.Valido(nuevoRol))throw new ArgumentException("Rol inválido.");
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        var usuario=LeerUsuarioDestino(db,tx,usuarioId);
+        if(usuario.Id==_sesionActual?.Id && nuevoRol!=RolesAparcar.Administrador)
+            throw new InvalidOperationException("No podés quitarte el rol administrador durante tu sesión.");
+        if(usuario.Rol==RolesAparcar.Administrador && nuevoRol!=RolesAparcar.Administrador &&
+            ContarAdministradores(db,tx)<=1)
+            throw new InvalidOperationException("Debe conservarse un administrador activo.");
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="UPDATE Usuarios SET Rol=$rol WHERE Id=$id";
+        cmd.Parameters.AddWithValue("$rol",nuevoRol);
+        cmd.Parameters.AddWithValue("$id",usuarioId.ToString("D"));
+        cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Usuario.Rol",usuarioId.ToString("D"),
+            $"Antes={usuario.Rol}; ahora={nuevoRol}");
+        tx.Commit();
+    }
+
+    public void DesactivarUsuario(Guid usuarioId)
+    {
+        ExigirPermiso(PermisosAparcar.Usuarios);
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        var usuario=LeerUsuarioDestino(db,tx,usuarioId);
+        if(usuario.Id==_sesionActual?.Id)
+            throw new InvalidOperationException("No podés desactivar tu propia cuenta.");
+        if(usuario.Rol==RolesAparcar.Administrador && usuario.Activo &&
+            ContarAdministradores(db,tx)<=1)
+            throw new InvalidOperationException("No se puede desactivar al último administrador.");
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="UPDATE Usuarios SET Activo=0 WHERE Id=$id";
+        cmd.Parameters.AddWithValue("$id",usuarioId.ToString("D"));
+        cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Usuario.Desactivar",usuarioId.ToString("D"),"Cuenta inhabilitada");
+        tx.Commit();
+    }
+
+    public void RestablecerContrasenaUsuario(Guid usuarioId,string nueva)
+    {
+        ExigirPermiso(PermisosAparcar.Usuarios);
+        ValidarCredenciales("usuario",nueva);
+        var salt=RandomNumberGenerator.GetBytes(24);
+        var hash=Rfc2898DeriveBytes.Pbkdf2(nueva,salt,IteracionesContrasena,HashAlgorithmName.SHA256,32);
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        _=LeerUsuarioDestino(db,tx,usuarioId);
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="""
+            UPDATE Usuarios SET Salt=$salt,Hash=$hash,Iteraciones=$iter,
+                Fallos=0,BloqueoHastaUtc=NULL WHERE Id=$id;
+            """;
+        cmd.Parameters.AddWithValue("$salt",salt);
+        cmd.Parameters.AddWithValue("$hash",hash);
+        cmd.Parameters.AddWithValue("$iter",IteracionesContrasena);
+        cmd.Parameters.AddWithValue("$id",usuarioId.ToString("D"));
+        cmd.ExecuteNonQuery();
+        AuditarSesion(db,tx,"Usuario.Clave",usuarioId.ToString("D"),"Contraseña restablecida por administrador");
+        tx.Commit();
     }
 
     public List<UsuarioListado> ListarUsuarios()
