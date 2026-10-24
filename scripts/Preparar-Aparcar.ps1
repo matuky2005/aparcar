@@ -51,6 +51,8 @@ Invoke-Dotnet -Arguments @('add',$infraProj,'reference',$domainProj)
 Invoke-Dotnet -Arguments @('add',$desktopProj,'reference',$infraProj,$domainProj)
 Invoke-Dotnet -Arguments @('add',$testProj,'reference',$infraProj,$domainProj)
 Invoke-Dotnet -Arguments @('add',$infraProj,'package','Microsoft.Data.Sqlite')
+Invoke-Dotnet -Arguments @('add',$desktopProj,'package','System.Drawing.Common')
+Invoke-Dotnet -Arguments @('add',$desktopProj,'package','QRCoder','--version','1.7.0')
 
 foreach ($name in @('Aparcar.Desktop','Aparcar.Domain','Aparcar.Infrastructure')) {
     $origin = Join-Path $repo "src\$name"
