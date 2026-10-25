@@ -51,6 +51,25 @@ public sealed class ArcaConsultaTests
                     SecurityElement.Escape(acceso)+"</loginCmsReturn></loginCmsResponse></soap:Body></soap:Envelope>";
                 return Exito(xml);
             }
+            if(solicitud.RequestUri==ArcaHomologacion.WsfeUrl &&
+               cuerpo.Contains("FECompConsultar",StringComparison.Ordinal))
+            {
+                ConsultasWsfe++;
+                Assert.Contains("<CbteNro>128</CbteNro>",cuerpo);
+                Assert.DoesNotContain("FECAESolicitar",cuerpo);
+                return Exito("<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/'>"+
+                    "<soap:Body><FECompConsultarResponse><FECompConsultarResult><ResultGet>"+
+                    "<PtoVta>3</PtoVta><CbteTipo>6</CbteTipo><CbteNro>128</CbteNro>"+
+                    "<Concepto>2</Concepto><DocTipo>96</DocTipo><DocNro>12345678</DocNro>"+
+                    "<CondicionIVAReceptorId>5</CondicionIVAReceptorId><CbteFch>20261025</CbteFch>"+
+                    "<ImpTotal>121.00</ImpTotal><ImpTotConc>0.00</ImpTotConc>"+
+                    "<ImpNeto>100.00</ImpNeto><ImpOpEx>0.00</ImpOpEx><ImpTrib>0.00</ImpTrib><ImpIVA>21.00</ImpIVA>"+
+                    "<MonId>PES</MonId><MonCotiz>1.00</MonCotiz>"+
+                    "<FchServDesde>20261025</FchServDesde><FchServHasta>20261025</FchServHasta>"+
+                    "<FchVtoPago>20261025</FchVtoPago>"+
+                    "<CodAutorizacion>71234567890123</CodAutorizacion><FchVto>20261104</FchVto>"+
+                    "</ResultGet></FECompConsultarResult></FECompConsultarResponse></soap:Body></soap:Envelope>");
+            }
             if(solicitud.RequestUri==ArcaHomologacion.WsfeUrl)
             {
                 ConsultasWsfe++;
@@ -154,4 +173,29 @@ public sealed class ArcaConsultaTests
         }
         finally{Directory.Delete(dir,true);}
     }
+    [Fact]
+    public async Task ConsultaDeComprobante_UsaFeCompConsultarSinSolicitarNuevoCae()
+    {
+        var (ruta,dir)=CertificadoTemporal();
+        try
+        {
+            var falso=new RespuestasFicticias();
+            using var http=new HttpClient(falso);
+            using var cliente=new ArcaHomologacion(http);
+            var esperado=new ComprobanteFiscalWsfe(3,6,128,new DateOnly(2026,10,25),
+                2,96,12345678,5,121m,0m,100m,0m,0m,21m,
+                new[]{new IvaFiscalWsfe(5,100m,21m)},
+                new DateOnly(2026,10,25),new DateOnly(2026,10,25),new DateOnly(2026,10,25));
+            var consulta=await cliente.ConsultarComprobanteAsync(
+                ruta,"clave123","20123456786",esperado);
+            Assert.True(consulta.Encontrado);
+            Assert.True(consulta.Coincide);
+            Assert.True(consulta.TieneCae);
+            Assert.Equal("71234567890123",consulta.Cae);
+            Assert.Equal(1,falso.ConsultasWsaa);
+            Assert.Equal(1,falso.ConsultasWsfe);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
 }
