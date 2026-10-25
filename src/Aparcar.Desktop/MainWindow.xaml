@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.12 · CAE de prueba y conciliación WSFEv1 · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.13 · Condición IVA oficial y conciliación estricta · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
