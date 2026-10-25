@@ -452,7 +452,8 @@ public sealed partial class MainWindow : Window
             var numero = _db.RegistrarIngreso(PatenteInput.Text, tipo, SectorInput.Text,
                 string.IsNullOrWhiteSpace(PlazaIngresoInput.Text)?null:PlazaIngresoInput.Text);
             var ticket = _db.ObtenerTicket(numero);
-            TicketPreviewText.Text = $"Ticket {ticket.Numero:D7} · {ticket.Patente} · {ticket.TipoVehiculo} · " +
+            TicketPreviewText.Text = $"Ticket {ticket.Numero:D7} · {ticket.Patente} · {ticket.TipoVehiculo} · {ticket.Sector}" +
+                                    (ticket.Plaza is null?"":$" / plaza {ticket.Plaza}") + " · " +
                                     $"{ticket.FechaIngresoUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}";
             Mensaje.Text = $"Ingreso guardado. Ticket #{numero:D7}.";
             PatenteInput.Text = "";
