@@ -42,7 +42,7 @@ public sealed partial class AparcarDb
                 CobroId TEXT NOT NULL,
                 ImporteCentavos INTEGER NOT NULL CHECK(ImporteCentavos>0),
                 FechaUtc TEXT NOT NULL,
-                Estado TEXT NOT NULL CHECK(Estado IN('PendienteDatosFiscales','RevisionHistorica')),
+                Estado TEXT NOT NULL CHECK(Estado IN('PendienteDatosFiscales','RevisionHistorica','RevisionDevolucion')),
                 UNIQUE(Origen,CobroId)
             );
             INSERT OR IGNORE INTO EsquemaVersion(Numero,AplicadoUtc)
@@ -67,6 +67,20 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$cobro",cobroId.ToString("D"));
         cmd.Parameters.AddWithValue("$importe",importeCentavos);
         cmd.Parameters.AddWithValue("$fecha",fechaUtc.ToUniversalTime().ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    private static void MarcarPendienteFiscalDevuelto(SqliteConnection db,SqliteTransaction tx,
+        string origen,Guid cobroId)
+    {
+        using var cmd=db.CreateCommand();
+        cmd.Transaction=tx;
+        cmd.CommandText="""
+            UPDATE PendientesFiscales SET Estado='RevisionDevolucion'
+            WHERE Origen=$origen AND CobroId=$cobro AND Estado='PendienteDatosFiscales';
+            """;
+        cmd.Parameters.AddWithValue("$origen",origen);
+        cmd.Parameters.AddWithValue("$cobro",cobroId.ToString("D"));
         cmd.ExecuteNonQuery();
     }
 
