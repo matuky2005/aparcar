@@ -57,7 +57,7 @@ public sealed partial class ArcaHomologacion
     {
         if(!AdaptadorWsfeFacturador.CuitValido(cuitEsperada))
             throw new ArgumentException("CUIT consultada inválida.");
-        var doc=XDocument.Parse(respuestaXml,LoadOptions.None);
+        var doc=LeerXmlSeguro(respuestaXml);
         if(doc.Descendants().Any(x=>x.Name.LocalName=="Fault"))
             throw new InvalidOperationException("ARCA rechazó la consulta al padrón.");
         var returnNode=doc.Descendants()
