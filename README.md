@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.10 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.11 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,32 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.11: duplicados impresos y consulta ARCA en homologación
+
+**Validación:** [GitHub Actions #40169593413](https://github.com/matuky2005/aparcar/actions/runs/40169593413) — **55/55 pruebas aprobadas** y compilación WinUI 3 correcta, **sin artefactos descargables**. El workflow queda exclusivamente manual.
+
+### Reimpresión de tickets
+- Una reimpresión que ya fue autorizada por administrador/supervisor con motivo imprime en el papel la leyenda **DUPLICADO - REIMPRESION** y usa un nombre de trabajo diferenciado.
+- Se conservan el ticket y QR original; la autorización y el resultado del controlador se registran en SQLite y auditoría.
+- La confirmación de envío al controlador **no implica impresión física comprobada**. Faltan pruebas en impresoras térmicas 58/80 mm, lectores QR y cortes automáticos.
+
+### ARCA — Primera conexión real, SOLO LECTURA / HOMOLOGACIÓN
+- Se incorpora `ArcaHomologacion`, cliente C# que prepara un **TRA** para el servicio `wsfe`, lo firma con **CMS/PKCS#7** usando certificado PFX con clave privada y consulta **WSAA loginCms**. Luego usa Token, Sign y CUIT en **WSFEv1 FECompUltimoAutorizado**.
+- Los únicos endpoints del cliente son los de **homologación** de WSAA y WSFEv1. No existe en este módulo método de emisión de CAE, confirmación de comprobante o invocación de producción.
+- La pantalla de Configuración permite ingresar ruta de PFX de homologación, contraseña, CUIT, punto de venta y tipo (A=1, B=6, C=11). **La contraseña se borra del formulario después de consultar**. Ni certificado, contraseña, CMS, Token ni Sign se guardan en la base, registros o reportes.
+- La consulta exige rol administrador y muestra únicamente el último número confirmado o un error resumido, sin exponer las credenciales SOAP.
+- Se agregaron cuatro pruebas automatizadas de creación del TRA, firma CMS verificada criptográficamente, respuesta correcta WSAA/WSFEv1, error fiscal y rechazo de CUIT inválido, usando certificado temporal y un `HttpMessageHandler` simulado. **No se utilizaron credenciales de un contribuyente ni se probó una conexión real a ARCA.**
+- Para conectarse de verdad, gestionar en ARCA el certificado de **homologación** mediante WSASS y vincularlo a WSFE. No subir certificados PFX, claves, contraseñas ni tokens al repositorio.
+
+### Pendiente para emisión real
+- Autorización `FECAESolicitar`, consulta de comprobantes, determinación fiscal de A/B/C, datos de emisor/receptor, comprobantes asociados, IVA, condición tributaria, CAE/vencimiento y notas de crédito. Deben respetarse puntos de venta y numeración correlativa de ARCA.
+- Reintentos ante fallas de red y conciliación previa para impedir facturas duplicadas; persistencia inmutable de las respuestas oficiales y pruebas reales de homologación con un certificado autorizado.
+- Recién después de homologar y auditar la integración se evaluará el endpoint de producción.
+
+Fuentes oficiales: https://www.arca.gob.ar/ws/documentacion/wsaa.asp ; https://www.arca.gob.ar/ws/documentacion/ws-factura-electronica.asp .
+
+**Aparcar sigue sin estar habilitado para cobros comerciales ni emisión fiscal. No publicar Portable/MSIX todavía.**
 
 ## Etapa v0.10: controles antifraude y preparación fiscal
 
