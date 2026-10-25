@@ -592,8 +592,15 @@
                         </ComboBox>
                         <TextBox x:Name="FiscalDocNumeroInput" Width="280" HorizontalAlignment="Left"
                                  PlaceholderText="Nro. documento; 0 si tipo 99"/>
-                        <TextBox x:Name="FiscalCondicionIvaInput" Width="280" HorizontalAlignment="Left"
-                                 PlaceholderText="ID condición IVA receptor según ARCA"/>
+                        <TextBlock Text="Condición IVA receptor: consultar catálogo oficial en homologación"
+                                   TextWrapping="Wrap"/>
+                        <Button x:Name="FiscalConsultarCondicionesButton"
+                                Content="Consultar condiciones IVA válidas en ARCA"
+                                Click="FiscalConsultarCondiciones_Click"
+                                HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="FiscalCondicionIvaCombo" Width="480" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná la condición IVA oficial de esta clase"/>
+                        <TextBlock x:Name="FiscalCondicionIvaEstadoText" TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock Text="Desglose de importes fiscales (pesos; suma = cobro)"/>
                         <TextBox x:Name="FiscalNetoInput" Width="230" HorizontalAlignment="Left"
                                  PlaceholderText="Neto gravado"/>
