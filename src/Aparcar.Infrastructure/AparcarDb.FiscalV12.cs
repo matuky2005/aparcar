@@ -72,9 +72,8 @@ public sealed partial class AparcarDb
         string cuitEmisor,string origen,Guid cobroId,ComprobanteFiscalWsfe comprobante)
     {
         ExigirPermiso(PermisosAparcar.Configuracion);
-        if(string.IsNullOrWhiteSpace(cuitEmisor)||cuitEmisor.Length!=11||
-           !cuitEmisor.All(char.IsDigit))
-            throw new ArgumentException("CUIT emisor inválido.");
+        if(!AdaptadorWsfeFacturador.CuitValido(cuitEmisor))
+            throw new ArgumentException("El CUIT emisor no supera el dígito verificador.");
         AdaptadorWsfeFacturador.Validar(comprobante);
         if(origen is not ("Estacionamiento" or "Lavadero" or "Abono"))
             throw new ArgumentException("Origen fiscal inválido.");
@@ -208,7 +207,13 @@ public sealed partial class AparcarDb
                 UPDATE FacturasHomologacion SET Estado='PorConciliar',
                     EnviadaUtc=$ahora,ActualizadaUtc=$ahora,
                     Observacion='Solicitud marcada antes de enviar; no reintentar sin FECompConsultar'
-                WHERE Id=$id AND Estado='Preparada';
+                WHERE Id=$id AND Estado='Preparada'
+                  AND EXISTS (
+                    SELECT 1 FROM PendientesFiscales p
+                    WHERE p.Origen=FacturasHomologacion.Origen
+                      AND p.CobroId=FacturasHomologacion.CobroId
+                      AND p.Estado='PendienteDatosFiscales'
+                  );
                 """;
             cmd.Parameters.AddWithValue("$id",id.ToString("D"));
             cmd.Parameters.AddWithValue("$ahora",DateTimeOffset.UtcNow.ToString("O"));
@@ -234,7 +239,8 @@ public sealed partial class AparcarDb
             EstadoAutorizacionWsfe.Rechazado=>"Rechazada",
             _=>"PorConciliar"
         };
-        if(estado=="Autorizada"&&(resultado.Cae?.Length!=14||resultado.Vencimiento is null))
+        if(estado=="Autorizada"&&(resultado.Cae?.Length!=14||
+           !resultado.Cae.All(char.IsDigit)||resultado.Vencimiento is null))
             throw new InvalidOperationException("No se puede registrar una autorización sin CAE y vencimiento válidos.");
         using var db=Abrir();using var tx=db.BeginTransaction();
         using(var cmd=db.CreateCommand())
