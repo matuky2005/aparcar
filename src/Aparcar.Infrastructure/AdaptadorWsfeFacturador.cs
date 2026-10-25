@@ -110,8 +110,9 @@ public static class AdaptadorWsfeFacturador
             throw new InvalidOperationException("Documento del receptor inválido.");
         if(c.Tipo==1 && (c.DocTipo!=80 || c.DocNumero<=0))
             throw new InvalidOperationException("Factura A exige CUIT del receptor.");
-        if(c.DocTipo==99 && (c.Tipo!=6 || c.DocNumero!=0))
-            throw new InvalidOperationException("Sin identificar solo corresponde a Factura B con documento 0.");
+        if(c.DocTipo==99 && (c.Tipo is not (6 or 11) || c.DocNumero!=0))
+            throw new InvalidOperationException("Sin identificar solo corresponde a Factura B/C con documento 0.");
+        ReglasConsumidorFinalV17.ValidarIdentificacion(c);
         if(c.DocTipo is 80 or 86 &&
             !CuitValido(c.DocNumero.ToString("00000000000",Inv)))
             throw new InvalidOperationException("CUIT/CUIL receptor no supera el dígito verificador.");
