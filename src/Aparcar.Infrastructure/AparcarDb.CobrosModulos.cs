@@ -187,6 +187,7 @@ public sealed partial class AparcarDb
             if(cmd.ExecuteNonQuery()!=1)
                 throw new InvalidOperationException("El estado cambió y el cobro fue revertido.");
         }
+        RegistrarPendienteFiscal(db,tx,categoria,id,importe,ahora);
         AuditarSesion(db,tx,$"{categoria}.Cobro",referenciaId.ToString("D"),
             $"Patente={patente}; servicio={descripcion}; medio={medio}; importe={importe}");
         tx.Commit();
