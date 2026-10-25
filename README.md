@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.14 (sin compilación nueva verificada) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.15 (CI de v0.15 pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,15 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.15: identidad comercial y QR ARCA preparado, sin activar producción
+
+- Identidad comercial del emisor y receptor asociada a cada solicitud de homologación: razón social, domicilio, condición IVA, Ingresos Brutos, inicio de actividades, receptor y descripción del servicio. El CUIT/documento/ID IVA se contrastan con la solicitud fiscal reservada.
+- Nueva migración **SQLite v13** (con respaldo previo) y snapshot JSON inmutable auditado con SHA-256; el operador lo registra solo con la solicitud `Preparada`, antes de enviarla.
+- Se actualizan la pantalla fiscal, el PDF multipágina de prueba y la impresión térmica paginada. Los documentos siguen siendo **PRUEBAS SIN VALIDEZ FISCAL** y carecen de QR comercial.
+- Se añade el codificador aislado de URL/JSON/Base64 de QR ARCA versión 1, inspirado en `Facturador.Reporting/ArcaQrService.cs` y en la especificación oficial. Está **desconectado de los cobros** y rechaza explícitamente homologación; no existe todavía autorización fiscal productiva ni QR impreso real.
+- Nuevos tests de validación, integridad, snapshot y QR, añadidos al PR borrador. **No se han ejecutado todavía**: falta invocar manualmente la validación de Windows y revisar resultados.
+- Alcance detallado, requisitos legales y restricciones en [docs/FACTURACION_V15.md](docs/FACTURACION_V15.md).
 
 ## Etapa v0.14: copias imprimibles de homologación (EN DESARROLLO)
 
