@@ -136,6 +136,7 @@ public sealed partial class MainWindow : Window
         FiscalConciliarButton.IsEnabled=puedeConfigurar;
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
+        FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
         if(_db.CajaCiegaObligatoria())
@@ -1234,12 +1235,47 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void FiscalGuardarDatosDocumento_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var solicitud=FiscalSolicitudElegida();
+            var documento=solicitud.Comprobante;
+            var emisor=new EmisorDocumentoFiscal(
+                FiscalRazonSocialEmisorInput.Text.Trim(),
+                FiscalNombreFantasiaEmisorInput.Text.Trim(),
+                solicitud.CuitEmisor,
+                FiscalDomicilioEmisorInput.Text.Trim(),
+                FiscalCondicionIvaEmisorInput.Text.Trim(),
+                FiscalIngresosBrutosEmisorInput.Text.Trim(),
+                LeerFechaFiscal(FiscalInicioActividadesEmisorInput.Text));
+            var receptor=new ReceptorDocumentoFiscal(
+                FiscalNombreReceptorInput.Text.Trim(),
+                FiscalDomicilioReceptorInput.Text.Trim(),
+                documento.DocTipo,documento.DocNumero,documento.CondicionIvaReceptorId,
+                FiscalCorreoReceptorInput.Text.Trim());
+            var datos=new DatosDocumentoFiscalPrueba(emisor,receptor,
+                FiscalDescripcionServicioInput.Text.Trim(),
+                FiscalCondicionVentaInput.Text.Trim());
+            _db.RegistrarDatosDocumentoFiscalPrueba(solicitud.Id,datos);
+            FiscalResultadoText.Text="Identidad comercial de HOMOLOGACIÓN guardada y congelada "+
+                "para esta solicitud. No equivale a emitir una factura.";
+        }
+        catch(Exception ex)
+        {
+            FiscalResultadoText.Text="No se guardaron datos fiscales: "+ex.Message;
+        }
+    }
+
     private void FiscalGuardarPdf_Click(object sender,RoutedEventArgs e)
     {
         try
         {
             _db.ExigirPermiso(PermisosAparcar.Configuracion);
-            var vista=PresentacionFiscalHomologacion.Crear(FiscalSolicitudElegida());
+            var solicitud=FiscalSolicitudElegida();
+            var datos=_db.ObtenerDatosDocumentoFiscalPrueba(solicitud.Id);
+            var vista=PresentacionFiscalHomologacion.Crear(solicitud,datos);
             var destino=DocumentoFiscalHomologacion.GuardarPdf(vista);
             FiscalResultadoText.Text="Copia de HOMOLOGACIÓN SIN VALIDEZ FISCAL guardada en: "+destino+
                 ". No entregar al cliente como factura.";
@@ -1255,7 +1291,9 @@ public sealed partial class MainWindow : Window
         try
         {
             _db.ExigirPermiso(PermisosAparcar.Configuracion);
-            var vista=PresentacionFiscalHomologacion.Crear(FiscalSolicitudElegida());
+            var solicitud=FiscalSolicitudElegida();
+            var datos=_db.ObtenerDatosDocumentoFiscalPrueba(solicitud.Id);
+            var vista=PresentacionFiscalHomologacion.Crear(solicitud,datos);
             DocumentoFiscalHomologacion.Imprimir(vista,_impresora??"",_anchoTicket);
             FiscalResultadoText.Text="Trabajo de impresión de HOMOLOGACIÓN enviado al controlador. "+
                 "Esto no confirma impresión física ni constituye factura válida.";
