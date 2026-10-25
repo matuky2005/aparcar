@@ -223,6 +223,8 @@
                         <TextBox x:Name="OperadorCajaInput" Width="320" HorizontalAlignment="Left" PlaceholderText="Nombre o identificador"/>
                         <TextBlock Text="Fondo inicial ($)"/>
                         <TextBox x:Name="FondoInicialInput" Width="230" HorizontalAlignment="Left" Text="0"/>
+                        <CheckBox x:Name="CajaCiegaTurnoCheck" Content="Turno con caja ciega (ocultar total hasta cerrar)"
+                                  IsChecked="True"/>
                         <Button x:Name="AbrirCajaButton" Content="Abrir caja" Click="AbrirCaja_Click"
                                 HorizontalAlignment="Left"/>
                         <TextBlock Text="MOVIMIENTOS DE EFECTIVO" FontWeight="Bold"/>
@@ -258,6 +260,8 @@
                         <TextBlock Text="Un abono utilizado o un lavado ya entregado no admite devolución automática."
                                    Opacity="0.7" TextWrapping="Wrap"/>
                         <TextBlock Text="CIERRE Y ARQUEO" FontWeight="Bold"/>
+                        <TextBlock Text="Caja ciega: el cajero carga lo contado sin conocer el esperado."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock Text="Efectivo contado en la caja ($)"/>
                         <TextBox x:Name="EfectivoContadoInput" Width="230" HorizontalAlignment="Left"/>
                         <Button x:Name="CerrarCajaButton" Content="Cerrar turno y registrar arqueo" Click="CerrarCaja_Click"
@@ -267,7 +271,7 @@
                         <ListView x:Name="CobrosCajaList" Width="670" MinHeight="160"
                                   HorizontalAlignment="Left"/>
                         <Button Content="Actualizar caja" Click="ActualizarCaja_Click" HorizontalAlignment="Left"/>
-                        <TextBlock Text="v0.4: pago externo verificado DECLARADO por operador. Sin autenticación de usuarios ni conciliación bancaria: no habilitado para producción."
+                        <TextBlock Text="v0.10: medios externos declarados manualmente, sin confirmación bancaria automática ni facturación ARCA todavía."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -426,6 +430,11 @@
                         <TextBlock x:Name="ReporteTotalesText" TextWrapping="Wrap" FontWeight="SemiBold"/>
                         <ListView x:Name="ReporteFilasList" Width="730" MinHeight="340"
                                   HorizontalAlignment="Left"/>
+                        <TextBlock Text="OPERACIONES PENDIENTES DE FACTURACIÓN (NO SON FACTURAS)" FontWeight="Bold"/>
+                        <TextBlock Text="Las operaciones listadas no tienen CAE ni autorización fiscal. Pendiente integrar ARCA con datos de emisor y receptor."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ListView x:Name="PendientesFiscalesList" Width="720" Height="185"
+                                  HorizontalAlignment="Left"/>
                         <TextBlock x:Name="RutaReporteText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <TextBlock Text="Excel y PDF exportan exactamente el período consultado; no son documentos fiscales."
                                    TextWrapping="Wrap" Opacity="0.7"/>
@@ -487,6 +496,13 @@
                     <StackPanel Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
                         <TextBlock Text="Configuración técnica" FontSize="30" FontWeight="Bold"/>
                         <TextBlock Text="Base SQLite local (una PC, una cuenta Windows):"/>
+                        <TextBlock Text="SEGURIDAD DE CAJA" FontWeight="SemiBold" FontSize="18"/>
+                        <CheckBox x:Name="CajaCiegaObligatoriaCheck"
+                                  Content="Exigir caja ciega para todos los turnos"
+                                  IsChecked="False"/>
+                        <Button x:Name="GuardarPoliticaCajaButton" Content="Guardar política de caja"
+                                Click="GuardarPoliticaCaja_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="El cajero no puede desactivar la caja ciega obligatoria. Se configura con el turno cerrado." Opacity="0.7" TextWrapping="Wrap"/>
                         <TextBlock Text="SECTORES Y PLAZAS" FontWeight="SemiBold" FontSize="18"/>
                         <TextBlock Text="Capacidad máxima por sector. Libre = sin plaza individual; Asignado = una plaza física por vehículo."
                                    TextWrapping="Wrap" Opacity="0.7"/>
@@ -529,8 +545,11 @@
                         <Button Content="Guardar configuración de impresora" Click="GuardarImpresora_Click" HorizontalAlignment="Left"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <TextBox x:Name="TicketReimpresionInput" PlaceholderText="Nº ticket para reimprimir" Width="250"/>
-                            <Button Content="Reimprimir ingreso" Click="ReimprimirTicket_Click"/>
+                            <Button x:Name="ReimprimirTicketButton" Content="Reimprimir ingreso" Click="ReimprimirTicket_Click"/>
                         </StackPanel>
+                        <TextBox x:Name="MotivoReimpresionInput" Width="500" HorizontalAlignment="Left"
+                                 MaxLength="250" PlaceholderText="Motivo obligatorio de la reimpresión (mínimo 8 caracteres)"/>
+                        <TextBlock Text="Solo administrador o supervisor puede reimprimir. Cada autorización queda auditada." Opacity="0.7"/>
                         <TextBlock Text="Usá una impresora con controlador Windows compatible. Los tickets QR son operativos, no fiscales."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
