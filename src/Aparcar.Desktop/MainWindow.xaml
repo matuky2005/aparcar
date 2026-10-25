@@ -582,6 +582,7 @@
                                 HorizontalAlignment="Left"/>
                         <TextBlock Text="Cobro pendiente de facturación"/>
                         <ComboBox x:Name="FiscalCobroCombo" Width="570" HorizontalAlignment="Left"
+                                  SelectionChanged="FiscalCobroCombo_SelectionChanged"
                                   PlaceholderText="Elegir cobro no devuelto"/>
                         <TextBlock Text="OPCIONES DE FACTURACIÓN POR CUIT EMISOR"
                                    FontWeight="SemiBold"/>
