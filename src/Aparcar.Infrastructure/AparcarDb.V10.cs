@@ -91,6 +91,37 @@ public sealed partial class AparcarDb
         return lista;
     }
 
+    public bool CajaCiegaObligatoria()
+    {
+        ExigirPermiso(PermisosAparcar.Consulta);
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="SELECT Valor FROM PreferenciasDispositivos WHERE Clave='CajaCiegaObligatoria'";
+        return string.Equals(cmd.ExecuteScalar() as string,"true",StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void ConfigurarCajaCiegaObligatoria(bool obligatoria)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        using var db=Abrir();using var tx=db.BeginTransaction();
+        if(LeerTurno(db,tx) is not null)
+            throw new InvalidOperationException("Cerrá el turno actual antes de cambiar la política de caja.");
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="""
+                INSERT INTO PreferenciasDispositivos(Clave,Valor)
+                VALUES('CajaCiegaObligatoria',$valor)
+                ON CONFLICT(Clave) DO UPDATE SET Valor=excluded.Valor;
+                """;
+            cmd.Parameters.AddWithValue("$valor",obligatoria?"true":"false");
+            cmd.ExecuteNonQuery();
+        }
+        AuditarSesion(db,tx,"Caja.PoliticaCiega","Estacionamiento",
+            obligatoria?"Obligatoria":"Opcional");
+        tx.Commit();
+    }
+
     public bool EsTurnoCiego(Guid turnoId)
     {
         ExigirPermiso(PermisosAparcar.Consulta);
