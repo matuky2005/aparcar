@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
     private System.Collections.Generic.List<PlanAbono> _planesAbono=new();
     private System.Collections.Generic.List<ContratoAbono> _contratosAbono=new();
     private bool _procesandoCobroExtra;
+    private System.Collections.Generic.List<SectorEstacionamiento> _sectoresConfigurados = new();
 
     public MainWindow()
     {
@@ -113,6 +114,10 @@ public sealed partial class MainWindow : Window
         CargarImpresoras();
         AutoImprimirCheck.IsChecked=_db.ObtenerPreferencia("AutoImprimir")!="false";
         TipoTarifaCombo.SelectedIndex=0;
+        ActualizarSectores();
+        var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
+        ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
+        ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
         Refrescar();
     }
@@ -306,13 +311,18 @@ public sealed partial class MainWindow : Window
         ReportesPanel.Visibility = pantalla == "reportes" ? Visibility.Visible : Visibility.Collapsed;
         ConfigPanel.Visibility = pantalla == "config" ? Visibility.Visible : Visibility.Collapsed;
         if (pantalla is "inicio" or "presentes") Refrescar();
-        if (pantalla == "ingreso") PatenteInput.Focus(FocusState.Programmatic);
+        if (pantalla == "ingreso")
+        {
+            ActualizarSectores();
+            PatenteInput.Focus(FocusState.Programmatic);
+        }
         if (pantalla == "salida") BusquedaInput.Focus(FocusState.Programmatic);
         if (pantalla == "caja") ActualizarCaja();
         if (pantalla == "tarifas") MostrarTarifaSeleccionada();
         if (pantalla == "lavadero") RefrescarLavadero();
         if (pantalla == "abonados") RefrescarAbonados();
         if (pantalla == "reportes") ConsultarReporteActual();
+        if (pantalla == "config") ActualizarSectores();
         if (pantalla == "usuarios") RefrescarUsuarios();
         if (pantalla == "auditoria") CargarAuditoria();
     }
@@ -344,13 +354,16 @@ public sealed partial class MainWindow : Window
         try
         {
             var tipo = (TipoInput.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            var numero = _db.RegistrarIngreso(PatenteInput.Text, tipo, SectorInput.Text);
+            var numero = _db.RegistrarIngreso(PatenteInput.Text, tipo, SectorInput.Text,
+                string.IsNullOrWhiteSpace(PlazaIngresoInput.Text)?null:PlazaIngresoInput.Text);
             var ticket = _db.ObtenerTicket(numero);
             TicketPreviewText.Text = $"Ticket {ticket.Numero:D7} · {ticket.Patente} · {ticket.TipoVehiculo} · " +
                                     $"{ticket.FechaIngresoUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}";
             Mensaje.Text = $"Ingreso guardado. Ticket #{numero:D7}.";
             PatenteInput.Text = "";
+            PlazaIngresoInput.Text = "";
             Refrescar();
+            ActualizarSectores();
             // Nunca volver a crear una estadía por un problema de impresión.
             if (AutoImprimirCheck.IsChecked == true)
                 ImprimirTicketSeguro(numero);
@@ -765,6 +778,13 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key != VirtualKey.Enter) return;
         e.Handled = true;
+        PlazaIngresoInput.Focus(FocusState.Programmatic);
+    }
+
+    private void PlazaIngresoInput_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
         GuardarIngresoButton.Focus(FocusState.Programmatic);
     }
 
