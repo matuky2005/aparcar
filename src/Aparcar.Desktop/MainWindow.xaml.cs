@@ -137,6 +137,10 @@ public sealed partial class MainWindow : Window
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
+        FiscalPerfilActualizarButton.IsEnabled=puedeConfigurar;
+        FiscalPerfilAplicarButton.IsEnabled=puedeConfigurar;
+        FiscalPerfilGuardarButton.IsEnabled=puedeConfigurar;
+        FiscalPerfilHistorialButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
         if(_db.CajaCiegaObligatoria())
@@ -949,6 +953,8 @@ public sealed partial class MainWindow : Window
     }
 
     private bool _procesandoFiscal;
+    private int? _perfilFiscalVersionAplicada;
+    private string? _perfilFiscalCuitAplicado;
     private System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> _condicionesIvaConsultadas=
         Array.Empty<CondicionIvaReceptorWsfe>();
     private string? _condicionesIvaCuit;
@@ -966,8 +972,11 @@ public sealed partial class MainWindow : Window
         return fecha;
     }
 
-    private void FiscalActualizar_Click(object sender,RoutedEventArgs e) =>
+    private void FiscalActualizar_Click(object sender,RoutedEventArgs e)
+    {
         RefrescarFiscalHomologacion();
+        RefrescarPerfilesFiscales();
+    }
 
     private void RefrescarFiscalHomologacion()
     {
@@ -1235,6 +1244,128 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private EmisorDocumentoFiscal CapturarEmisorFiscal(string cuit) =>
+        new(
+            FiscalRazonSocialEmisorInput.Text.Trim(),
+            FiscalNombreFantasiaEmisorInput.Text.Trim(),
+            cuit,
+            FiscalDomicilioEmisorInput.Text.Trim(),
+            FiscalCondicionIvaEmisorInput.Text.Trim(),
+            FiscalIngresosBrutosEmisorInput.Text.Trim(),
+            LeerFechaFiscal(FiscalInicioActividadesEmisorInput.Text));
+
+    private void AplicarEmisorFiscal(EmisorDocumentoFiscal emisor)
+    {
+        FiscalRazonSocialEmisorInput.Text=emisor.RazonSocial;
+        FiscalNombreFantasiaEmisorInput.Text=emisor.NombreFantasia;
+        FiscalDomicilioEmisorInput.Text=emisor.DomicilioComercial;
+        FiscalCondicionIvaEmisorInput.Text=emisor.CondicionIva;
+        FiscalIngresosBrutosEmisorInput.Text=emisor.IngresosBrutos;
+        FiscalInicioActividadesEmisorInput.Text=
+            emisor.InicioActividades.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
+    }
+
+    private void RefrescarPerfilesFiscales(string? seleccionarCuit=null)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var seleccionado=seleccionarCuit ??
+                (FiscalPerfilesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            var perfiles=_db.ListarPerfilesFiscales();
+            FiscalPerfilesCombo.Items.Clear();
+            foreach(var perfil in perfiles)
+            {
+                var item=new ComboBoxItem
+                {
+                    Tag=perfil.Cuit,
+                    Content=$"{perfil.Cuit} · {perfil.Emisor.RazonSocial} · v{perfil.Version}"
+                };
+                FiscalPerfilesCombo.Items.Add(item);
+                if(perfil.Cuit==seleccionado)FiscalPerfilesCombo.SelectedItem=item;
+            }
+            FiscalPerfilEstadoText.Text=$"{perfiles.Count} perfil(es) fiscales disponibles. "+
+                "Estos datos son declarados por el usuario; no están verificados con padrones ARCA.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPerfilEstadoText.Text="No se actualizaron perfiles: "+ex.Message;
+        }
+    }
+
+    private void FiscalPerfilActualizar_Click(object sender,RoutedEventArgs e) =>
+        RefrescarPerfilesFiscales();
+
+    private void FiscalPerfilAplicar_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=(FiscalPerfilesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ??
+                throw new ArgumentException("Elegí un perfil fiscal guardado.");
+            if(!string.IsNullOrWhiteSpace(ArcaCuitInput.Text) &&
+               ArcaCuitInput.Text.Trim()!=cuit)
+                throw new InvalidOperationException(
+                    "El CUIT en la configuración ARCA es distinto. Revisalo antes de aplicar.");
+            if(Guid.TryParse(
+                (FiscalSolicitudesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var solicitudId) && _db.ObtenerFacturaHomologacion(solicitudId).CuitEmisor!=cuit)
+                throw new InvalidOperationException(
+                    "El perfil seleccionado no pertenece al CUIT de esta solicitud fiscal.");
+            var perfil=_db.ObtenerPerfilFiscalEmisor(cuit) ??
+                throw new InvalidOperationException("No se encontró el perfil fiscal seleccionado.");
+            ArcaCuitInput.Text=cuit;
+            AplicarEmisorFiscal(perfil.Emisor);
+            _perfilFiscalCuitAplicado=cuit;
+            _perfilFiscalVersionAplicada=perfil.Version;
+            FiscalPerfilEstadoText.Text=$"Perfil {cuit} v{perfil.Version} aplicado al formulario. "+
+                "Si cambiás los datos, guardá una nueva versión o volvé a aplicar el perfil.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPerfilEstadoText.Text="No se aplicó el perfil: "+ex.Message;
+        }
+    }
+
+    private void FiscalPerfilGuardar_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var emisor=CapturarEmisorFiscal(ArcaCuitInput.Text.Trim());
+            var perfil=_db.GuardarPerfilFiscalEmisor(emisor);
+            _perfilFiscalCuitAplicado=perfil.Cuit;
+            _perfilFiscalVersionAplicada=perfil.Version;
+            RefrescarPerfilesFiscales(perfil.Cuit);
+            FiscalPerfilEstadoText.Text=
+                $"Perfil fiscal {perfil.Cuit}, versión vigente {perfil.Version}, almacenado. "+
+                "Las versiones anteriores se conservan.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPerfilEstadoText.Text="No se guardó el perfil: "+ex.Message;
+        }
+    }
+
+    private void FiscalPerfilHistorial_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=(FiscalPerfilesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ??
+                throw new ArgumentException("Seleccioná un perfil fiscal.");
+            var versiones=_db.ListarVersionesPerfilFiscal(cuit,12);
+            FiscalPerfilEstadoText.Text="Historial del CUIT "+cuit+": "+
+                string.Join(" | ",versiones.Select(x=>
+                    $"v{x.Version} ({x.CreadoUtc.ToLocalTime():dd/MM/yyyy HH:mm})"+
+                    (x.EsVigente?" VIGENTE":" HISTÓRICA")));
+        }
+        catch(Exception ex)
+        {
+            FiscalPerfilEstadoText.Text="No se consultó el historial: "+ex.Message;
+        }
+    }
+
     private void FiscalGuardarDatosDocumento_Click(object sender,RoutedEventArgs e)
     {
         try
@@ -1242,14 +1373,7 @@ public sealed partial class MainWindow : Window
             _db.ExigirPermiso(PermisosAparcar.Configuracion);
             var solicitud=FiscalSolicitudElegida();
             var documento=solicitud.Comprobante;
-            var emisor=new EmisorDocumentoFiscal(
-                FiscalRazonSocialEmisorInput.Text.Trim(),
-                FiscalNombreFantasiaEmisorInput.Text.Trim(),
-                solicitud.CuitEmisor,
-                FiscalDomicilioEmisorInput.Text.Trim(),
-                FiscalCondicionIvaEmisorInput.Text.Trim(),
-                FiscalIngresosBrutosEmisorInput.Text.Trim(),
-                LeerFechaFiscal(FiscalInicioActividadesEmisorInput.Text));
+            var emisor=CapturarEmisorFiscal(solicitud.CuitEmisor);
             var receptor=new ReceptorDocumentoFiscal(
                 FiscalNombreReceptorInput.Text.Trim(),
                 FiscalDomicilioReceptorInput.Text.Trim(),
@@ -1257,7 +1381,9 @@ public sealed partial class MainWindow : Window
                 FiscalCorreoReceptorInput.Text.Trim());
             var datos=new DatosDocumentoFiscalPrueba(emisor,receptor,
                 FiscalDescripcionServicioInput.Text.Trim(),
-                FiscalCondicionVentaInput.Text.Trim());
+                FiscalCondicionVentaInput.Text.Trim(),
+                _perfilFiscalCuitAplicado==solicitud.CuitEmisor?
+                    _perfilFiscalVersionAplicada:null);
             _db.RegistrarDatosDocumentoFiscalPrueba(solicitud.Id,datos);
             FiscalResultadoText.Text="Identidad comercial de HOMOLOGACIÓN guardada y congelada "+
                 "para esta solicitud. No equivale a emitir una factura.";
