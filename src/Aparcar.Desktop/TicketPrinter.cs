@@ -12,7 +12,7 @@ namespace Aparcar.Desktop;
 /// </summary>
 internal static class TicketPrinter
 {
-    public static void ImprimirIngreso(TicketIngreso ticket, string impresora, int anchoMm)
+    public static void ImprimirIngreso(TicketIngreso ticket, string impresora, int anchoMm, bool duplicado=false)
     {
         if (string.IsNullOrWhiteSpace(impresora))
             throw new InvalidOperationException("Seleccioná una impresora en Configuración.");
@@ -23,12 +23,12 @@ internal static class TicketPrinter
             throw new InvalidOperationException("La impresora elegida no está disponible en Windows.");
 
         var ancho = anchoMm == 58 ? 228 : 315;
-        documento.DocumentName = $"Aparcar ingreso {ticket.Numero:D7}";
+        documento.DocumentName = $"Aparcar {(duplicado?"DUPLICADO ":"")}ingreso {ticket.Numero:D7}";
         documento.PrintController = new StandardPrintController(); // Sin diálogo automático.
         documento.DefaultPageSettings.PaperSize = new PaperSize("Ticket Aparcar", ancho, 750);
         documento.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
 
-        documento.PrintPage += (_, e) => PintarIngreso(e, ticket, ancho);
+        documento.PrintPage += (_, e) => PintarIngreso(e, ticket, ancho, duplicado);
         documento.Print();
     }
 
@@ -80,7 +80,7 @@ internal static class TicketPrinter
         documento.Print();
     }
 
-    private static void PintarIngreso(PrintPageEventArgs e, TicketIngreso ticket, int ancho)
+    private static void PintarIngreso(PrintPageEventArgs e, TicketIngreso ticket, int ancho, bool duplicado)
     {
         if (e.Graphics is null) throw new InvalidOperationException("El controlador no generó superficie de impresión.");
 
@@ -108,6 +108,7 @@ internal static class TicketPrinter
 
         Linea("APARCAR", titulo, 32, true);
         Linea("TICKET DE INGRESO", negrita, 26, true);
+        if(duplicado) Linea("DUPLICADO - REIMPRESION", negrita, 32, true);
         Linea($"N° {ticket.Numero:D7}", negrita, 28, true);
         Linea($"PATENTE: {ticket.Patente}", normal);
         Linea($"VEHÍCULO: {ticket.TipoVehiculo}", normal);
