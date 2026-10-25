@@ -183,15 +183,29 @@ public static class AdaptadorWsfeFacturador
                 ?"ARCA devolvió errores: no asumir comprobante inexistente."
                 :"Sin detalle de comprobante: no asumir número disponible.");
         }
-        if(Campo(consulta,"PtoVta")!=esperado.PuntoVenta.ToString(Inv) ||
-           Campo(consulta,"CbteTipo")!=esperado.Tipo.ToString(Inv) ||
-           Campo(consulta,"CbteNro")!=esperado.Numero.ToString(Inv) ||
-           Campo(consulta,"DocTipo")!=esperado.DocTipo.ToString(Inv) ||
-           Campo(consulta,"DocNro")!=esperado.DocNumero.ToString(Inv) ||
-           !decimal.TryParse(Campo(consulta,"ImpTotal"),NumberStyles.Number,Inv,out var total) ||
-           !Cuadrado(total,esperado.Total))
+        var coincide=Cantidad(consulta,"PtoVta",esperado.PuntoVenta) &&
+           Cantidad(consulta,"CbteTipo",esperado.Tipo) &&
+           Cantidad(consulta,"CbteNro",esperado.Numero) &&
+           Cantidad(consulta,"Concepto",esperado.Concepto) &&
+           Cantidad(consulta,"DocTipo",esperado.DocTipo) &&
+           Cantidad(consulta,"DocNro",esperado.DocNumero) &&
+           Cantidad(consulta,"CondicionIVAReceptorId",esperado.CondicionIvaReceptorId) &&
+           Campo(consulta,"CbteFch")==Fecha(esperado.Fecha) &&
+           Dinero(consulta,"ImpTotal",esperado.Total) &&
+           Dinero(consulta,"ImpTotConc",esperado.NoGravado) &&
+           Dinero(consulta,"ImpNeto",esperado.Neto) &&
+           Dinero(consulta,"ImpOpEx",esperado.Exento) &&
+           Dinero(consulta,"ImpTrib",esperado.Tributos) &&
+           Dinero(consulta,"ImpIVA",esperado.Iva) &&
+           Campo(consulta,"MonId")=="PES" &&
+           Dinero(consulta,"MonCotiz",1m) &&
+           (esperado.Concepto==1 ||
+               (Campo(consulta,"FchServDesde")==Fecha(esperado.ServicioDesde!.Value) &&
+                Campo(consulta,"FchServHasta")==Fecha(esperado.ServicioHasta!.Value) &&
+                Campo(consulta,"FchVtoPago")==Fecha(esperado.VencimientoPago!.Value)));
+        if(!coincide)
             return new(true,false,false,null,null,
-                "Identidad o importe distinto: requiere revisión manual, no reemitir.");
+                "Identidad o detalle fiscal distinto: requiere revisión manual, no reemitir.");
         var cae=Campo(consulta,"CodAutorizacion");
         var fecha=Campo(consulta,"FchVto");
         if(cae?.Length!=14 || !cae.All(char.IsDigit) ||
@@ -200,6 +214,12 @@ public static class AdaptadorWsfeFacturador
                 "Datos coincidentes, pero código de autorización no verificable.");
         return new(true,true,true,cae,vto,"Comprobante y autorización conciliados.");
     }
+
+    private static bool Cantidad(XElement elemento,string nombre,long valor)=>
+        long.TryParse(Campo(elemento,nombre),NumberStyles.Integer,Inv,out var v)&&v==valor;
+
+    private static bool Dinero(XElement elemento,string nombre,decimal valor)=>
+        decimal.TryParse(Campo(elemento,nombre),NumberStyles.Number,Inv,out var v)&&Cuadrado(v,valor);
 
     private static string? Campo(XElement element,string name)=>
         element.Elements().FirstOrDefault(x=>x.Name.LocalName==name)?.Value;
