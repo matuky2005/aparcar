@@ -63,6 +63,8 @@ public static class PresentacionFiscalHomologacion
                r.CondicionIvaId!=c.CondicionIvaReceptorId)
                 throw new InvalidOperationException(
                     "La identidad comercial almacenada no coincide con el comprobante reservado.");
+            if(datos.VersionPerfilEmisor is int version)
+                lineas.Add($"Perfil emisor utilizado: v{version} (snapshot historico)");
             lineas.Add($"Emisor: {e.RazonSocial}");
             if(!string.IsNullOrWhiteSpace(e.NombreFantasia))
                 lineas.Add($"Nombre de fantasia: {e.NombreFantasia}");
