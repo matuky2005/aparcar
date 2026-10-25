@@ -18,7 +18,7 @@ public sealed record ReceptorDocumentoFiscal(
 
 public sealed record DatosDocumentoFiscalPrueba(
     EmisorDocumentoFiscal Emisor,ReceptorDocumentoFiscal Receptor,
-    string DescripcionServicio,string CondicionVenta);
+    string DescripcionServicio,string CondicionVenta,int? VersionPerfilEmisor=null);
 
 public static class ValidadorDocumentoFiscalPrueba
 {
@@ -32,6 +32,22 @@ public static class ValidadorDocumentoFiscalPrueba
         if((requerido && string.IsNullOrWhiteSpace(valor)) ||
            valor.Length>limite || valor.Any(char.IsControl))
             throw new ArgumentException($"Campo {campo} inválido (máximo {limite} caracteres).");
+    }
+
+    /// <summary>Validación del perfil reutilizable, independiente de la solicitud concreta.</summary>
+    public static void ValidarEmisor(EmisorDocumentoFiscal emisor)
+    {
+        ArgumentNullException.ThrowIfNull(emisor);
+        Texto(emisor.RazonSocial,"razón social emisor",180);
+        Texto(emisor.NombreFantasia,"nombre de fantasía",120,false);
+        Texto(emisor.DomicilioComercial,"domicilio comercial emisor",250);
+        Texto(emisor.CondicionIva,"condición IVA emisor",100);
+        Texto(emisor.IngresosBrutos,"Ingresos Brutos",100);
+        if(!AdaptadorWsfeFacturador.CuitValido(emisor.Cuit))
+            throw new ArgumentException("El CUIT emisor no supera el dígito verificador.");
+        if(emisor.InicioActividades<new DateOnly(1900,1,1) ||
+           emisor.InicioActividades>DateOnly.FromDateTime(DateTime.Today))
+            throw new ArgumentException("Fecha de inicio de actividades inválida.");
     }
 
     public static void Validar(DatosDocumentoFiscalPrueba datos,SolicitudFiscalPrueba solicitud)
@@ -48,18 +64,13 @@ public static class ValidadorDocumentoFiscalPrueba
             throw new InvalidOperationException(
                 "La identidad fiscal solo puede registrarse en una solicitud Preparada, antes del envío.");
 
-        Texto(emisor.RazonSocial,"razón social emisor",180);
-        Texto(emisor.NombreFantasia,"nombre de fantasía",120,false);
-        Texto(emisor.DomicilioComercial,"domicilio comercial emisor",250);
-        Texto(emisor.CondicionIva,"condición IVA emisor",100);
-        Texto(emisor.IngresosBrutos,"Ingresos Brutos",100);
-        if(!AdaptadorWsfeFacturador.CuitValido(emisor.Cuit) ||
-            !string.Equals(emisor.Cuit,solicitud.CuitEmisor,StringComparison.Ordinal))
+        ValidarEmisor(emisor);
+        if(!string.Equals(emisor.Cuit,solicitud.CuitEmisor,StringComparison.Ordinal))
             throw new ArgumentException("El CUIT emisor debe coincidir con la solicitud reservada.");
-        if(emisor.InicioActividades<new DateOnly(1900,1,1) ||
-           emisor.InicioActividades>DateOnly.FromDateTime(DateTime.Today) ||
-           emisor.InicioActividades>comprobante.Fecha)
-            throw new ArgumentException("La fecha de inicio de actividades es posterior a la factura.");
+        if(emisor.InicioActividades>comprobante.Fecha)
+            throw new ArgumentException("El inicio de actividades es posterior a la factura.");
+        if(datos.VersionPerfilEmisor is int version && version<1)
+            throw new ArgumentException("La versión del perfil debe ser positiva.");
 
         Texto(receptor.Nombre,"nombre/razón social receptor",180);
         Texto(receptor.Domicilio,"domicilio receptor",250);
