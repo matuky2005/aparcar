@@ -236,7 +236,10 @@ public sealed partial class AparcarDb
     {
         ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
-        return LeerTurno(db,null);
+        var turno=LeerTurno(db,null);
+        if(turno is not null && OcultarImportesTurno(db,turno.Id))
+            return turno with { CobradoCentavos=0,EsperadoCentavos=0 };
+        return turno;
     }
 
     private static TurnoCajaOperativo? LeerTurno(SqliteConnection db,SqliteTransaction? tx)
@@ -270,7 +273,7 @@ public sealed partial class AparcarDb
             fondo,cobrado,checked(fondo+cobrado+depositos-retiros-devoluciones),true);
     }
 
-    public TurnoCajaOperativo AbrirTurno(string operador,long fondoCentavos)
+    public TurnoCajaOperativo AbrirTurno(string operador,long fondoCentavos,bool cajaCiega=false)
     {
         ExigirPermiso(PermisosAparcar.AbrirCaja);
         if(string.IsNullOrWhiteSpace(operador) || operador.Trim().Length > 80)
@@ -291,9 +294,26 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$fecha",DateTimeOffset.UtcNow.ToString("O"));
         cmd.Parameters.AddWithValue("$fondo",fondoCentavos);
         cmd.ExecuteNonQuery();
-        AuditarSesion(db,tx,"Caja.Abrir",operador.Trim(),$"Fondo inicial {fondoCentavos} centavos");
+        // La condición ciega se congela para todo el turno.
+        var turnoId=LeerTurno(db,tx)!.Id;
+        using(var control=db.CreateCommand())
+        {
+            control.Transaction=tx;
+            control.CommandText="""
+                INSERT INTO TurnoControles(TurnoId,CajaCiega,ConfiguradoPor)
+                VALUES($turno,$ciega,$actor);
+                """;
+            control.Parameters.AddWithValue("$turno",turnoId.ToString("D"));
+            control.Parameters.AddWithValue("$ciega",cajaCiega?1:0);
+            control.Parameters.AddWithValue("$actor",SesionActual?.Usuario??"Sistema");
+            control.ExecuteNonQuery();
+        }
+        AuditarSesion(db,tx,"Caja.Abrir",operador.Trim(),
+            $"Fondo inicial {fondoCentavos} centavos; ciega={cajaCiega}");
         tx.Commit();
-        return LeerTurno(db,null)!;
+        var creado=LeerTurno(db,null)!;
+        return OcultarImportesTurno(db,creado.Id)
+            ?creado with { CobradoCentavos=0,EsperadoCentavos=0 }:creado;
     }
 
     public ArqueoCierre CerrarTurno(Guid turnoId,long contadoCentavos)
