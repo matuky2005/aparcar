@@ -619,6 +619,8 @@
                         <ComboBox x:Name="FiscalCondicionIvaCombo" Width="480" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccioná la condición IVA oficial de esta clase"/>
                         <TextBlock x:Name="FiscalCondicionIvaEstadoText" TextWrapping="Wrap" Opacity="0.7"/>
+                        <CheckBox x:Name="FiscalIdentificarPorSolicitudClienteCheck"
+                                  Content="El cliente solicita identificación (p. ej. deducción de Ganancias)"/>
                         <Button x:Name="FiscalAplicarConsumidorFinalButton"
                                 Content="Usar Consumidor Final en esta operación"
                                 Click="FiscalAplicarConsumidorFinal_Click" HorizontalAlignment="Left"/>
