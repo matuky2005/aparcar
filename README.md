@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.12 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.13 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,31 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.13: condición IVA oficial y conciliación fiscal estricta
+
+**Validación:** [GitHub Actions #40241431501](https://github.com/matuky2005/aparcar/actions/runs/40241431501) — **66/66 pruebas aprobadas** y compilación WinUI correcta. **0 artefactos publicados**. Workflow devuelto a disparo exclusivamente manual.
+
+### Condición IVA receptor: obtener opciones directamente desde ARCA
+- Se añadió al cliente `ArcaHomologacion` la consulta SOAP **FEParamGetCondicionIvaReceptor** en homologación, autenticada con WSAA, firmando el TRA en memoria con el PFX del usuario.
+- El catálogo filtra por **clase A, B o C**, respeta identificador, descripción y clase devueltos por ARCA, y rechaza respuestas sin opciones utilizables o con errores.
+- En la pantalla de facturación se reemplazó el ingreso manual del ID por una lista oficial. El usuario debe **elegir** la condición IVA: Aparcar **no deduce** la situación tributaria del receptor por su documento.
+- La selección se acepta solo si corresponde al mismo **CUIT emisor y tipo de factura** consultados durante los últimos 30 minutos. Si cambia CUIT o clase, debe consultarse de nuevo. El PFX no se copia a la base de datos y la contraseña del formulario se limpia al terminar la consulta.
+- Un administrador con certificado de **homologación** habilitado puede obtener este catálogo. Las pruebas automatizadas usan HTTP/WSAA simulados, no consultan un contribuyente real.
+
+### FECompConsultar: verificar alícuotas, además de los totales
+- Antes era posible considerar coincidente una respuesta que tuviera igual importe total, neto e IVA, pero un **detalle de alícuotas distinto**.
+- Ahora se compara cantidad de alícuotas y cada `Id`, `BaseImp` e `Importe` con el comprobante reservado, sin importar su orden. Un faltante, código distinto o diferencia de base/importe provoca `Coincide=false`, sin autorizar la conciliación ni un nuevo envío automático.
+- Nuevas pruebas cubren catálogo oficial, rechazo de clase inválida, alícuotas divergentes y alícuotas ausentes.
+- Para devolver `Autorizada`, sigue siendo obligatorio que el CAE y vencimiento sean válidos y que coincidan tipo, punto de venta, número y resto de los datos fiscales.
+
+### Limitaciones
+- **Solo homologación:** no existe emisión contra el servicio de producción ni se habilitan comprobantes con validez fiscal comercial.
+- Falta validación real del esquema frente a un certificado ARCA autorizado, reconocimiento de las condiciones IVA del receptor y su vigencia, notas de crédito, factura PDF fiscal, impresora real, anticipo de cobros y conciliación multicaja.
+- Para producción, también será necesaria una protección central de numeración entre terminales o aplicaciones y un tratamiento específico de rechazos/errores WSFEv1.
+- No se generaron Portable, MSIX, ZIP ni otros instaladores y no se fusionó el PR con main.
+
+Documentación oficial: https://wswhomo.afip.gov.ar/wsfev1/service.asmx?op=FEParamGetCondicionIvaReceptor y https://www.arca.gob.ar/ws/documentacion/ws-factura-electronica.asp .
 
 ## Etapa v0.12 (base fiscal): reutilización de patrones de Facturador
 
