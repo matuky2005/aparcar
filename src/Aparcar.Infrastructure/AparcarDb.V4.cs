@@ -128,7 +128,10 @@ public sealed partial class AparcarDb
     {
         ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
-        return ResumenInterno(db,null);
+        var resumen=ResumenInterno(db,null);
+        if(resumen is not null && OcultarImportesTurno(db,resumen.TurnoId))
+            throw new UnauthorizedAccessException("Caja ciega: el saldo esperado se revela solo después de contar y cerrar el turno.");
+        return resumen;
     }
 
     public MovimientoCajaManual RegistrarMovimientoManual(
@@ -301,6 +304,8 @@ public sealed partial class AparcarDb
             if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("La estadía ya estaba cerrada.");
         }
         LiberarPlaza(db,tx,cotizacion.EstadiaId);
+        RegistrarPendienteFiscal(db,tx,"Estacionamiento",cobroId,
+            vigente.ImporteCentavos,fecha);
         AuditarSesion(db,tx,"Caja.Cobro",cobroId.ToString("D"),$"Medio={medio}; importe={vigente.ImporteCentavos}; ticket={vigente.Ticket}");
         tx.Commit();
         return new CobroConfirmadoV4(cobroId,cotizacion.EstadiaId,vigente.Ticket,medio,
