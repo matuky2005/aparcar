@@ -63,7 +63,8 @@ public sealed partial class AparcarDb
             cmd.CommandText="SELECT COUNT(*) FROM Estadias";
             estadias=Convert.ToInt64(cmd.ExecuteScalar(),CultureInfo.InvariantCulture);
         }
-        var hash=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(absoluta)));
+        using var contenido=File.OpenRead(absoluta);
+        var hash=Convert.ToHexString(SHA256.HashData(contenido));
         return new DiagnosticoRespaldo(absoluta,new FileInfo(absoluta).Length,
             hash,version,estadias,true);
     }
@@ -81,6 +82,8 @@ public sealed partial class AparcarDb
         if(string.Equals(origen,RutaDb,StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Elegí un archivo de respaldo, no la base activa.");
         _=DiagnosticarRespaldo(origen);
+        if(ObtenerTurnoAbierto() is not null)
+            throw new InvalidOperationException("Cerrá el turno de caja antes de preparar una restauración.");
         var carpeta=Path.GetDirectoryName(RutaDb)!;
         var destino=Path.Combine(carpeta,RecuperacionNombre);
         var marcador=Path.Combine(carpeta,RecuperacionMarcador);
