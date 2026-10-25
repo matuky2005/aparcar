@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.9 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.10 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,30 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.10: controles antifraude y preparación fiscal
+
+**Validación:** [GitHub Actions #40159018401](https://github.com/matuky2005/aparcar/actions/runs/40159018401) — **51/51 pruebas aprobadas**; compilan dominio, persistencia y WinUI. **Cero artefactos generados.** Se restauró el workflow a modo manual.
+
+### Caja ciega
+- Al abrir un turno se puede elegir **caja ciega**; administrador puede hacerla **obligatoria** para todos los turnos con caja cerrada.
+- La política se aplica en SQLite incluso cuando un cajero intenta abrir turno sin modalidad ciega.
+- En un turno ciego, cajeros y otros roles no supervisores **no ven el efectivo esperado ni los totales de caja antes de cerrar**. El cajero primero declara el contado; después del cierre se registra el esperado y la diferencia reales.
+- Administrador/supervisor pueden consultar el saldo para supervisión. El sistema sigue siendo local monousuario y **no tiene una caja cerrada por credencial, ni caja ciega criptográficamente aislada**: para un control real hacen falta dispositivos independientes, aislamiento de datos y auditoría externa.
+
+### Reimpresión autorizada
+- La reimpresión manual de tickets requiere rol **Supervisor/Administrador**, número de ticket válido y motivo de al menos 8 caracteres.
+- Se registra autorización individual y evento encadenado de auditoría **antes** de intentar imprimir; el resultado del driver se sigue registrando en `ImpresionesTicket`.
+- **Pendiente:** estampar físicamente “DUPLICADO” en la reimpresión, comprobar QR con lectores reales y verificar la impresora de 58/80 mm en el hardware destino.
+
+### Registro previo a facturación
+- En la **misma transacción del cobro confirmado** se conserva una operación pendiente única por cobro positivo de Estacionamiento, Lavadero o Abono.
+- Los importes cero no generan pendiente fiscal. Los reintentos del mismo cobro no duplican el registro.
+- Una devolución de efectivo pasa el pendiente a `RevisionDevolucion` para impedir tratarlo silenciosamente como operación normal.
+- La lista aparece en Reportes. **NO se emiten facturas, no se conectó ARCA, no se obtiene CAE y no hay validación de datos fiscales de emisor/receptor.** Se debe implementar y auditar WSAA/WSFEv1, las condiciones de IVA, punto de venta, comprobante A/B/C, factura/nota de crédito y credenciales antes de operar comercialmente.
+- La migración v10 conserva los datos anteriores y el verificador de restauración acepta esquemas 1 a 10.
+
+**Sin ZIP ni MSIX hasta el hito de entrega.** El código continúa en rama y PR en borrador.
 
 ## Etapa v0.9: tarifas por sector, franjas y recuperación de datos
 
