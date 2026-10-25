@@ -130,6 +130,7 @@ public sealed partial class MainWindow : Window
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
         ArcaProbarConexionButton.IsEnabled=puedeConfigurar;
+        FiscalConsultarCondicionesButton.IsEnabled=puedeConfigurar;
         FiscalPrepararButton.IsEnabled=puedeConfigurar;
         FiscalEmitirButton.IsEnabled=puedeConfigurar;
         FiscalConciliarButton.IsEnabled=puedeConfigurar;
@@ -945,6 +946,11 @@ public sealed partial class MainWindow : Window
     }
 
     private bool _procesandoFiscal;
+    private System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> _condicionesIvaConsultadas=
+        Array.Empty<CondicionIvaReceptorWsfe>();
+    private string? _condicionesIvaCuit;
+    private int _condicionesIvaTipo;
+    private DateTimeOffset _condicionesIvaFechaUtc;
 
     private static long LeerFiscalImporte(string valor) =>
         string.IsNullOrWhiteSpace(valor)?0:LeerImporte(valor);
@@ -1019,6 +1025,56 @@ public sealed partial class MainWindow : Window
             throw new ArgumentException("Ingresá la contraseña del certificado PFX.");
     }
 
+    private async void FiscalConsultarCondiciones_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarCondicionesButton.IsEnabled=false;
+        // Invalidar el catálogo anterior ANTES de cualquier operación de red.
+        _condicionesIvaConsultadas=Array.Empty<CondicionIvaReceptorWsfe>();
+        _condicionesIvaCuit=null;
+        _condicionesIvaTipo=0;
+        FiscalCondicionIvaCombo.Items.Clear();
+        FiscalCondicionIvaEstadoText.Text="";
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(!int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                    out var tipo) || tipo is not (1 or 6 or 11))
+                throw new ArgumentException("Elegí factura A, B o C.");
+            string clase=tipo switch {1=>"A",6=>"B",11=>"C",_=>throw new ArgumentException("Clase inválida.")};
+            using var arca=new ArcaHomologacion();
+            var catalogo=await arca.ConsultarCondicionesIvaReceptorAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuit,clase);
+            _condicionesIvaConsultadas=catalogo;
+            _condicionesIvaCuit=cuit;
+            _condicionesIvaTipo=tipo;
+            _condicionesIvaFechaUtc=DateTimeOffset.UtcNow;
+            foreach(var item in catalogo)
+                FiscalCondicionIvaCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=item.Id.ToString(CultureInfo.InvariantCulture),
+                    Content=$"{item.Id} · {item.Descripcion}"
+                });
+            FiscalCondicionIvaEstadoText.Text=
+                $"Catálogo oficial cargado: {catalogo.Count} condición(es) válidas para factura {clase}. " +
+                "Seleccioná una opción; no se determinó automáticamente la condición del cliente.";
+        }
+        catch(Exception ex)
+        {
+            FiscalCondicionIvaEstadoText.Text="No se obtuvo un catálogo verificable: "+ex.Message;
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarCondicionesButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+        }
+    }
+
     private async void FiscalPreparar_Click(object sender,RoutedEventArgs e)
     {
         if(_procesandoFiscal)return;
@@ -1034,8 +1090,13 @@ public sealed partial class MainWindow : Window
                 throw new ArgumentException("Ingresá punto de venta y tipo de factura.");
             if(!int.TryParse((FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var docTipo) ||
                !long.TryParse(FiscalDocNumeroInput.Text,out var docNumero) ||
-               !int.TryParse(FiscalCondicionIvaInput.Text,out var condicion))
-                throw new ArgumentException("Completá tipo/número de documento y condición IVA verificada.");
+               !int.TryParse((FiscalCondicionIvaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var condicion))
+                throw new ArgumentException("Completá el documento y elegí una condición IVA consultada en ARCA.");
+            if(_condicionesIvaCuit!=ArcaCuitInput.Text.Trim() || _condicionesIvaTipo!=tipo ||
+               _condicionesIvaFechaUtc<DateTimeOffset.UtcNow.AddMinutes(-30) ||
+               !_condicionesIvaConsultadas.Any(x=>x.Id==condicion))
+                throw new InvalidOperationException(
+                    "La condición IVA no pertenece a un catálogo reciente del mismo CUIT y clase. Consultá ARCA nuevamente.");
             var neto=LeerFiscalImporte(FiscalNetoInput.Text)/100m;
             var iva=LeerFiscalImporte(FiscalIvaInput.Text)/100m;
             var exento=LeerFiscalImporte(FiscalExentoInput.Text)/100m;
