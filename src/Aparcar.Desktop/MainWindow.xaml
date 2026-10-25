@@ -69,11 +69,11 @@
                             <ComboBoxItem Content="Camioneta"/>
                         </ComboBox>
                         <TextBlock Text="Sector"/>
-                        <ComboBox x:Name="SectoresIngresoCombo" Width="360"
+                        <ComboBox x:Name="SectoresIngresoCombo" KeyDown="SectoresIngresoCombo_KeyDown" Width="360"
                                   HorizontalAlignment="Left" PlaceholderText="Seleccionar sector"
                                   SelectionChanged="SectoresIngresoCombo_SelectionChanged"/>
-                        <TextBox x:Name="SectorInput" KeyDown="SectorInput_KeyDown" Text="General"
-                                 IsReadOnly="True" Width="360" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="SectorInput" Text="General"
+                                 Visibility="Collapsed" IsReadOnly="True" Width="360" HorizontalAlignment="Left"/>
                         <TextBlock Text="Plaza (solo para sectores de asignación individual; vacío = automática)"/>
                         <TextBox x:Name="PlazaIngresoInput" KeyDown="PlazaIngresoInput_KeyDown"
                                  Width="240" HorizontalAlignment="Left" PlaceholderText="Ej.: A-01"/>
@@ -84,7 +84,7 @@
                             <Button x:Name="GuardarIngresoButton" Content="F10 — Guardar ingreso" Click="Ingresar_Click"/>
                             <Button Content="Configurar impresora" Click="IrConfig_Click"/>
                         </StackPanel>
-                        <TextBlock x:Name="TicketPreviewText" Text="Enter: patente → categoría → sector → guardar."
+                        <TextBlock x:Name="TicketPreviewText" Text="Enter: patente → categoría → sector → plaza (si corresponde) → guardar."
                                    TextWrapping="Wrap" IsTextSelectionEnabled="True" Opacity="0.85"/>
                         <TextBlock Text="El ingreso queda guardado aunque falle la impresora; reimprimí sin registrarlo otra vez."
                                    TextWrapping="Wrap" Opacity="0.7"/>
