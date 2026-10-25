@@ -130,6 +130,9 @@ public sealed partial class MainWindow : Window
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
         ArcaProbarConexionButton.IsEnabled=puedeConfigurar;
+        FiscalPrepararButton.IsEnabled=puedeConfigurar;
+        FiscalEmitirButton.IsEnabled=puedeConfigurar;
+        FiscalConciliarButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
         if(_db.CajaCiegaObligatoria())
@@ -938,6 +941,234 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
+        }
+    }
+
+    private bool _procesandoFiscal;
+
+    private static long LeerFiscalImporte(string valor) =>
+        string.IsNullOrWhiteSpace(valor)?0:LeerImporte(valor);
+
+    private static DateOnly LeerFechaFiscal(string texto)
+    {
+        if(!DateOnly.TryParseExact(texto.Trim(),"yyyy-MM-dd",CultureInfo.InvariantCulture,
+            DateTimeStyles.None,out var fecha))
+            throw new ArgumentException("Usá fecha yyyy-MM-dd.");
+        return fecha;
+    }
+
+    private void FiscalActualizar_Click(object sender,RoutedEventArgs e) =>
+        RefrescarFiscalHomologacion();
+
+    private void RefrescarFiscalHomologacion()
+    {
+        try
+        {
+            var solicitudes=_db.ListarFacturasHomologacion(150);
+            var reservados=solicitudes.Select(x=>(x.Origen,x.CobroId)).ToHashSet();
+            FiscalCobroCombo.Items.Clear();
+            foreach(var p in _db.ListarPendientesFiscales(150)
+                .Where(p=>p.Estado=="PendienteDatosFiscales" &&
+                    !reservados.Contains((p.Origen,p.CobroId))))
+                FiscalCobroCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=p.Origen+"|"+p.CobroId.ToString("D"),
+                    Content=$"{p.FechaUtc.ToLocalTime():dd/MM/yy HH:mm} · {p.Origen} · " +
+                        $"{Dinero(p.ImporteCentavos)} · {p.CobroId}"
+                });
+            FiscalSolicitudesCombo.Items.Clear();
+            foreach(var f in solicitudes)
+                FiscalSolicitudesCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=f.Id.ToString("D"),
+                    Content=$"{f.Estado} · {f.Origen} · PV {f.Comprobante.PuntoVenta} " +
+                        $"tipo {f.Comprobante.Tipo} Nº {f.Comprobante.Numero} · " +
+                        $"{Dinero((long)(f.Comprobante.Total*100m))}"
+                });
+            FiscalResultadoText.Text=$"{FiscalCobroCombo.Items.Count} cobros disponibles; " +
+                $"{solicitudes.Count} solicitudes de HOMOLOGACIÓN. No son facturas de producción.";
+        }
+        catch(Exception ex){FiscalResultadoText.Text="Fiscal: "+ex.Message;}
+    }
+
+    private (string Origen,Guid CobroId,long Centavos) FiscalCobroElegido()
+    {
+        var identificador=(FiscalCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+        var partes=identificador.Split('|');
+        if(partes.Length!=2 || !Guid.TryParse(partes[1],out var id))
+            throw new ArgumentException("Seleccioná un cobro todavía no facturado.");
+        var pendiente=_db.ListarPendientesFiscales(1000)
+            .SingleOrDefault(x=>x.CobroId==id && x.Origen==partes[0] &&
+                x.Estado=="PendienteDatosFiscales")
+            ??throw new InvalidOperationException("El cobro ya no está disponible.");
+        return(partes[0],id,pendiente.ImporteCentavos);
+    }
+
+    private SolicitudFiscalPrueba FiscalSolicitudElegida()
+    {
+        if(!Guid.TryParse((FiscalSolicitudesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+            out var id))
+            throw new ArgumentException("Seleccioná una solicitud fiscal.");
+        return _db.ObtenerFacturaHomologacion(id);
+    }
+
+    private void ValidarCredencialesFiscal()
+    {
+        if(!File.Exists(ArcaCertificadoInput.Text))
+            throw new FileNotFoundException("Elegí un certificado de homologación .pfx válido.");
+        if(string.IsNullOrWhiteSpace(ArcaClavePfxInput.Password))
+            throw new ArgumentException("Ingresá la contraseña del certificado PFX.");
+    }
+
+    private async void FiscalPreparar_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalPrepararButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var (origen,cobroId,importeCentavos)=FiscalCobroElegido();
+            if(!int.TryParse(ArcaPtoVtaInput.Text,out var pv) ||
+               !int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var tipo))
+                throw new ArgumentException("Ingresá punto de venta y tipo de factura.");
+            if(!int.TryParse((FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var docTipo) ||
+               !long.TryParse(FiscalDocNumeroInput.Text,out var docNumero) ||
+               !int.TryParse(FiscalCondicionIvaInput.Text,out var condicion))
+                throw new ArgumentException("Completá tipo/número de documento y condición IVA verificada.");
+            var neto=LeerFiscalImporte(FiscalNetoInput.Text)/100m;
+            var iva=LeerFiscalImporte(FiscalIvaInput.Text)/100m;
+            var exento=LeerFiscalImporte(FiscalExentoInput.Text)/100m;
+            var noGravado=LeerFiscalImporte(FiscalNoGravadoInput.Text)/100m;
+            int alicuota=0;
+            var alicuotas=new System.Collections.Generic.List<IvaFiscalWsfe>();
+            if(neto>0m)
+            {
+                if(!int.TryParse(FiscalAlicuotaInput.Text,out alicuota))
+                    throw new ArgumentException("Para neto gravado completá código de alícuota IVA oficial.");
+                alicuotas.Add(new IvaFiscalWsfe(alicuota,neto,iva));
+            }
+            var hoy=DateOnly.FromDateTime(DateTime.Now);
+            var desde=LeerFechaFiscal(FiscalServicioDesdeInput.Text);
+            var hasta=LeerFechaFiscal(FiscalServicioHastaInput.Text);
+            var vencimiento=LeerFechaFiscal(FiscalVencimientoInput.Text);
+            // Estacionamiento, lavadero y abonos son prestaciones de servicios.
+            // Nunca inventar fechas fiscales ni determinar IVA automáticamente.
+            using var arca=new ArcaHomologacion();
+            var numeroArca=await arca.ConsultarUltimoAutorizadoAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,
+                ArcaCuitInput.Text.Trim(),pv,tipo);
+            var comprobante=new ComprobanteFiscalWsfe(
+                pv,tipo,checked((long)numeroArca.Numero+1),hoy,
+                2,docTipo,docNumero,condicion,importeCentavos/100m,
+                noGravado,neto,exento,0m,iva,alicuotas,desde,hasta,vencimiento);
+            AdaptadorWsfeFacturador.Validar(comprobante);
+            var borrador=_db.PrepararFacturaHomologacion(
+                ArcaCuitInput.Text.Trim(),origen,cobroId,comprobante);
+            FiscalResultadoText.Text=$"Borrador {borrador.Id} preparado: " +
+                $"PV {pv} tipo {tipo} Nº {comprobante.Numero}, total {Dinero(importeCentavos)}. " +
+                "Todavía NO se solicitó CAE. Revisá todos los datos antes de emitir en homologación.";
+            RefrescarFiscalHomologacion();
+        }
+        catch(Exception ex){FiscalResultadoText.Text="No se preparó factura: "+ex.Message;}
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalPrepararButton.IsEnabled=true;
+        }
+    }
+
+    private async void FiscalEmitir_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalEmitirButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var borrador=FiscalSolicitudElegida();
+            if(borrador.Estado!="Preparada")
+                throw new InvalidOperationException("La solicitud no está preparada o ya fue enviada. Usá Conciliar.");
+            ValidarCredencialesFiscal();
+            if(!string.Equals(ArcaCuitInput.Text.Trim(),borrador.CuitEmisor,StringComparison.Ordinal))
+                throw new InvalidOperationException("El CUIT emisor difiere del borrador congelado.");
+            var dialogo=new ContentDialog
+            {
+                Title="Emitir factura de PRUEBA en ARCA Homologación",
+                Content=$"CUIT {borrador.CuitEmisor}, PV {borrador.Comprobante.PuntoVenta}, " +
+                    $"tipo {borrador.Comprobante.Tipo}, número {borrador.Comprobante.Numero}, " +
+                    $"total {borrador.Comprobante.Total:N2}. " +
+                    "Esta acción enviará FECAESolicitar a HOMOLOGACIÓN, sin validez fiscal. " +
+                    "Si la conexión falla NO se reenviará automáticamente.",
+                PrimaryButtonText="Solicitar CAE de prueba",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
+            _db.MarcarEnvioHomologacion(borrador.Id);
+            try
+            {
+                using var arca=new ArcaHomologacion();
+                var respuesta=await arca.SolicitarCaePruebaAsync(
+                    ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,
+                    borrador.CuitEmisor,borrador.Comprobante);
+                var guardado=_db.RegistrarRespuestaHomologacion(borrador.Id,respuesta);
+                FiscalResultadoText.Text=$"Homologación: {guardado.Estado}. " +
+                    (guardado.Cae is null?respuesta.Detalle:
+                        $"CAE de PRUEBA {guardado.Cae}, vto {guardado.Vencimiento:dd/MM/yyyy}. " +
+                        "No equivale a una factura comercial.");
+            }
+            catch(Exception ex)
+            {
+                FiscalResultadoText.Text="ESTADO POR CONCILIAR: "+ex.Message+
+                    " NO REINTENTAR. Consultá FECompConsultar desde Aparcar.";
+            }
+            RefrescarFiscalHomologacion();
+        }
+        catch(Exception ex){FiscalResultadoText.Text="No se solicitó CAE: "+ex.Message;}
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalEmitirButton.IsEnabled=true;
+        }
+    }
+
+    private async void FiscalConciliar_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConciliarButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var borrador=FiscalSolicitudElegida();
+            if(borrador.Estado!="PorConciliar")
+                throw new InvalidOperationException("Solo corresponde conciliar solicitudes PorConciliar.");
+            ValidarCredencialesFiscal();
+            if(!string.Equals(ArcaCuitInput.Text.Trim(),borrador.CuitEmisor,StringComparison.Ordinal))
+                throw new InvalidOperationException("El CUIT no coincide con el emisor de la solicitud.");
+            using var arca=new ArcaHomologacion();
+            var consulta=await arca.ConsultarComprobanteAsync(ArcaCertificadoInput.Text,
+                ArcaClavePfxInput.Password,borrador.CuitEmisor,borrador.Comprobante);
+            var conciliado=_db.RegistrarConciliacionHomologacion(borrador.Id,consulta);
+            FiscalResultadoText.Text=$"Consulta de homologación conciliada: " +
+                $"CAE de PRUEBA {conciliado.Cae}, vto {conciliado.Vencimiento:dd/MM/yyyy}.";
+            RefrescarFiscalHomologacion();
+        }
+        catch(Exception ex)
+        {
+            FiscalResultadoText.Text="No fue posible conciliar: "+ex.Message+
+                " No vuelvas a enviar FECAESolicitar; se requiere revisión.";
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConciliarButton.IsEnabled=true;
         }
     }
 
