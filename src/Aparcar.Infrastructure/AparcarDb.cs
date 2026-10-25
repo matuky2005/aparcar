@@ -80,6 +80,7 @@ public sealed partial class AparcarDb
         InicializarSeguridad();
         InicializarModulos();
         InicializarV7();
+        InicializarV8();
     }
 
     public static string NormalizarPatente(string texto)
@@ -89,7 +90,7 @@ public sealed partial class AparcarDb
             .Where(char.IsLetterOrDigit).ToArray());
     }
 
-    public long RegistrarIngreso(string patente, string tipoVehiculo, string? sector)
+    public long RegistrarIngreso(string patente, string tipoVehiculo, string? sector, string? plaza = null)
     {
         ExigirPermiso(PermisosAparcar.Ingreso);
         var normalizada = NormalizarPatente(patente);
@@ -102,6 +103,9 @@ public sealed partial class AparcarDb
 
         using var db = Abrir();
         using var tx = db.BeginTransaction();
+        var sectorValidado=VerificarSectorAntesIngreso(db,tx,sectorFinal);
+        sectorFinal=sectorValidado.Nombre;
+        var plazaElegida=ElegirPlaza(db,tx,sectorFinal,sectorValidado.Modo,plaza);
         var estadiaId = Guid.NewGuid().ToString("D");
         using var cmd = db.CreateCommand();
         cmd.Transaction = tx;
@@ -122,7 +126,11 @@ public sealed partial class AparcarDb
             var ticket = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
             GuardarToken(db, tx, estadiaId);
             AsignarTarifaAlIngresar(db, tx, estadiaId, tipoVehiculo);
-            AuditarSesion(db,tx,"Vehiculo.Ingreso",estadiaId,$"Ticket {ticket} · {tipoVehiculo}");
+            if(plazaElegida is not null)
+                OcuparPlaza(db,tx,Guid.Parse(estadiaId),sectorFinal,plazaElegida);
+            AuditarSesion(db,tx,"Vehiculo.Ingreso",estadiaId,
+                $"Ticket {ticket} · {tipoVehiculo} · {sectorFinal}" +
+                (plazaElegida is null?"":$" / plaza {plazaElegida}"));
             tx.Commit();
             return ticket;
         }
@@ -223,6 +231,7 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$fecha", ahora.ToString("O"));
             cmd.ExecuteNonQuery();
         }
+        LiberarPlaza(db,tx,estadiaId);
         AuditarSesion(db,tx,"Vehiculo.SalidaPrueba",estadiaId.ToString("D"),$"Importe ficticio {importe} centavos");
         tx.Commit();
         return new SalidaPrueba(estadia.Ticket, estadia.Patente, importe, ahora);
