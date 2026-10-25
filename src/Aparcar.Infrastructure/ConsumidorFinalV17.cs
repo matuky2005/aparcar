@@ -18,10 +18,11 @@ public static class ReglasConsumidorFinalV17
 
     public static ReceptorConsumidorFinalDefault? Resolver(
         int tipoComprobante,long totalCentavos,
-        System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> condiciones)
+        System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> condiciones,
+        bool requiereIdentificacion=false)
     {
         ArgumentNullException.ThrowIfNull(condiciones);
-        if(tipoComprobante is not (6 or 11) ||
+        if(requiereIdentificacion || tipoComprobante is not (6 or 11) ||
            totalCentavos<=0 ||
            totalCentavos>=LimiteIdentificacionObligatoriaCentavos)
             return null;
