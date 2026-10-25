@@ -1018,21 +1018,21 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { Mensaje.Text = "No se pudo guardar la impresora: " + ex.Message; }
     }
 
-    private void ImprimirTicketSeguro(long numero)
+    private void ImprimirTicketSeguro(long numero,bool duplicado=false)
     {
         var ticket = _db.ObtenerTicket(numero);
         var destino = _impresora ?? "";
         try
         {
-            TicketPrinter.ImprimirIngreso(ticket, destino, _anchoTicket);
-            _db.RegistrarImpresion(ticket.EstadiaId, destino, true, "Enviado al controlador de impresión");
+            TicketPrinter.ImprimirIngreso(ticket, destino, _anchoTicket, duplicado);
+            _db.RegistrarImpresion(ticket.EstadiaId, destino, true, duplicado?"DUPLICADO: enviado al controlador":"Enviado al controlador de impresión");
             Mensaje.Text = $"Ingreso #{numero:D7} guardado. Ticket enviado a {destino}.";
         }
         catch (Exception ex)
         {
             // La persistencia del ingreso ya está confirmada; solo se reporta
             // el fallo de impresión, sin iniciar un segundo registro.
-            try { _db.RegistrarImpresion(ticket.EstadiaId, destino, false, ex.Message); }
+            try { _db.RegistrarImpresion(ticket.EstadiaId, destino, false, (duplicado?"DUPLICADO: ":"")+ex.Message); }
             catch { /* No tapar el error original del controlador de impresión. */ }
             Mensaje.Text = $"Ingreso #{numero:D7} GUARDADO, pero NO impreso: {ex.Message}. Reimprimilo desde Configuración.";
         }
@@ -1049,7 +1049,7 @@ public sealed partial class MainWindow : Window
         {
             _db.AutorizarReimpresion(numero,MotivoReimpresionInput.Text);
             MotivoReimpresionInput.Text="";
-            ImprimirTicketSeguro(numero);
+            ImprimirTicketSeguro(numero,true);
         }
         catch (Exception ex) { Mensaje.Text = "No se pudo autorizar la reimpresión: " + ex.Message; }
     }
