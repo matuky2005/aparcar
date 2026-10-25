@@ -82,6 +82,7 @@ public sealed class WsfeFacturadorReutilizadoTests
             "<CondicionIVAReceptorId>5</CondicionIVAReceptorId><CbteFch>20261025</CbteFch>"+
             "<ImpTotal>121.00</ImpTotal><ImpTotConc>0.00</ImpTotConc>"+
             "<ImpNeto>100.00</ImpNeto><ImpOpEx>0.00</ImpOpEx><ImpTrib>0.00</ImpTrib><ImpIVA>21.00</ImpIVA>"+
+            "<Iva><AlicIva><Id>5</Id><BaseImp>100.00</BaseImp><Importe>21.00</Importe></AlicIva></Iva>"+
             "<MonId>PES</MonId><MonCotiz>1.00</MonCotiz>"+
             "<FchServDesde>20261025</FchServDesde><FchServHasta>20261025</FchServHasta>"+
             "<FchVtoPago>20261025</FchVtoPago>"+
@@ -100,6 +101,18 @@ public sealed class WsfeFacturadorReutilizadoTests
             consulta.Replace("<CondicionIVAReceptorId>5</CondicionIVAReceptorId>",
                 "<CondicionIVAReceptorId>6</CondicionIVAReceptorId>"),FacturaB());
         Assert.False(condicionEquivocada.Coincide);
+        var otraAlicuota=AdaptadorWsfeFacturador.InterpretarConsulta(
+            consulta.Replace("<Id>5</Id><BaseImp>100.00</BaseImp>",
+                "<Id>4</Id><BaseImp>100.00</BaseImp>"),FacturaB());
+        Assert.True(otraAlicuota.Encontrado);
+        Assert.False(otraAlicuota.Coincide);
+        Assert.False(otraAlicuota.TieneCae);
+        var baseIncorrecta=AdaptadorWsfeFacturador.InterpretarConsulta(
+            consulta.Replace("<BaseImp>100.00</BaseImp>","<BaseImp>95.00</BaseImp>"),FacturaB());
+        Assert.False(baseIncorrecta.Coincide);
+        var sinDetalleIva=AdaptadorWsfeFacturador.InterpretarConsulta(
+            consulta.Replace("<Iva><AlicIva><Id>5</Id><BaseImp>100.00</BaseImp><Importe>21.00</Importe></AlicIva></Iva>",""),FacturaB());
+        Assert.False(sinDetalleIva.Coincide);
         var error=AdaptadorWsfeFacturador.InterpretarConsulta(
             "<FECompConsultarResponse><Errors><Err><Code>10001</Code></Err></Errors></FECompConsultarResponse>",
             FacturaB());
