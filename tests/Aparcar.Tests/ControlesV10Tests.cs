@@ -137,6 +137,24 @@ public sealed class ControlesV10Tests
     }
 
     [Fact]
+    public void ReintegroCambiaElEstadoDelPendienteFiscal()
+    {
+        var (db,dir)=BaseNueva();
+        try
+        {
+            db.ConfigurarPinSupervisorInicial("123456");
+            db.AbrirTurno("Cajero",100_000);
+            var c=Cotizar(db,"FF999EE");
+            var pago=db.ConfirmarPago(c,MediosPago.Efectivo,
+                c.ImporteCentavos,"",false,Guid.NewGuid());
+            db.DevolverCobroEfectivo(pago.Id,"Cobro duplicado por error",
+                "AdminV10","123456");
+            Assert.Equal("RevisionDevolucion",Assert.Single(db.ListarPendientesFiscales()).Estado);
+        }
+        finally{Limpiar(dir);}
+    }
+
+    [Fact]
     public void PoliticaCaja_NoSeModificaDuranteTurnoAbierto()
     {
         var(db,dir)=BaseNueva();
