@@ -64,6 +64,7 @@ public sealed partial class AparcarDb
                 throw new InvalidOperationException("No existe la solicitud fiscal.");
         }
         ValidadorDocumentoFiscalPrueba.Validar(datos,solicitud);
+        ValidarReferenciaPerfilFiscal(db,tx,datos);
         var json=JsonSerializer.Serialize(datos);
         using(var cmd=db.CreateCommand())
         {
