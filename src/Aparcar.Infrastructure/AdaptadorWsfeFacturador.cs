@@ -83,6 +83,20 @@ public static class AdaptadorWsfeFacturador
             new XElement(Ar+"FeDetReq",detalle));
     }
 
+    // Algoritmo del módulo ValidadorCuit de Facturador, aplicado sin
+    // inferir condición tributaria del receptor.
+    public static bool CuitValido(string? cuit)
+    {
+        if(cuit is null || cuit.Length!=11 || !cuit.All(x=>x>='0'&&x<='9'))
+            return false;
+        int[] pesos={5,4,3,2,7,6,5,4,3,2};
+        int suma=0;
+        for(int i=0;i<10;i++)suma+=(cuit[i]-'0')*pesos[i];
+        int digito=11-suma%11;
+        digito=digito==11?0:digito==10?9:digito;
+        return digito==cuit[10]-'0';
+    }
+
     public static void Validar(ComprobanteFiscalWsfe c)
     {
         ArgumentNullException.ThrowIfNull(c);
@@ -98,6 +112,9 @@ public static class AdaptadorWsfeFacturador
             throw new InvalidOperationException("Factura A exige CUIT del receptor.");
         if(c.DocTipo==99 && (c.Tipo!=6 || c.DocNumero!=0))
             throw new InvalidOperationException("Sin identificar solo corresponde a Factura B con documento 0.");
+        if(c.DocTipo is 80 or 86 &&
+            !CuitValido(c.DocNumero.ToString("00000000000",Inv)))
+            throw new InvalidOperationException("CUIT/CUIL receptor no supera el dígito verificador.");
         if(c.DocTipo!=99 && c.DocNumero==0)
             throw new InvalidOperationException("Informá el número del documento del receptor.");
         if(c.CondicionIvaReceptorId<=0)
