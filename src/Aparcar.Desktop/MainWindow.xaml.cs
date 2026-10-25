@@ -985,8 +985,7 @@ public sealed partial class MainWindow : Window
                         $"tipo {f.Comprobante.Tipo} Nº {f.Comprobante.Numero} · " +
                         $"{Dinero((long)(f.Comprobante.Total*100m))}"
                 });
-            FiscalResultadoText.Text=$"{FiscalCobroCombo.Items.Count} cobros disponibles; " +
-                $"{solicitudes.Count} solicitudes de HOMOLOGACIÓN. No son facturas de producción.";
+            // No sobrescribir el resultado del CAE o un error de conciliación.
         }
         catch(Exception ex){FiscalResultadoText.Text="Fiscal: "+ex.Message;}
     }
