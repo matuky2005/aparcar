@@ -647,6 +647,15 @@
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
                         <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <TextBlock Text="Consulta fiscal del EMISOR (homologación)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Consulta ARCA la razón social y domicilio fiscal del CUIT emisor. El domicilio comercial, IVA e Ingresos Brutos deben revisarse antes de guardar el perfil."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="FiscalConsultarConstanciaEmisorButton"
+                                Content="Consultar constancia de inscripción del EMISOR"
+                                Click="FiscalConsultarConstanciaEmisor_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalConstanciaEmisorEstadoText"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <TextBlock Text="PERFILES FISCALES REUTILIZABLES (v0.16 - por CUIT)"
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="Los perfiles guardan versiones históricas. Cargá o seleccioná uno para completar automáticamente los datos del emisor. Los datos se declaran manualmente: Aparcar aún no los verifica con ARCA."
