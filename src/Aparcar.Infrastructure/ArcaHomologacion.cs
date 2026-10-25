@@ -22,7 +22,7 @@ namespace Aparcar.Infrastructure;
 /// </summary>
 public sealed record CondicionIvaReceptorWsfe(int Id,string Descripcion,string Clase);
 
-public sealed class ArcaHomologacion : IDisposable
+public sealed partial class ArcaHomologacion : IDisposable
 {
     public static readonly Uri WsaaUrl =
         new("https://wsaahomo.afip.gov.ar/ws/services/LoginCms");
@@ -47,7 +47,7 @@ public sealed class ArcaHomologacion : IDisposable
         if(_disponeCliente)_http.Dispose();
     }
 
-    public static string CrearTicketRequerimiento(DateTimeOffset fechaUtc,int uniqueId)
+    public static string CrearTicketRequerimiento(DateTimeOffset fechaUtc,int uniqueId,string servicio="wsfe")
     {
         if(uniqueId<=0)throw new ArgumentOutOfRangeException(nameof(uniqueId));
         var utc=fechaUtc.ToUniversalTime();
@@ -58,7 +58,7 @@ public sealed class ArcaHomologacion : IDisposable
                     new XElement("uniqueId",uniqueId),
                     new XElement("generationTime",utc.AddMinutes(-10).ToString("yyyy-MM-ddTHH:mm:ssZ",CultureInfo.InvariantCulture)),
                     new XElement("expirationTime",utc.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ",CultureInfo.InvariantCulture))),
-                new XElement("service","wsfe"))).ToString(SaveOptions.DisableFormatting);
+                new XElement("service",servicio))).ToString(SaveOptions.DisableFormatting);
     }
 
     public static string FirmarTicket(string ticketXml,X509Certificate2 certificado)
@@ -128,7 +128,7 @@ public sealed class ArcaHomologacion : IDisposable
     }
 
     private async Task<(string Token,string Sign,DateTimeOffset ExpiraUtc)> AutenticarWsaaAsync(
-        string pfxRuta,string clavePfx,CancellationToken cancellationToken)
+        string pfxRuta,string clavePfx,CancellationToken cancellationToken,string servicio="wsfe")
     {
         if(string.IsNullOrWhiteSpace(pfxRuta)||!File.Exists(pfxRuta))
             throw new FileNotFoundException("Seleccioná un certificado PFX de homologación.");
@@ -139,7 +139,7 @@ public sealed class ArcaHomologacion : IDisposable
             throw new InvalidOperationException("El certificado debe tener clave privada y estar vigente.");
 
         var ticket=CrearTicketRequerimiento(DateTimeOffset.UtcNow,
-            RandomNumberGenerator.GetInt32(1,int.MaxValue));
+            RandomNumberGenerator.GetInt32(1,int.MaxValue),servicio);
         var cms=FirmarTicket(ticket,cert);
         XNamespace authNs=WsaaNs;
         var requestWsaa=Soap(new XElement(authNs+"loginCms",
