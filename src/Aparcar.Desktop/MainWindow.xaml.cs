@@ -137,6 +137,10 @@ public sealed partial class MainWindow : Window
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
+        FiscalConsultarConstanciaButton.IsEnabled=puedeConfigurar;
+        FiscalGuardarPreferenciaCfButton.IsEnabled=puedeConfigurar;
+        FiscalAplicarConsumidorFinalButton.IsEnabled=puedeConfigurar;
+        FiscalCfPorDefectoCheck.IsEnabled=puedeConfigurar;
         FiscalPerfilActualizarButton.IsEnabled=puedeConfigurar;
         FiscalPerfilAplicarButton.IsEnabled=puedeConfigurar;
         FiscalPerfilGuardarButton.IsEnabled=puedeConfigurar;
@@ -976,6 +980,7 @@ public sealed partial class MainWindow : Window
     {
         RefrescarFiscalHomologacion();
         RefrescarPerfilesFiscales();
+        CargarPreferenciaCf();
     }
 
     private void RefrescarFiscalHomologacion()
@@ -1037,6 +1042,145 @@ public sealed partial class MainWindow : Window
             throw new ArgumentException("Ingresá la contraseña del certificado PFX.");
     }
 
+    private void CargarPreferenciaCf()
+    {
+        try
+        {
+            var cuit=ArcaCuitInput.Text.Trim();
+            FiscalCfPorDefectoCheck.IsChecked=
+                AdaptadorWsfeFacturador.CuitValido(cuit) &&
+                _db.ConsumidorFinalPredeterminado(cuit);
+            FiscalPreferenciaCfEstadoText.Text=
+                AdaptadorWsfeFacturador.CuitValido(cuit)
+                ?"Preferencia cargada para CUIT "+cuit+"."
+                :"Ingresá un CUIT emisor válido para consultar o guardar la preferencia.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text="No se pudo consultar la preferencia: "+ex.Message;
+        }
+    }
+
+    private void FiscalGuardarPreferenciaCf_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=ArcaCuitInput.Text.Trim();
+            bool activo=FiscalCfPorDefectoCheck.IsChecked==true;
+            _db.ConfigurarConsumidorFinalPredeterminado(cuit,activo);
+            FiscalPreferenciaCfEstadoText.Text=
+                $"CUIT {cuit}: Consumidor Final predeterminado {(activo?"activado":"desactivado")}. " +
+                "Las operaciones que requieren receptor identificado nunca se completan como 99/0.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text="No se guardó la preferencia: "+ex.Message;
+        }
+    }
+
+    private bool AplicarConsumidorFinalDesdeCatalogo(bool seleccionManual)
+    {
+        _db.ExigirPermiso(PermisosAparcar.Configuracion);
+        var cuit=ArcaCuitInput.Text.Trim();
+        if(_condicionesIvaCuit!=cuit ||
+           _condicionesIvaFechaUtc<DateTimeOffset.UtcNow.AddMinutes(-30))
+            throw new InvalidOperationException(
+                "Consultá condiciones IVA oficiales recientes antes de elegir Consumidor Final.");
+        if(!int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out int tipo) || tipo!=_condicionesIvaTipo)
+            throw new InvalidOperationException("La clase de factura cambió: actualizá el catálogo IVA.");
+        var (_,_,centavos)=FiscalCobroElegido();
+        var sugerido=ReglasConsumidorFinalV17.Resolver(tipo,centavos,_condicionesIvaConsultadas);
+        if(sugerido is null)
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "No se aplicó Consumidor Final sin identificar. Revisá la clase, el importe "+
+                "y el catálogo IVA oficial. Para operaciones de $10.000.000 o más "+
+                "debe informarse documento del receptor.";
+            return false;
+        }
+        if(!seleccionManual && !string.IsNullOrWhiteSpace(FiscalDocNumeroInput.Text) &&
+            FiscalDocNumeroInput.Text.Trim()!="0")
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "Se conserva el documento ya cargado. Usá el botón si querés cambiar a Consumidor Final.";
+            return false;
+        }
+        var tipoItem=FiscalDocTipoCombo.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(x=>x.Tag?.ToString()=="99")
+            ??throw new InvalidOperationException("No está disponible el documento 99.");
+        var ivaItem=FiscalCondicionIvaCombo.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(x=>x.Tag?.ToString()==
+                sugerido.CondicionIvaId.ToString(CultureInfo.InvariantCulture))
+            ??throw new InvalidOperationException(
+                "El catálogo mostrado no incluye el código oficial de Consumidor Final.");
+        FiscalDocTipoCombo.SelectedItem=tipoItem;
+        FiscalDocNumeroInput.Text="0";
+        FiscalCondicionIvaCombo.SelectedItem=ivaItem;
+        if(string.IsNullOrWhiteSpace(FiscalNombreReceptorInput.Text))
+            FiscalNombreReceptorInput.Text="CONSUMIDOR FINAL";
+        if(string.IsNullOrWhiteSpace(FiscalDomicilioReceptorInput.Text))
+            FiscalDomicilioReceptorInput.Text="NR";
+        FiscalPreferenciaCfEstadoText.Text=
+            "Consumidor Final sin identificar aplicado desde catálogo oficial. "+
+            "Podés sustituirlo por datos de un cliente identificado.";
+        return true;
+    }
+
+    private void FiscalAplicarConsumidorFinal_Click(object sender,RoutedEventArgs e)
+    {
+        try { AplicarConsumidorFinalDesdeCatalogo(true); }
+        catch(Exception ex)
+        { FiscalPreferenciaCfEstadoText.Text="No se aplicó Consumidor Final: "+ex.Message; }
+    }
+
+    private async void FiscalConsultarConstancia_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarConstanciaButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuitEmisor=ArcaCuitInput.Text.Trim();
+            if((FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()!="80")
+                throw new ArgumentException("Para constancia de inscripción seleccioná documento CUIT (80).");
+            var cuit=FiscalDocNumeroInput.Text.Trim();
+            if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+                throw new ArgumentException("Ingresá un CUIT válido de 11 dígitos.");
+            using var arca=new ArcaHomologacion();
+            var constancia=await arca.ConsultarConstanciaInscripcionAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuitEmisor,cuit);
+            // Confirmar que no se modificó el documento durante la consulta.
+            if(FiscalDocNumeroInput.Text.Trim()!=constancia.Cuit ||
+               (FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()!="80")
+                throw new InvalidOperationException("Cambió el receptor durante la consulta; no se aplicaron datos.");
+            FiscalNombreReceptorInput.Text=constancia.RazonSocial;
+            FiscalDomicilioReceptorInput.Text=constancia.DomicilioFiscal;
+            FiscalConstanciaEstadoText.Text=
+                $"ARCA HOMOLOGACIÓN · {constancia.ConsultadaUtc.ToLocalTime():dd/MM/yyyy HH:mm} · "+
+                $"CUIT {constancia.Cuit} · {constancia.RazonSocial} · "+
+                $"Estado {constancia.EstadoClave} · "+
+                $"Impuestos informados: {string.Join(", ",constancia.ImpuestosInformados)}. "+
+                "Comprobá la situación tributaria con el profesional y elegí condición IVA "+
+                "desde el catálogo WSFEv1; la consulta de padrón no determina el ID automáticamente.";
+        }
+        catch(Exception ex)
+        {
+            FiscalConstanciaEstadoText.Text="Constancia no disponible: "+ex.Message+
+                " Los datos del receptor no se modificaron.";
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarConstanciaButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+        }
+    }
+
     private async void FiscalConsultarCondiciones_Click(object sender,RoutedEventArgs e)
     {
         if(_procesandoFiscal)return;
@@ -1073,6 +1217,9 @@ public sealed partial class MainWindow : Window
             FiscalCondicionIvaEstadoText.Text=
                 $"Catálogo oficial cargado: {catalogo.Count} condición(es) válidas para factura {clase}. " +
                 "Seleccioná una opción; no se determinó automáticamente la condición del cliente.";
+            if(_db.ConsumidorFinalPredeterminado(cuit) &&
+               FiscalCobroCombo.SelectedItem is not null)
+                AplicarConsumidorFinalDesdeCatalogo(false);
         }
         catch(Exception ex)
         {
