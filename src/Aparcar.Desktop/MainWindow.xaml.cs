@@ -1091,13 +1091,15 @@ public sealed partial class MainWindow : Window
                 out int tipo) || tipo!=_condicionesIvaTipo)
             throw new InvalidOperationException("La clase de factura cambió: actualizá el catálogo IVA.");
         var (_,_,centavos)=FiscalCobroElegido();
-        var sugerido=ReglasConsumidorFinalV17.Resolver(tipo,centavos,_condicionesIvaConsultadas);
+        var sugerido=ReglasConsumidorFinalV17.Resolver(tipo,centavos,_condicionesIvaConsultadas,
+            FiscalIdentificarPorSolicitudClienteCheck.IsChecked==true);
         if(sugerido is null)
         {
             FiscalPreferenciaCfEstadoText.Text=
                 "No se aplicó Consumidor Final sin identificar. Revisá la clase, el importe "+
                 "y el catálogo IVA oficial. Para operaciones de $10.000.000 o más "+
-                "debe informarse documento del receptor.";
+                "debe informarse documento del receptor. También se exige cuando el cliente "+
+                "solicita identificar su operación.";
             return false;
         }
         if(!seleccionManual && !string.IsNullOrWhiteSpace(FiscalDocNumeroInput.Text) &&
