@@ -300,6 +300,7 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$id",cotizacion.EstadiaId.ToString("D"));
             if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("La estadía ya estaba cerrada.");
         }
+        LiberarPlaza(db,tx,cotizacion.EstadiaId);
         AuditarSesion(db,tx,"Caja.Cobro",cobroId.ToString("D"),$"Medio={medio}; importe={vigente.ImporteCentavos}; ticket={vigente.Ticket}");
         tx.Commit();
         return new CobroConfirmadoV4(cobroId,cotizacion.EstadiaId,vigente.Ticket,medio,
