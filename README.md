@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.11 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.12 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,23 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.12 (base fiscal): reutilización de patrones de Facturador
+
+Se examinó el repositorio privado `matuky2005/Facturador` para adaptar al dominio de estacionamiento sus componentes:
+
+- `src/Facturador.ARCA/Wsfe/WsfeCaeRequestBuilder.cs`: inspiró `src/Aparcar.Infrastructure/AdaptadorWsfeFacturador.cs`. Construye un `FeCAEReq` para **Factura A/B/C** con importes explícitos, IVA, documento, condición IVA, concepto de servicio y fechas.
+- `src/Facturador.ARCA/Wsfe/WsfeResponseParser.cs`: inspiró validaciones estrictas de **identidad del comprobante, CAE numérico de 14 dígitos y vencimiento**, con resultados diferenciados `Autorizado/Rechazado/Indeterminado` y reconciliación de `FECompConsultar`. Una respuesta incompleta o distinta **no autoriza reenvío automático**.
+- `src/Facturador.ARCA/Services/WsfeService.cs` y `WsfeSoapClient.cs`: inspiraron un nuevo método `ArcaHomologacion.ConsultarComprobanteAsync`, que usa WSAA y consulta **FECompConsultar en homologación**, sin solicitar CAE.
+- `src/Facturador.Infrastructure/Data/ComprobanteRepository.cs`: se tomó como **criterio de seguridad para la próxima etapa** el guardado de un intento fiscal antes de enviarlo y el bloqueo de numeración mientras el estado esté pendiente o desconocido. **Esa reserva transaccional todavía NO está implementada en Aparcar**.
+
+No se agregó dependencia de la aplicación WPF Facturador a la aplicación WinUI Aparcar: el adaptador es propio. Ambas mantienen bases, configuración y certificados separados. No se copió ningún certificado, secreto, token ni dato de clientes.
+
+**Pruebas:** [GitHub Actions #40173927633](https://github.com/matuky2005/aparcar/actions/runs/40173927633) — **61/61 pruebas aprobadas**, dominio/infraestructura/WinUI compilan, **0 artefactos generados**. Workflow restaurado a disparo manual.
+
+**Restricciones:** el constructor fiscal es una preparación validada **sin efecto fiscal**; `FECAESolicitar` todavía no se envía ni se expone al usuario. No puede considerarse listo para emitir comprobantes. Antes de hacerlo se necesita persistir intentos y reconciliar estados desconocidos con `FECompConsultar`, consultar tablas oficiales de condiciones de IVA y tipos, preparar los datos fiscales reales de cada pago, verificar categorías fiscales A/B/C y homologar con un certificado habilitado. Las notas de crédito y la producción están fuera de esta etapa.
+
+Documentación oficial: https://www.arca.gob.ar/ws/documentacion/ws-factura-electronica.asp .
 
 ## Etapa v0.11: duplicados impresos y consulta ARCA en homologación
 
