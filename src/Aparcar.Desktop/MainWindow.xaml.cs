@@ -1199,8 +1199,9 @@ public sealed partial class MainWindow : Window
                 ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuitEmisor,cuit);
             // Confirmar que no se modificó el documento durante la consulta.
             if(FiscalDocNumeroInput.Text.Trim()!=constancia.Cuit ||
+               ArcaCuitInput.Text.Trim()!=cuitEmisor ||
                (FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()!="80")
-                throw new InvalidOperationException("Cambió el receptor durante la consulta; no se aplicaron datos.");
+                throw new InvalidOperationException("Cambió el emisor o receptor durante la consulta; no se aplicaron datos.");
             FiscalNombreReceptorInput.Text=constancia.RazonSocial;
             FiscalDomicilioReceptorInput.Text=constancia.DomicilioFiscal;
             FiscalConstanciaEstadoText.Text=
