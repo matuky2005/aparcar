@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.13 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.14 (sin compilación nueva verificada) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,16 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.14: copias imprimibles de homologación (EN DESARROLLO)
+
+- Se agregó una vista de solo lectura para solicitudes de **homologación autorizadas** con CAE de prueba de 14 dígitos y vencimiento. Bloquea borradores, rechazos e intentos todavía `PorConciliar`.
+- La vista usa los datos fiscales reservados en SQLite: origen, CUIT emisor, clase, PV, número, documento e ID IVA del receptor, fechas del servicio, neto, alícuotas y total.
+- Se incorporaron dos acciones restringidas a administradores en Configuración fiscal: **guardar PDF** en `Documentos/Aparcar/Homologacion` e **imprimir copia de prueba** en impresora Windows de 58/80 mm.
+- Ambos formatos llevan varias leyendas de **PRUEBA SIN VALIDEZ FISCAL** y omiten el QR oficial. No se los debe entregar al cliente ni utilizar como factura electrónica.
+- Se agregaron pruebas automáticas de la vista para autorización válida, CAE ausente, bloqueo de estados y conservación de importes.
+- **Validación pendiente:** esta modificación todavía no tiene ejecución de CI ni prueba física de impresión. Ejecutar manualmente el workflow de validación cuando corresponda, sin generar artefactos.
+- **Todavía faltan** datos comerciales obligatorios del emisor/receptor, QR fiscal correcto, plantilla legal de factura, controles de fecha, notas de crédito, reconciliación multi-terminal y homologación real autorizada. Nada de lo anterior habilita producción.
 
 ## Etapa v0.13: condición IVA oficial y conciliación fiscal estricta
 
