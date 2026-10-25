@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -82,8 +83,11 @@ public sealed class ConstanciaInscripcionV17Tests
             {
                 Assert.Equal(ArcaHomologacion.ConstanciaHomologacionUrl,request.RequestUri);
                 Assert.Contains("getPersona_v2",body);
-                Assert.Contains("<cuitRepresentada>30000000007</cuitRepresentada>",body);
-                Assert.Contains("<idPersona>20123456786</idPersona>",body);
+                var envelope=XDocument.Parse(body);
+                Assert.Equal("30000000007",envelope.Descendants()
+                    .Single(x=>x.Name.LocalName=="cuitRepresentada").Value);
+                Assert.Equal("20123456786",envelope.Descendants()
+                    .Single(x=>x.Name.LocalName=="idPersona").Value);
                 Assert.Contains("TEST_TOKEN",body);
                 Consultas++;
                 respuesta="<getPersona_v2Response>"+Datos+"</getPersona_v2Response>";
