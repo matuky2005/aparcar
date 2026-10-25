@@ -229,7 +229,7 @@ public sealed partial class AparcarDb
     {
         ExigirPermiso(PermisosAparcar.Consulta);
         using var db=Abrir();
-        return TarifaDeEstadia(db,null,estadiaId);
+        return TarifaSectorDeEstadia(db,null,estadiaId) ?? TarifaDeEstadia(db,null,estadiaId);
     }
 
     public TurnoCajaOperativo? ObtenerTurnoAbierto()
@@ -353,7 +353,7 @@ public sealed partial class AparcarDb
             tipo=r.GetString(2);
             inicio=DateTimeOffset.Parse(r.GetString(3),CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind);
         }
-        var tarifa=TarifaDeEstadia(db,tx,estadiaId);
+        var tarifa=TarifaSectorDeEstadia(db,tx,estadiaId) ?? TarifaDeEstadia(db,tx,estadiaId);
         var cubierto=CoberturaDisponible(db,tx,patente,tipo,inicio,ahora);
         var total=cubierto?0:MotorTarifas.CalcularCentavos(tarifa,ahora-inicio);
         Guid? turno=LeerTurno(db,tx)?.Id;
