@@ -129,6 +129,7 @@ public sealed partial class MainWindow : Window
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
+        ArcaProbarConexionButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
         if(_db.CajaCiegaObligatoria())
@@ -937,6 +938,38 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
+        }
+    }
+
+    private async void ArcaProbarConexion_Click(object sender,RoutedEventArgs e)
+    {
+        _db.ExigirPermiso(PermisosAparcar.Configuracion);
+        ArcaProbarConexionButton.IsEnabled=false;
+        ArcaResultadoText.Text="Consultando autenticación WSAA y último autorizado WSFEv1 en HOMOLOGACIÓN...";
+        try
+        {
+            if(!int.TryParse(ArcaPtoVtaInput.Text,out var pv) ||
+               !int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                   out var comprobante))
+                throw new ArgumentException("Verificá el punto de venta y tipo de factura.");
+            using var servicio=new ArcaHomologacion();
+            var dato=await servicio.ConsultarUltimoAutorizadoAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,ArcaCuitInput.Text.Trim(),
+                pv,comprobante);
+            ArcaResultadoText.Text=$"Consulta de homologación correcta. Último número autorizado: " +
+                $"{dato.Numero}. Sesión WSAA vence: {dato.ExpiraSesionUtc.ToLocalTime():dd/MM/yyyy HH:mm}. " +
+                "No se emitió una factura ni se solicitó CAE.";
+        }
+        catch(Exception ex)
+        {
+            // No escribir CMS, claves, tokens ni contenido XML de los servicios en la UI.
+            ArcaResultadoText.Text="La consulta de homologación no se completó: "+ex.Message;
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            ArcaProbarConexionButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
         }
     }
 
