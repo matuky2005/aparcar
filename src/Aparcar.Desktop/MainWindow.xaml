@@ -171,6 +171,43 @@
                         <TextBox x:Name="CortesiaInput" Width="230" HorizontalAlignment="Left"/>
                         <Button Content="Guardar nueva versión de tarifa" Click="GuardarTarifa_Click"
                                 HorizontalAlignment="Left"/>
+                        <TextBlock Text="TARIFAS POR SECTOR Y FRANJA" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Se aplica la franja del momento de ingreso a toda la estadía. Si no hay tarifa particular, se utiliza la general."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="TarifaSectorCombo" Width="320" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegir sector"
+                                  SelectionChanged="TarifaSectorCombo_SelectionChanged"/>
+                        <ComboBox x:Name="TarifaSectorTipoCombo" Width="220" SelectedIndex="0"
+                                  HorizontalAlignment="Left" SelectionChanged="TarifaSectorCombo_SelectionChanged">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <ComboBox x:Name="TarifaFranjaCombo" Width="220" SelectedIndex="0"
+                                  HorizontalAlignment="Left" SelectionChanged="TarifaSectorCombo_SelectionChanged">
+                            <ComboBoxItem Content="Diurna" Tag="Diurna"/>
+                            <ComboBoxItem Content="Nocturna" Tag="Nocturna"/>
+                        </ComboBox>
+                        <TextBlock Text="Horario nocturno del sector (HH:mm), por ejemplo 20:00 a 08:00"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="HorarioNocheInicioInput" Width="110" Text="20:00"/>
+                            <TextBox x:Name="HorarioNocheFinInput" Width="110" Text="08:00"/>
+                            <Button x:Name="GuardarHorarioButton" Content="Guardar horario"
+                                    Click="GuardarHorario_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TarifaSectorVersionText" TextWrapping="Wrap"/>
+                        <TextBlock Text="Primera hora ARS"/>
+                        <TextBox x:Name="TarifaSectorPrimeraInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fracción adicional ARS"/>
+                        <TextBox x:Name="TarifaSectorFraccionInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Minutos por fracción"/>
+                        <TextBox x:Name="TarifaSectorMinutosInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Máximo por 24 horas ARS"/>
+                        <TextBox x:Name="TarifaSectorTopeInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cortesía (minutos)"/>
+                        <TextBox x:Name="TarifaSectorCortesiaInput" Width="200" HorizontalAlignment="Left"/>
+                        <Button x:Name="GuardarTarifaSectorButton" Content="Guardar nueva versión de tarifa sectorial"
+                                Click="GuardarTarifaSector_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Solo los administradores autorizados pueden editar tarifas. Los importes guardados se versionan."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
