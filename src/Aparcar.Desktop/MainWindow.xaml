@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.16 · Perfiles fiscales versionados · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.17 · Constancia ARCA y Consumidor Final · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -583,6 +583,18 @@
                         <TextBlock Text="Cobro pendiente de facturación"/>
                         <ComboBox x:Name="FiscalCobroCombo" Width="570" HorizontalAlignment="Left"
                                   PlaceholderText="Elegir cobro no devuelto"/>
+                        <TextBlock Text="OPCIONES DE FACTURACIÓN POR CUIT EMISOR"
+                                   FontWeight="SemiBold"/>
+                        <CheckBox x:Name="FiscalCfPorDefectoCheck"
+                                  Content="Predeterminar Consumidor Final cuando la normativa lo permita"/>
+                        <Button x:Name="FiscalGuardarPreferenciaCfButton"
+                                Content="Guardar preferencia para este CUIT"
+                                Click="FiscalGuardarPreferenciaCf_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalPreferenciaCfEstadoText" TextWrapping="Wrap" Opacity="0.8"/>
+                        <TextBlock Text="Receptor y Constancia de Inscripción ARCA"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Para contribuyentes identificados por CUIT, consultá la constancia de inscripción en homologación. Requiere autorización WSAA separada para el servicio de padrón; la condición IVA del comprobante se confirma con el catálogo WSFEv1."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock Text="Documento del receptor"/>
                         <ComboBox x:Name="FiscalDocTipoCombo" SelectedIndex="0" Width="280" HorizontalAlignment="Left">
                             <ComboBoxItem Content="CUIT (80)" Tag="80"/>
@@ -592,6 +604,12 @@
                         </ComboBox>
                         <TextBox x:Name="FiscalDocNumeroInput" Width="280" HorizontalAlignment="Left"
                                  PlaceholderText="Nro. documento; 0 si tipo 99"/>
+                        <Button x:Name="FiscalConsultarConstanciaButton"
+                                Content="Consultar Constancia de Inscripción por CUIT (ARCA)"
+                                Click="FiscalConsultarConstancia_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalConstanciaEstadoText"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+
                         <TextBlock Text="Condición IVA receptor: consultar catálogo oficial en homologación"
                                    TextWrapping="Wrap"/>
                         <Button x:Name="FiscalConsultarCondicionesButton"
@@ -601,6 +619,9 @@
                         <ComboBox x:Name="FiscalCondicionIvaCombo" Width="480" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccioná la condición IVA oficial de esta clase"/>
                         <TextBlock x:Name="FiscalCondicionIvaEstadoText" TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="FiscalAplicarConsumidorFinalButton"
+                                Content="Usar Consumidor Final en esta operación"
+                                Click="FiscalAplicarConsumidorFinal_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Desglose de importes fiscales (pesos; suma = cobro)"/>
                         <TextBox x:Name="FiscalNetoInput" Width="230" HorizontalAlignment="Left"
                                  PlaceholderText="Neto gravado"/>
