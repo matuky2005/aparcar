@@ -867,14 +867,27 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key != VirtualKey.Enter || TipoInput.IsDropDownOpen) return;
         e.Handled = true;
-        SectorInput.Focus(FocusState.Programmatic);
+        SectoresIngresoCombo.Focus(FocusState.Programmatic);
+    }
+
+    private void SectoresIngresoCombo_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter || SectoresIngresoCombo.IsDropDownOpen)return;
+        e.Handled=true;
+        if(PlazaIngresoInput.IsEnabled)
+            PlazaIngresoInput.Focus(FocusState.Programmatic);
+        else
+            GuardarIngresoButton.Focus(FocusState.Programmatic);
     }
 
     private void SectorInput_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key != VirtualKey.Enter) return;
         e.Handled = true;
-        PlazaIngresoInput.Focus(FocusState.Programmatic);
+        if(PlazaIngresoInput.IsEnabled)
+            PlazaIngresoInput.Focus(FocusState.Programmatic);
+        else
+            GuardarIngresoButton.Focus(FocusState.Programmatic);
     }
 
     private void PlazaIngresoInput_KeyDown(object sender,KeyRoutedEventArgs e)
