@@ -15,8 +15,8 @@ using System.Xml.Linq;
 namespace Aparcar.Infrastructure;
 
 /// <summary>
-/// WSAA + WSFEv1 SOLO LECTURA en HOMOLOGACIÓN.
-/// No solicita CAE, no guarda claves/tokens y no contiene endpoint de producción.
+/// WSAA + WSFEv1 en HOMOLOGACIÓN: consultas y autorización explícita de prueba.
+/// No guarda claves/tokens y NO contiene endpoint de producción. La solicitud CAE requiere acción explícita.
 /// Para usarlo se requiere certificado PFX de homologación habilitado para wsfe.
 /// </summary>
 public sealed class ArcaHomologacion : IDisposable
@@ -176,6 +176,31 @@ public sealed class ArcaHomologacion : IDisposable
         var resultado=await EnviarSoap(WsfeUrl,WsfeNs+"FECompConsultar",req,cancellationToken);
         return AdaptadorWsfeFacturador.InterpretarConsulta(
             resultado.ToString(SaveOptions.DisableFormatting),esperado);
+    }
+
+    /// <summary>
+    /// Solicita CAE solo en HOMOLOGACIÓN. El llamador DEBE haber reservado
+    /// una única operación y marcado el estado PorConciliar antes de esta llamada.
+    /// Un timeout no significa rechazo y prohíbe reintento directo.
+    /// </summary>
+    public async Task<ResultadoAutorizacionWsfe> SolicitarCaePruebaAsync(
+        string pfxRuta,string clavePfx,string cuit,ComprobanteFiscalWsfe comprobante,
+        CancellationToken cancellationToken=default)
+    {
+        if(string.IsNullOrWhiteSpace(cuit)||cuit.Length!=11||!cuit.All(char.IsDigit))
+            throw new ArgumentException("CUIT emisor inválido.");
+        var detalle=AdaptadorWsfeFacturador.PrepararFeCaeReq(comprobante);
+        var acceso=await AutenticarWsaaAsync(pfxRuta,clavePfx,cancellationToken);
+        XNamespace fe=WsfeNs;
+        var req=Soap(new XElement(fe+"FECAESolicitar",
+            new XElement(fe+"Auth",
+                new XElement(fe+"Token",acceso.Token),
+                new XElement(fe+"Sign",acceso.Sign),
+                new XElement(fe+"Cuit",cuit)),
+            detalle));
+        var respuesta=await EnviarSoap(WsfeUrl,WsfeNs+"FECAESolicitar",req,cancellationToken);
+        return AdaptadorWsfeFacturador.InterpretarAutorizacion(
+            respuesta.ToString(SaveOptions.DisableFormatting),comprobante);
     }
 
     public async Task<(int Numero,DateTimeOffset ExpiraSesionUtc)> ConsultarUltimoAutorizadoAsync(
