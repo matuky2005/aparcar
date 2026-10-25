@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.14 · Copias de homologación sin validez fiscal · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.15 · Identidad comercial fiscal en homologación · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -624,6 +624,35 @@
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
                         <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <TextBlock Text="DATOS COMERCIALES DE LA SOLICITUD (v0.15 - solo homologación)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Seleccioná primero una solicitud Preparada. Estos datos se guardan una sola vez, antes de solicitar CAE de prueba. CUIT, documento e IVA receptor se toman de la solicitud reservada; no se permite cambiarlos."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="FiscalRazonSocialEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Razón social del emisor"/>
+                        <TextBox x:Name="FiscalNombreFantasiaEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre de fantasía (opcional)"/>
+                        <TextBox x:Name="FiscalDomicilioEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Domicilio comercial del emisor"/>
+                        <TextBox x:Name="FiscalCondicionIvaEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Condición frente al IVA del emisor"/>
+                        <TextBox x:Name="FiscalIngresosBrutosEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="N° Ingresos Brutos o condición de exento/no contribuyente"/>
+                        <TextBox x:Name="FiscalInicioActividadesEmisorInput" Width="330" HorizontalAlignment="Left"
+                                 PlaceholderText="Inicio actividades: yyyy-MM-dd"/>
+                        <TextBox x:Name="FiscalNombreReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre o razón social del receptor"/>
+                        <TextBox x:Name="FiscalDomicilioReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Domicilio del receptor"/>
+                        <TextBox x:Name="FiscalCorreoReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Correo receptor (opcional)"/>
+                        <TextBox x:Name="FiscalDescripcionServicioInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Detalle: estacionamiento, abono o lavadero"/>
+                        <TextBox x:Name="FiscalCondicionVentaInput" Width="360" HorizontalAlignment="Left"
+                                 PlaceholderText="Condición de venta (ej.: contado)"/>
+                        <Button x:Name="FiscalGuardarDatosDocumentoButton"
+                                Content="Guardar identidad comercial INMUTABLE de la solicitud"
+                                Click="FiscalGuardarDatosDocumento_Click" HorizontalAlignment="Left"/>
                         <Button x:Name="FiscalEmitirButton" Content="Solicitar CAE de PRUEBA (confirmación requerida)"
                                 Click="FiscalEmitir_Click" HorizontalAlignment="Left"/>
                         <Button x:Name="FiscalConciliarButton" Content="Consultar ARCA para conciliar solicitud incierta"
