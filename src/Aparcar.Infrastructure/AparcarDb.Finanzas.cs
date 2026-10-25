@@ -283,6 +283,13 @@ public sealed partial class AparcarDb
         using var tx=db.BeginTransaction();
         if(LeerTurno(db,tx) is not null)
             throw new InvalidOperationException("Ya existe un turno abierto.");
+        using(var politica=db.CreateCommand())
+        {
+            politica.Transaction=tx;
+            politica.CommandText="SELECT Valor FROM PreferenciasDispositivos WHERE Clave='CajaCiegaObligatoria'";
+            if(string.Equals(politica.ExecuteScalar() as string,"true",StringComparison.OrdinalIgnoreCase))
+                cajaCiega=true;
+        }
         using var cmd=db.CreateCommand();
         cmd.Transaction=tx;
         cmd.CommandText="""
