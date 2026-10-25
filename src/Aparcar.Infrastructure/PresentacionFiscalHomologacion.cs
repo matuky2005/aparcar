@@ -15,7 +15,8 @@ public static class PresentacionFiscalHomologacion
 {
     private static readonly CultureInfo Argentina=CultureInfo.GetCultureInfo("es-AR");
 
-    public static VistaComprobanteHomologacion Crear(SolicitudFiscalPrueba solicitud)
+    public static VistaComprobanteHomologacion Crear(
+        SolicitudFiscalPrueba solicitud,DatosDocumentoFiscalPrueba? datos=null)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
         if(solicitud.Estado!="Autorizada" ||
@@ -53,6 +54,31 @@ public static class PresentacionFiscalHomologacion
             $"Condicion IVA receptor (ID ARCA): {c.CondicionIvaReceptorId}",
             $"Concepto: {(c.Concepto==2?"Servicios":c.Concepto==3?"Productos y servicios":"Productos")}"
         };
+        if(datos is not null)
+        {
+            var e=datos.Emisor;
+            var r=datos.Receptor;
+            if(e.Cuit!=solicitud.CuitEmisor ||
+               r.DocumentoTipo!=c.DocTipo || r.DocumentoNumero!=c.DocNumero ||
+               r.CondicionIvaId!=c.CondicionIvaReceptorId)
+                throw new InvalidOperationException(
+                    "La identidad comercial almacenada no coincide con el comprobante reservado.");
+            lineas.Add($"Emisor: {e.RazonSocial}");
+            if(!string.IsNullOrWhiteSpace(e.NombreFantasia))
+                lineas.Add($"Nombre de fantasia: {e.NombreFantasia}");
+            lineas.Add($"Domicilio comercial: {e.DomicilioComercial}");
+            lineas.Add($"Condicion IVA emisor: {e.CondicionIva}");
+            lineas.Add($"Ingresos Brutos: {e.IngresosBrutos}");
+            lineas.Add($"Inicio de actividades: {e.InicioActividades:dd/MM/yyyy}");
+            lineas.Add($"Receptor: {r.Nombre}");
+            lineas.Add($"Domicilio receptor: {r.Domicilio}");
+            lineas.Add($"Descripcion del servicio: {datos.DescripcionServicio}");
+            lineas.Add($"Condicion de venta: {datos.CondicionVenta}");
+        }
+        else
+        {
+            lineas.Add("AVISO: DATOS COMERCIALES NO CAPTURADOS");
+        }
         if(c.Concepto is 2 or 3)
         {
             lineas.Add($"Servicio: {c.ServicioDesde:dd/MM/yyyy} a {c.ServicioHasta:dd/MM/yyyy}");
