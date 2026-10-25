@@ -1118,10 +1118,10 @@ public sealed partial class MainWindow : Window
         FiscalDocTipoCombo.SelectedItem=tipoItem;
         FiscalDocNumeroInput.Text="0";
         FiscalCondicionIvaCombo.SelectedItem=ivaItem;
-        if(string.IsNullOrWhiteSpace(FiscalNombreReceptorInput.Text))
-            FiscalNombreReceptorInput.Text="CONSUMIDOR FINAL";
-        if(string.IsNullOrWhiteSpace(FiscalDomicilioReceptorInput.Text))
-            FiscalDomicilioReceptorInput.Text="NR";
+        // No reutilizar datos personales del receptor previamente seleccionado.
+        FiscalNombreReceptorInput.Text="CONSUMIDOR FINAL";
+        FiscalDomicilioReceptorInput.Text="NR";
+        FiscalCorreoReceptorInput.Text="";
         FiscalPreferenciaCfEstadoText.Text=
             "Consumidor Final sin identificar aplicado desde catálogo oficial. "+
             "Podés sustituirlo por datos de un cliente identificado.";
