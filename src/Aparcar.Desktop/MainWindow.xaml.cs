@@ -134,6 +134,8 @@ public sealed partial class MainWindow : Window
         FiscalPrepararButton.IsEnabled=puedeConfigurar;
         FiscalEmitirButton.IsEnabled=puedeConfigurar;
         FiscalConciliarButton.IsEnabled=puedeConfigurar;
+        FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
+        FiscalImprimirButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
         if(_db.CajaCiegaObligatoria())
@@ -1229,6 +1231,38 @@ public sealed partial class MainWindow : Window
             ArcaClavePfxInput.Password="";
             _procesandoFiscal=false;
             FiscalConciliarButton.IsEnabled=true;
+        }
+    }
+
+    private void FiscalGuardarPdf_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var vista=PresentacionFiscalHomologacion.Crear(FiscalSolicitudElegida());
+            var destino=DocumentoFiscalHomologacion.GuardarPdf(vista);
+            FiscalResultadoText.Text="Copia de HOMOLOGACIÓN SIN VALIDEZ FISCAL guardada en: "+destino+
+                ". No entregar al cliente como factura.";
+        }
+        catch(Exception ex)
+        {
+            FiscalResultadoText.Text="No se generó la copia de prueba: "+ex.Message;
+        }
+    }
+
+    private void FiscalImprimir_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var vista=PresentacionFiscalHomologacion.Crear(FiscalSolicitudElegida());
+            DocumentoFiscalHomologacion.Imprimir(vista,_impresora??"",_anchoTicket);
+            FiscalResultadoText.Text="Trabajo de impresión de HOMOLOGACIÓN enviado al controlador. "+
+                "Esto no confirma impresión física ni constituye factura válida.";
+        }
+        catch(Exception ex)
+        {
+            FiscalResultadoText.Text="No se imprimió la copia de prueba: "+ex.Message;
         }
     }
 
