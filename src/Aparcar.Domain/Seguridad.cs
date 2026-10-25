@@ -16,6 +16,7 @@ public static class PermisosAparcar
     public const string Usuarios = "Seguridad.Usuarios";
     public const string Auditoria = "Seguridad.Auditoria";
     public const string Respaldo = "Seguridad.Respaldo";
+    public const string Configuracion = "Estacionamiento.Configuracion";
     public const string LavaderoConsultar = "Lavadero.Consultar";
     public const string LavaderoOperar = "Lavadero.Operar";
     public const string LavaderoCatalogo = "Lavadero.Catalogo";
