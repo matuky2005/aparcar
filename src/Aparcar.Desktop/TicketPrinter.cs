@@ -112,6 +112,8 @@ internal static class TicketPrinter
         Linea($"PATENTE: {ticket.Patente}", normal);
         Linea($"VEHÍCULO: {ticket.TipoVehiculo}", normal);
         Linea($"SECTOR: {ticket.Sector}", normal);
+        if(!string.IsNullOrWhiteSpace(ticket.Plaza))
+            Linea($"PLAZA: {ticket.Plaza}", negrita);
         Linea($"FECHA: {ticket.FechaIngresoUtc.ToLocalTime():dd/MM/yyyy}", normal);
         Linea($"HORA: {ticket.FechaIngresoUtc.ToLocalTime():HH:mm:ss}", normal);
         y += 8;
