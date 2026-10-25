@@ -52,6 +52,21 @@ public sealed class ArcaConsultaTests
                 return Exito(xml);
             }
             if(solicitud.RequestUri==ArcaHomologacion.WsfeUrl &&
+               cuerpo.Contains("FEParamGetCondicionIvaReceptor",StringComparison.Ordinal))
+            {
+                ConsultasWsfe++;
+                Assert.Contains("<ClaseCmp>B</ClaseCmp>",cuerpo);
+                Assert.DoesNotContain("FECAESolicitar",cuerpo);
+                return Exito("<soap:Envelope xmlns:soap='http://schemas.xmlsoap.org/soap/envelope/'>"+
+                    "<soap:Body><FEParamGetCondicionIvaReceptorResponse>"+
+                    "<FEParamGetCondicionIvaReceptorResult><ResultGet>"+
+                    "<CondicionIvaReceptor><Id>5</Id><Desc>Consumidor Final</Desc><Cmp_Clase>B</Cmp_Clase></CondicionIvaReceptor>"+
+                    "<CondicionIvaReceptor><Id>6</Id><Desc>Monotributista</Desc><Cmp_Clase>B</Cmp_Clase></CondicionIvaReceptor>"+
+                    "<CondicionIvaReceptor><Id>1</Id><Desc>Responsable inscripto</Desc><Cmp_Clase>A</Cmp_Clase></CondicionIvaReceptor>"+
+                    "</ResultGet></FEParamGetCondicionIvaReceptorResult>"+
+                    "</FEParamGetCondicionIvaReceptorResponse></soap:Body></soap:Envelope>");
+            }
+            if(solicitud.RequestUri==ArcaHomologacion.WsfeUrl &&
                cuerpo.Contains("FECompConsultar",StringComparison.Ordinal))
             {
                 ConsultasWsfe++;
@@ -64,6 +79,7 @@ public sealed class ArcaConsultaTests
                     "<CondicionIVAReceptorId>5</CondicionIVAReceptorId><CbteFch>20261025</CbteFch>"+
                     "<ImpTotal>121.00</ImpTotal><ImpTotConc>0.00</ImpTotConc>"+
                     "<ImpNeto>100.00</ImpNeto><ImpOpEx>0.00</ImpOpEx><ImpTrib>0.00</ImpTrib><ImpIVA>21.00</ImpIVA>"+
+                    "<Iva><AlicIva><Id>5</Id><BaseImp>100.00</BaseImp><Importe>21.00</Importe></AlicIva></Iva>"+
                     "<MonId>PES</MonId><MonCotiz>1.00</MonCotiz>"+
                     "<FchServDesde>20261025</FchServDesde><FchServHasta>20261025</FchServHasta>"+
                     "<FchVtoPago>20261025</FchVtoPago>"+
@@ -173,6 +189,45 @@ public sealed class ArcaConsultaTests
         }
         finally{Directory.Delete(dir,true);}
     }
+    [Fact]
+    public async Task CondicionesIVAReceptor_ConsultaCatalogoOficialParaClaseSinEmitir()
+    {
+        var (ruta,dir)=CertificadoTemporal();
+        try
+        {
+            var falso=new RespuestasFicticias();
+            using var http=new HttpClient(falso);
+            using var arca=new ArcaHomologacion(http);
+            var opciones=await arca.ConsultarCondicionesIvaReceptorAsync(
+                ruta,"clave123","20123456786","B");
+            Assert.Equal(2,opciones.Count);
+            Assert.All(opciones,x=>Assert.Equal("B",x.Clase));
+            Assert.Contains(opciones,x=>x.Id==5 && x.Descripcion=="Consumidor Final");
+            Assert.DoesNotContain(opciones,x=>x.Id==1);
+            Assert.Equal(1,falso.ConsultasWsaa);
+            Assert.Equal(1,falso.ConsultasWsfe);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
+    [Fact]
+    public async Task ClaseInvalida_RechazaSinConectar()
+    {
+        var (ruta,dir)=CertificadoTemporal();
+        try
+        {
+            var falso=new RespuestasFicticias();
+            using var http=new HttpClient(falso);
+            using var arca=new ArcaHomologacion(http);
+            await Assert.ThrowsAsync<ArgumentException>(()=>
+                arca.ConsultarCondicionesIvaReceptorAsync(
+                    ruta,"clave123","20123456786","Z"));
+            Assert.Equal(0,falso.ConsultasWsaa);
+            Assert.Equal(0,falso.ConsultasWsfe);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
     [Fact]
     public async Task ConsultaDeComprobante_UsaFeCompConsultarSinSolicitarNuevoCae()
     {
