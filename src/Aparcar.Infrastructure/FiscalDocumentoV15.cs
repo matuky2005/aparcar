@@ -24,8 +24,13 @@ public static class ValidadorDocumentoFiscalPrueba
 {
     private static void Texto(string? valor,string campo,int limite,bool requerido=true)
     {
-        if(valor is null || (requerido && string.IsNullOrWhiteSpace(valor)) ||
-            valor.Length>limite || valor.Any(char.IsControl))
+        if(valor is null)
+        {
+            if(requerido)throw new ArgumentException($"Campo {campo} es obligatorio.");
+            return;
+        }
+        if((requerido && string.IsNullOrWhiteSpace(valor)) ||
+           valor.Length>limite || valor.Any(char.IsControl))
             throw new ArgumentException($"Campo {campo} inválido (máximo {limite} caracteres).");
     }
 
@@ -51,7 +56,8 @@ public static class ValidadorDocumentoFiscalPrueba
         if(!AdaptadorWsfeFacturador.CuitValido(emisor.Cuit) ||
             !string.Equals(emisor.Cuit,solicitud.CuitEmisor,StringComparison.Ordinal))
             throw new ArgumentException("El CUIT emisor debe coincidir con la solicitud reservada.");
-        if(emisor.InicioActividades>DateOnly.FromDateTime(DateTime.Today) ||
+        if(emisor.InicioActividades<new DateOnly(1900,1,1) ||
+           emisor.InicioActividades>DateOnly.FromDateTime(DateTime.Today) ||
            emisor.InicioActividades>comprobante.Fecha)
             throw new ArgumentException("La fecha de inicio de actividades es posterior a la factura.");
 
