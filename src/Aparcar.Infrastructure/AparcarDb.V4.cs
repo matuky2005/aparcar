@@ -412,6 +412,7 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$fecha",ahora.ToString("O"));
             cmd.ExecuteNonQuery();
         }
+        MarcarPendienteFiscalDevuelto(db,tx,"Estacionamiento",cobroId);
         AuditarSesion(db,tx,"Caja.Devolucion",cobroId.ToString("D"),$"Importe={importe}; autorizador={autorizador.Trim()}; motivo={motivo.Trim()}");
         tx.Commit();
         return new DevolucionEfectivo(id,cobroId,turno.TurnoId,ticket,importe,motivo.Trim(),autorizador.Trim(),ahora);
