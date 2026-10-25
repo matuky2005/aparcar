@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.15 (CI de v0.15 pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.16 (CI de v0.16 pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,16 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.16: perfiles fiscales por CUIT con historial de versiones
+
+- Nueva migración SQLite a **esquema 14**, siempre precedida por respaldo. Se crea una tabla de versiones inmutables por CUIT y otra tabla con la referencia a la versión vigente.
+- Un administrador puede guardar los datos del emisor, reutilizarlos en nuevas solicitudes, buscar perfiles y consultar un historial. Los cambios generan versiones nuevas; guardar datos sin cambios no crea duplicados.
+- El snapshot fiscal de la solicitud preparada puede referenciar una versión específica del perfil. Antes de guardarla se comprueba que **el CUIT, versión y contenido del perfil** coincidan exactamente con los datos del emisor. Si se editaron los campos sin versionarlos, se bloquea la operación.
+- Los comprobantes históricos conservan sus datos tal como fueron registrados; actualizar el perfil no los modifica. La copia de homologación muestra el número de versión utilizado, pero **no es una factura comercial**.
+- Se extiende la verificación de respaldos hasta el esquema 14. Nuevos tests cubren historial, versiones duplicadas, snapshot histórico, discrepancias y manipulación del hash.
+- El desarrollo continúa en el PR borrador sin MSIX ni artefactos. **Compilación y tests v0.16 pendientes de ejecutar en Windows.**
+- [Documentación completa de perfiles](docs/PERFILES_FISCALES_V16.md).
 
 ## Etapa v0.15: identidad comercial y QR ARCA preparado, sin activar producción
 
