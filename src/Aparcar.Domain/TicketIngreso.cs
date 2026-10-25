@@ -8,4 +8,5 @@ public sealed record TicketIngreso(
     string TipoVehiculo,
     string Sector,
     DateTimeOffset FechaIngresoUtc,
-    string TokenQr);
+    string TokenQr,
+    string? Plaza = null);
