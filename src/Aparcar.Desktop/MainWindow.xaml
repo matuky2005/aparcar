@@ -554,7 +554,27 @@
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <Button Content="Crear respaldo consistente" Click="Respaldar_Click" HorizontalAlignment="Left"/>
-                        <TextBlock Text="RECUPERACIÓN SEGURA DE RESPALDOS" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="ARCA / FACTURACIÓN — HOMOLOGACIÓN (SOLO CONSULTA)"
+                                   FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Permite probar credenciales WSAA y consultar el último comprobante WSFEv1 sin emitir CAE. No almacena certificado ni contraseña."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="ArcaCertificadoInput" Width="570" HorizontalAlignment="Left"
+                                 PlaceholderText="Ruta del certificado de homologación .pfx"/>
+                        <PasswordBox x:Name="ArcaClavePfxInput" Width="320" HorizontalAlignment="Left"
+                                     PlaceholderText="Contraseña PFX (solo en memoria)"/>
+                        <TextBox x:Name="ArcaCuitInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="CUIT emisor (11 dígitos)"/>
+                        <TextBox x:Name="ArcaPtoVtaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Punto de venta"/>
+                        <ComboBox x:Name="ArcaCbteTipoCombo" Width="250" SelectedIndex="1" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Factura A (1)" Tag="1"/>
+                            <ComboBoxItem Content="Factura B (6)" Tag="6"/>
+                            <ComboBoxItem Content="Factura C (11)" Tag="11"/>
+                        </ComboBox>
+                        <Button x:Name="ArcaProbarConexionButton" Content="Consultar último comprobante en homologación"
+                                HorizontalAlignment="Left" Click="ArcaProbarConexion_Click"/>
+                        <TextBlock x:Name="ArcaResultadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                                                <TextBlock Text="RECUPERACIÓN SEGURA DE RESPALDOS" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="Elegí una base Aparcar (.db). Primero se verifica su integridad. Al preparar la restauración no se reemplazan datos todavía; se aplica al reiniciar el programa."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
