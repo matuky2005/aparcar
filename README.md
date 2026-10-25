@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.7 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.8 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,21 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.8: sectores, capacidad y plazas
+
+**Validación de código:** [GitHub Actions #40150856322](https://github.com/matuky2005/aparcar/actions/runs/40150856322) · **38/38 pruebas aprobadas** y compilación WinUI correcta. **Sin artefactos publicados.** El workflow vuelve a estar reservado a ejecución manual.
+
+- **Sector configurable:** nombre, capacidad de 1 a 100.000, habilitado/deshabilitado y modalidad **Libre** (aforo por sector) o **Asignado** (plazas individuales).
+- **Migración v8:** antes de modificar la base se genera un respaldo consistente; se crea el sector `General` y se conservan los nombres de sectores antiguos que figuran en las estadías históricas.
+- **Control transaccional de aforo:** el registro de un vehículo exige que exista un sector habilitado, con capacidad libre. Se comprueba dentro de la misma transacción SQLite que guarda la estadía.
+- **Asignación individual:** plazas con código y estado habilitada/inhabilitada. El operador puede elegir una plaza libre o dejarla vacía para asignación automática; dos vehículos no pueden ocupar la misma plaza simultáneamente.
+- **Liberación al finalizar:** al registrar el cobro de salida o la salida de prueba se libera la plaza en la misma transacción que finaliza la estadía.
+- **Protecciones de configuración:** impide reducir capacidad por debajo de ocupación, desactivar/cambiar de modo un sector ocupado o inhabilitar una plaza ocupada. Solo un administrador autorizado modifica la configuración.
+- **Operación WinUI:** listado de ocupación, configuración de sectores y plazas, selector de sector en Ingreso y foco con **Enter: patente → categoría → sector → plaza (si corresponde) → guardar**.
+- **Impresión:** los tickets de ingreso muestran sector y, si corresponde, la plaza física asignada. Se mantiene el QR de acceso sin cambiarlo.
+
+**Limitaciones:** el aforo es por cantidad de vehículos, sin reservas de espacio ni plazas por dimensiones; no hay zonificación multipiso, bloqueo por mantenimiento prolongado ni sincronización entre varias cajas. Las reglas de horario, precios diferenciados por sector, restauración guiada de respaldos y pruebas con impresoras físicas permanecen pendientes.
 
 ## Etapa v0.7 — Abonos avanzados y devoluciones
 
