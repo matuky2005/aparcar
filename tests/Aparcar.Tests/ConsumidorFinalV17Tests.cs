@@ -67,6 +67,15 @@ public sealed class ConsumidorFinalV17Tests
     }
 
     [Fact]
+    public void DebeIdentificarseCuandoElClienteLoSolicitaAunBajoMonto()
+    {
+        Assert.Null(ReglasConsumidorFinalV17.Resolver(6,10000,Catalogo,
+            requiereIdentificacion:true));
+        Assert.NotNull(ReglasConsumidorFinalV17.Resolver(6,10000,Catalogo,
+            requiereIdentificacion:false));
+    }
+
+    [Fact]
     public void NoAdivinaLaCondicionIvaConDuplicados()
     {
         var lista=new[]{
