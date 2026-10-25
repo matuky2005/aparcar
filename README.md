@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.8 — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.9 — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,30 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.9: tarifas por sector, franjas y recuperación de datos
+
+**Validación técnica:** [GitHub Actions #40157463005](https://github.com/matuky2005/aparcar/actions/runs/40157463005) · **46/46 tests aprobados**, compilación WinUI correcta, **sin paquetes publicados**. Workflow solo manual.
+
+### Tarifas por sector y horario
+- Cada sector tiene un horario nocturno configurable `HH:mm` (predeterminado 20:00–08:00). El resto del día es diurno.
+- Se definen precios separados por **sector / clase de vehículo / franja (Diurna o Nocturna)**: primera hora, fracción, minutos, máximo 24 h, cortesía.
+- Los cambios generan **versiones inmutables**. En la transacción de ingreso se vincula al vehículo la tarifa de sector/franja vigente. Nunca cambia el precio histórico tras modificar horarios o tarifas.
+- Si no se configuró una tarifa sectorial para esa franja, se usa la **tarifa general ya versionada** de ese tipo de vehículo.
+- El cálculo existente cobra **toda la estadía conforme a la franja de entrada**: no prorratea entre tramos diurnos/nocturnos, feriados ni horarios especiales. Este aspecto requiere validación comercial antes de activarse en producción.
+- **Zona horaria:** por ahora depende del reloj local de Windows. En el futuro se configurará explícitamente por sucursal.
+- **Abonados:** la cobertura de abono vigente tiene prioridad y bonifica el importe si cubre toda la estadía, de acuerdo con las reglas actuales.
+
+### Respaldos y restauración guiada
+- Configuración incorpora **Examinar archivo .db**, verificar estructura, integridad SQLite y relaciones; informa versión, estadías y SHA-256.
+- La restauración la **prepara un administrador** y requiere que no haya turno de caja abierto. No sustituye la base actual mientras el sistema sigue funcionando.
+- Al **reiniciar Aparcar** se vuelve a comprobar el archivo preparado y su SHA-256; se preserva una copia consistente de la base actual en `Aparcar/Datos/antes_restauracion_*.db`, luego se reemplaza usando la API de respaldo SQLite y se verifica la restaurada.
+- Una copia manipulada o corrupta **no se aplica**. Los archivos pendientes se mantienen para diagnóstico. Una restauración puede reemplazar estadías, usuarios y cobros posteriores al respaldo; requiere confirmación explícita y debe coordinarse con la operación.
+- Se admiten respaldos de esquema 1 a 9 y se migran posteriormente mediante los pasos versionados. No se puede restaurar en esta versión una base de un esquema futuro.
+- La verificación SHA-256 protege contra corrupción accidental **dentro del flujo**, no contra un atacante con control del directorio local. Para producción hacen falta copias fuera del equipo, control de acceso, cifrado y procedimientos probados de recuperación.
+
+### Próximas verificaciones
+Pruebas reales con operador y hardware de impresión térmica, tarifas que se dividen por tramos horarios, estrategia y recuperación de bases tras pérdida de disco, control de datos de terminal multicaja y prevención de cierres incorrectos. **No usar para cobros comerciales sin esa validación.**
 
 ## Etapa v0.8: sectores, capacidad y plazas
 
