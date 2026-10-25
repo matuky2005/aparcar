@@ -84,6 +84,7 @@ public sealed partial class AparcarDb
         InicializarV9();
         InicializarV10();
         InicializarV12Fiscal();
+        InicializarV15Fiscal();
     }
 
     public static string NormalizarPatente(string texto)
