@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.12 · Adaptación fiscal WSFEv1 · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.12 · CAE de prueba y conciliación WSFEv1 · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -43,7 +43,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.12 · Datos locales · Versión técnica no fiscal." Opacity="0.7"/>
+                        <TextBlock Text="Aparcar v0.12 · Datos locales · Solo facturación de prueba en homologación." Opacity="0.7"/>
                         <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
                         <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -271,7 +271,7 @@
                         <ListView x:Name="CobrosCajaList" Width="670" MinHeight="160"
                                   HorizontalAlignment="Left"/>
                         <Button Content="Actualizar caja" Click="ActualizarCaja_Click" HorizontalAlignment="Left"/>
-                        <TextBlock Text="v0.10: medios externos declarados manualmente, sin confirmación bancaria automática ni facturación ARCA todavía."
+                        <TextBlock Text="Los pagos externos se verifican manualmente. ARCA solo está habilitada para comprobantes de prueba en homologación."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
