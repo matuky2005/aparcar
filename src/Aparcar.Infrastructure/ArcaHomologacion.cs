@@ -19,6 +19,8 @@ namespace Aparcar.Infrastructure;
 /// No guarda claves/tokens y NO contiene endpoint de producción. La solicitud CAE requiere acción explícita.
 /// Para usarlo se requiere certificado PFX de homologación habilitado para wsfe.
 /// </summary>
+public sealed record CondicionIvaReceptorWsfe(int Id,string Descripcion,string Clase);
+
 public sealed class ArcaHomologacion : IDisposable
 {
     public static readonly Uri WsaaUrl =
@@ -201,6 +203,59 @@ public sealed class ArcaHomologacion : IDisposable
         var respuesta=await EnviarSoap(WsfeUrl,WsfeNs+"FECAESolicitar",req,cancellationToken);
         return AdaptadorWsfeFacturador.InterpretarAutorizacion(
             respuesta.ToString(SaveOptions.DisableFormatting),comprobante);
+    }
+
+    /// <summary>
+    /// Lee directamente el catálogo oficial de condiciones IVA receptor para
+    /// una clase A/B/C en HOMOLOGACIÓN. No calcula ni inventa equivalencias.
+    /// </summary>
+    public async Task<IReadOnlyList<CondicionIvaReceptorWsfe>> ConsultarCondicionesIvaReceptorAsync(
+        string pfxRuta,string clavePfx,string cuit,string clase,
+        CancellationToken cancellationToken=default)
+    {
+        if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+            throw new ArgumentException("El CUIT emisor no supera el dígito verificador.");
+        if(clase is not ("A" or "B" or "C"))
+            throw new ArgumentException("Clase fiscal inválida; debe ser A, B o C.");
+        var acceso=await AutenticarWsaaAsync(pfxRuta,clavePfx,cancellationToken);
+        XNamespace fe=WsfeNs;
+        var solicitud=Soap(new XElement(fe+"FEParamGetCondicionIvaReceptor",
+            new XElement(fe+"Auth",
+                new XElement(fe+"Token",acceso.Token),
+                new XElement(fe+"Sign",acceso.Sign),
+                new XElement(fe+"Cuit",cuit)),
+            new XElement(fe+"ClaseCmp",clase)));
+        var respuesta=await EnviarSoap(WsfeUrl,WsfeNs+"FEParamGetCondicionIvaReceptor",
+            solicitud,cancellationToken);
+        var resultado=respuesta.Descendants()
+            .FirstOrDefault(e=>e.Name.LocalName=="FEParamGetCondicionIvaReceptorResult")
+            ??throw new InvalidOperationException("WSFEv1 no devolvió el catálogo de condiciones IVA.");
+        var error=resultado.Descendants().FirstOrDefault(e=>e.Name.LocalName=="Err");
+        if(error is not null)
+        {
+            var codigo=error.Elements().FirstOrDefault(e=>e.Name.LocalName=="Code")?.Value;
+            throw new InvalidOperationException(
+                $"ARCA rechazó la consulta de condiciones IVA (código {codigo??"desconocido"}).");
+        }
+        var condiciones=resultado.Descendants()
+            .Where(e=>e.Name.LocalName=="CondicionIvaReceptor")
+            .Select(e=>
+            {
+                int id=0;
+                int.TryParse(e.Elements().FirstOrDefault(x=>x.Name.LocalName=="Id")?.Value,
+                    NumberStyles.None,CultureInfo.InvariantCulture,out id);
+                return new CondicionIvaReceptorWsfe(
+                    id,
+                    e.Elements().FirstOrDefault(x=>x.Name.LocalName=="Desc")?.Value?.Trim()??"",
+                    e.Elements().FirstOrDefault(x=>x.Name.LocalName=="Cmp_Clase")?.Value?.Trim()??"");
+            })
+            .Where(x=>x.Id>0 && x.Descripcion.Length>0 && x.Clase==clase)
+            .GroupBy(x=>x.Id).Select(g=>g.First())
+            .OrderBy(x=>x.Id).ToArray();
+        if(condiciones.Length==0)
+            throw new InvalidOperationException(
+                "ARCA no devolvió condiciones IVA utilizables para la clase seleccionada. No se puede preparar la factura.");
+        return condiciones;
     }
 
     public async Task<(int Numero,DateTimeOffset ExpiraSesionUtc)> ConsultarUltimoAutorizadoAsync(
