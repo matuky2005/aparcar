@@ -79,8 +79,9 @@ public sealed partial class AparcarDb
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
-            SELECT e.Ticket,e.Id,e.Patente,e.TipoVehiculo,e.Sector,e.IngresoUtc,t.TokenQr
+            SELECT e.Ticket,e.Id,e.Patente,e.TipoVehiculo,e.Sector,e.IngresoUtc,t.TokenQr,o.Codigo
             FROM Estadias e JOIN TicketsAcceso t ON t.EstadiaId=e.Id
+            LEFT JOIN OcupacionesPlaza o ON o.EstadiaId=e.Id
             WHERE e.Ticket=$numero;
             """;
         cmd.Parameters.AddWithValue("$numero", numero);
@@ -93,7 +94,8 @@ public sealed partial class AparcarDb
             reader.GetString(3),
             reader.GetString(4),
             DateTimeOffset.Parse(reader.GetString(5),CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind),
-            reader.GetString(6));
+            reader.GetString(6),
+            reader.IsDBNull(7)?null:reader.GetString(7));
     }
 
     public void RegistrarImpresion(Guid estadiaId, string impresora, bool enviado, string detalle)
