@@ -18,7 +18,8 @@ public sealed record ReceptorDocumentoFiscal(
 
 public sealed record DatosDocumentoFiscalPrueba(
     EmisorDocumentoFiscal Emisor,ReceptorDocumentoFiscal Receptor,
-    string DescripcionServicio,string CondicionVenta,int? VersionPerfilEmisor=null);
+    string DescripcionServicio,string CondicionVenta,int? VersionPerfilEmisor=null,
+    Guid? ClienteFiscalId=null,int? VersionClienteFiscal=null);
 
 public static class ValidadorDocumentoFiscalPrueba
 {
