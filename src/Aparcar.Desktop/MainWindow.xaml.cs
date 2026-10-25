@@ -138,6 +138,7 @@ public sealed partial class MainWindow : Window
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
         FiscalConsultarConstanciaButton.IsEnabled=puedeConfigurar;
+        FiscalConsultarConstanciaEmisorButton.IsEnabled=puedeConfigurar;
         FiscalGuardarPreferenciaCfButton.IsEnabled=puedeConfigurar;
         FiscalAplicarConsumidorFinalButton.IsEnabled=puedeConfigurar;
         FiscalCfPorDefectoCheck.IsEnabled=puedeConfigurar;
@@ -1135,6 +1136,47 @@ public sealed partial class MainWindow : Window
         try { AplicarConsumidorFinalDesdeCatalogo(true); }
         catch(Exception ex)
         { FiscalPreferenciaCfEstadoText.Text="No se aplicó Consumidor Final: "+ex.Message; }
+    }
+
+    private async void FiscalConsultarConstanciaEmisor_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarConstanciaEmisorButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+                throw new ArgumentException("Ingresá un CUIT emisor válido.");
+            using var arca=new ArcaHomologacion();
+            var constancia=await arca.ConsultarConstanciaInscripcionAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuit,cuit);
+            if(ArcaCuitInput.Text.Trim()!=constancia.Cuit)
+                throw new InvalidOperationException("Cambió el CUIT emisor durante la consulta.");
+            FiscalRazonSocialEmisorInput.Text=constancia.RazonSocial;
+            if(!string.IsNullOrWhiteSpace(constancia.DomicilioFiscal))
+                FiscalDomicilioEmisorInput.Text=constancia.DomicilioFiscal;
+            // No inferir ni sobrescribir IVA, IIBB, nombre de fantasía o inicio de actividades.
+            FiscalConstanciaEmisorEstadoText.Text=
+                $"Constancia de HOMOLOGACIÓN {constancia.ConsultadaUtc.ToLocalTime():dd/MM/yyyy HH:mm}: "+
+                $"{constancia.RazonSocial}; CUIT {constancia.Cuit}. "+
+                $"Domicilio fiscal: {constancia.DomicilioFiscal}. "+
+                $"Impuestos informados: {string.Join(", ",constancia.ImpuestosInformados)}. "+
+                "Revisá domicilio comercial, IVA, Ingresos Brutos e inicio de actividades antes de guardar un perfil.";
+        }
+        catch(Exception ex)
+        {
+            FiscalConstanciaEmisorEstadoText.Text="Consulta del emisor no disponible: "+ex.Message;
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarConstanciaEmisorButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+        }
     }
 
     private async void FiscalConsultarConstancia_Click(object sender,RoutedEventArgs e)
