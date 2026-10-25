@@ -78,7 +78,13 @@ public sealed class WsfeFacturadorReutilizadoTests
     {
         string consulta="<FECompConsultarResponse><ResultGet>"+
             "<PtoVta>3</PtoVta><CbteTipo>6</CbteTipo><CbteNro>128</CbteNro>"+
-            "<DocTipo>96</DocTipo><DocNro>12345678</DocNro><ImpTotal>121.00</ImpTotal>"+
+            "<Concepto>2</Concepto><DocTipo>96</DocTipo><DocNro>12345678</DocNro>"+
+            "<CondicionIVAReceptorId>5</CondicionIVAReceptorId><CbteFch>20261025</CbteFch>"+
+            "<ImpTotal>121.00</ImpTotal><ImpTotConc>0.00</ImpTotConc>"+
+            "<ImpNeto>100.00</ImpNeto><ImpOpEx>0.00</ImpOpEx><ImpTrib>0.00</ImpTrib><ImpIVA>21.00</ImpIVA>"+
+            "<MonId>PES</MonId><MonCotiz>1.00</MonCotiz>"+
+            "<FchServDesde>20261025</FchServDesde><FchServHasta>20261025</FchServHasta>"+
+            "<FchVtoPago>20261025</FchVtoPago>"+
             "<CodAutorizacion>71234567890123</CodAutorizacion><FchVto>20261104</FchVto>"+
             "</ResultGet></FECompConsultarResponse>";
         var bien=AdaptadorWsfeFacturador.InterpretarConsulta(consulta,FacturaB());
@@ -90,6 +96,10 @@ public sealed class WsfeFacturadorReutilizadoTests
         Assert.True(distinto.Encontrado);
         Assert.False(distinto.Coincide);
         Assert.False(distinto.TieneCae);
+        var condicionEquivocada=AdaptadorWsfeFacturador.InterpretarConsulta(
+            consulta.Replace("<CondicionIVAReceptorId>5</CondicionIVAReceptorId>",
+                "<CondicionIVAReceptorId>6</CondicionIVAReceptorId>"),FacturaB());
+        Assert.False(condicionEquivocada.Coincide);
         var error=AdaptadorWsfeFacturador.InterpretarConsulta(
             "<FECompConsultarResponse><Errors><Err><Code>10001</Code></Err></Errors></FECompConsultarResponse>",
             FacturaB());
