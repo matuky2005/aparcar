@@ -124,17 +124,11 @@ public sealed class ArcaHomologacion : IDisposable
         return doc;
     }
 
-    public async Task<(int Numero,DateTimeOffset ExpiraSesionUtc)> ConsultarUltimoAutorizadoAsync(
-        string pfxRuta,string clavePfx,string cuit,int puntoVenta,int tipoComprobante,
-        CancellationToken cancellationToken=default)
+    private async Task<(string Token,string Sign,DateTimeOffset ExpiraUtc)> AutenticarWsaaAsync(
+        string pfxRuta,string clavePfx,CancellationToken cancellationToken)
     {
         if(string.IsNullOrWhiteSpace(pfxRuta)||!File.Exists(pfxRuta))
             throw new FileNotFoundException("Seleccioná un certificado PFX de homologación.");
-        if(string.IsNullOrWhiteSpace(cuit)||cuit.Length!=11 || !cuit.All(char.IsDigit))
-            throw new ArgumentException("El CUIT debe tener 11 dígitos.");
-        if(puntoVenta is <1 or >99999)throw new ArgumentOutOfRangeException(nameof(puntoVenta));
-        if(tipoComprobante is <1 or >999)throw new ArgumentOutOfRangeException(nameof(tipoComprobante));
-
         using var cert=X509CertificateLoader.LoadPkcs12FromFile(
             pfxRuta,clavePfx,X509KeyStorageFlags.EphemeralKeySet);
         if(!cert.HasPrivateKey||DateTime.UtcNow<cert.NotBefore.ToUniversalTime()||
@@ -153,6 +147,49 @@ public sealed class ArcaHomologacion : IDisposable
         var acceso=LeerTicketAcceso(interno);
         if(acceso.ExpiraUtc<=DateTimeOffset.UtcNow.AddMinutes(1))
             throw new InvalidOperationException("WSAA devolvió un ticket vencido o demasiado próximo a vencer.");
+        return acceso;
+    }
+
+    /// <summary>
+    /// Consulta FECompConsultar, operación exclusivamente de lectura.
+    /// El resultado debe contrastarse con el comprobante esperado ANTES de
+    /// considerar conciliada una solicitud de CAE previa.
+    /// </summary>
+    public async Task<ResultadoConsultaWsfe> ConsultarComprobanteAsync(
+        string pfxRuta,string clavePfx,string cuit,ComprobanteFiscalWsfe esperado,
+        CancellationToken cancellationToken=default)
+    {
+        if(string.IsNullOrWhiteSpace(cuit)||cuit.Length!=11||!cuit.All(char.IsDigit))
+            throw new ArgumentException("CUIT emisor inválido.");
+        AdaptadorWsfeFacturador.Validar(esperado);
+        var acceso=await AutenticarWsaaAsync(pfxRuta,clavePfx,cancellationToken);
+        XNamespace fe=WsfeNs;
+        var req=Soap(new XElement(fe+"FECompConsultar",
+            new XElement(fe+"Auth",
+                new XElement(fe+"Token",acceso.Token),
+                new XElement(fe+"Sign",acceso.Sign),
+                new XElement(fe+"Cuit",cuit)),
+            new XElement(fe+"FeCompConsReq",
+                new XElement(fe+"CbteTipo",esperado.Tipo),
+                new XElement(fe+"CbteNro",esperado.Numero),
+                new XElement(fe+"PtoVta",esperado.PuntoVenta))));
+        var resultado=await EnviarSoap(WsfeUrl,WsfeNs+"FECompConsultar",req,cancellationToken);
+        return AdaptadorWsfeFacturador.InterpretarConsulta(
+            resultado.ToString(SaveOptions.DisableFormatting),esperado);
+    }
+
+    public async Task<(int Numero,DateTimeOffset ExpiraSesionUtc)> ConsultarUltimoAutorizadoAsync(
+        string pfxRuta,string clavePfx,string cuit,int puntoVenta,int tipoComprobante,
+        CancellationToken cancellationToken=default)
+    {
+        if(string.IsNullOrWhiteSpace(pfxRuta)||!File.Exists(pfxRuta))
+            throw new FileNotFoundException("Seleccioná un certificado PFX de homologación.");
+        if(string.IsNullOrWhiteSpace(cuit)||cuit.Length!=11 || !cuit.All(char.IsDigit))
+            throw new ArgumentException("El CUIT debe tener 11 dígitos.");
+        if(puntoVenta is <1 or >99999)throw new ArgumentOutOfRangeException(nameof(puntoVenta));
+        if(tipoComprobante is <1 or >999)throw new ArgumentOutOfRangeException(nameof(tipoComprobante));
+
+        var acceso=await AutenticarWsaaAsync(pfxRuta,clavePfx,cancellationToken);
         XNamespace fe=WsfeNs;
         var requestWsfe=Soap(new XElement(fe+"FECompUltimoAutorizado",
             new XElement(fe+"Auth",
