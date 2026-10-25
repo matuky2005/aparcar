@@ -9,6 +9,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace Aparcar.Desktop;
 
@@ -39,10 +41,15 @@ public sealed partial class MainWindow : Window
         var ruta = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "Aparcar", "Datos", "aparcar.db");
+        string? avisoRestauracion=null;
+        try{avisoRestauracion=AparcarDb.AplicarRestauracionPendiente(ruta);}
+        catch(Exception ex){avisoRestauracion="Recuperación no aplicada: "+ex.Message;}
         _db = new AparcarDb(ruta);
         _db.Inicializar();
 
         RutaDatosText.Text = _db.RutaDb;
+        if(avisoRestauracion is not null)
+            EstadoRestauracionText.Text="Resultado de recuperación: "+avisoRestauracion;
         Navegacion.Visibility=Visibility.Collapsed;
         PantallaAcceso.Visibility=Visibility.Visible;
         ReporteDesdeInput.Text=DateTime.Today.ToString("dd/MM/yyyy");
@@ -121,6 +128,8 @@ public sealed partial class MainWindow : Window
         var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
+        PrepararRestauracionButton.IsEnabled=
+            RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
         Refrescar();
     }
@@ -894,6 +903,63 @@ public sealed partial class MainWindow : Window
         {
             Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
         }
+    }
+
+    private async void ExaminarRespaldo_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var selector=new FileOpenPicker();
+            selector.FileTypeFilter.Add(".db");
+            selector.SuggestedStartLocation=PickerLocationId.DocumentsLibrary;
+            InitializeWithWindow.Initialize(selector,WindowNative.GetWindowHandle(this));
+            var archivo=await selector.PickSingleFileAsync();
+            if(archivo is not null)RutaRespaldoInput.Text=archivo.Path;
+        }
+        catch(Exception ex){Mensaje.Text="No se pudo examinar: "+ex.Message;}
+    }
+
+    private void VerificarRespaldo_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var verificado=_db.VerificarRespaldo(RutaRespaldoInput.Text);
+            EstadoRestauracionText.Text=
+                $"Respaldo válido. Esquema v{verificado.VersionEsquema}; " +
+                $"{verificado.CantidadEstadias} estadías; " +
+                $"{verificado.TamanoBytes:N0} bytes.\nSHA256: {verificado.HashSha256}";
+        }
+        catch(Exception ex)
+        {
+            EstadoRestauracionText.Text="RESPALDO RECHAZADO: "+ex.Message;
+        }
+    }
+
+    private async void PrepararRestauracion_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Restauracion);
+            var verificado=_db.VerificarRespaldo(RutaRespaldoInput.Text);
+            var confirmar=new ContentDialog{
+                Title="Preparar recuperación de la base de datos",
+                Content=$"Esta copia contiene {verificado.CantidadEstadias} estadías " +
+                    $"(esquema v{verificado.VersionEsquema}). Al reiniciar Aparcar " +
+                    "reemplazará los datos actuales por los de esta copia. " +
+                    "Se conservará un respaldo de la base sustituida. " +
+                    "Esta operación requiere tener la caja cerrada. ¿Continuar?",
+                PrimaryButtonText="Preparar recuperación",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await confirmar.ShowAsync()!=ContentDialogResult.Primary)return;
+            var preparado=_db.PrepararRestauracion(RutaRespaldoInput.Text);
+            EstadoRestauracionText.Text=$"Recuperación preparada (v{preparado.VersionEsquema}). " +
+                "Cerrá Aparcar normalmente y volvé a abrirlo para aplicar la copia.";
+            Mensaje.Text="Copia validada; no se sustituyeron datos durante esta sesión.";
+        }
+        catch(Exception ex){EstadoRestauracionText.Text="No se preparó recuperación: "+ex.Message;}
     }
 
     private void GuardarImpresora_Click(object sender, RoutedEventArgs e)
