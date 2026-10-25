@@ -121,6 +121,7 @@ public sealed partial class AparcarDb
             if(cmd.ExecuteNonQuery()!=1)
                 throw new InvalidOperationException("La operación no pudo cancelarse. Se revierte la devolución.");
         }
+        MarcarPendienteFiscalDevuelto(db,tx,categoria,cobroId);
         AuditarSesion(db,tx,"Complemento.Devolucion",cobroId.ToString("D"),
             $"Categoría={categoria}; importe={importe}; supervisor={supervisor.Trim()}; motivo={motivo.Trim()}");
         tx.Commit();
