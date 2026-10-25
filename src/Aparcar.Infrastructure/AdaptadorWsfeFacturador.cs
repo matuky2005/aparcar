@@ -216,6 +216,7 @@ public static class AdaptadorWsfeFacturador
            Dinero(consulta,"ImpIVA",esperado.Iva) &&
            Campo(consulta,"MonId")=="PES" &&
            Dinero(consulta,"MonCotiz",1m) &&
+           AlicuotasCoinciden(consulta,esperado.Alicuotas) &&
            (esperado.Concepto==1 ||
                (Campo(consulta,"FchServDesde")==Fecha(esperado.ServicioDesde!.Value) &&
                 Campo(consulta,"FchServHasta")==Fecha(esperado.ServicioHasta!.Value) &&
@@ -230,6 +231,31 @@ public static class AdaptadorWsfeFacturador
             return new(true,true,false,null,null,
                 "Datos coincidentes, pero código de autorización no verificable.");
         return new(true,true,true,cae,vto,"Comprobante y autorización conciliados.");
+    }
+
+    /// <summary>
+    /// FECompConsultar devuelve las alícuotas dentro de ResultGet/Iva/AlicIva.
+    /// Totales iguales con bases, IDs o tasas diferentes NO prueban identidad fiscal.
+    /// </summary>
+    private static bool AlicuotasCoinciden(
+        XElement consulta,IReadOnlyList<IvaFiscalWsfe> esperado)
+    {
+        var recibidas=consulta.Elements()
+            .Where(x=>x.Name.LocalName=="Iva")
+            .SelectMany(x=>x.Elements().Where(y=>y.Name.LocalName=="AlicIva"))
+            .ToArray();
+        if(recibidas.Length!=esperado.Count)return false;
+        var pendientes=esperado.ToDictionary(x=>x.Id);
+        foreach(var recibida in recibidas)
+        {
+            if(!int.TryParse(Campo(recibida,"Id"),NumberStyles.Integer,Inv,out var id) ||
+               !pendientes.TryGetValue(id,out var alicuota) ||
+               !Dinero(recibida,"BaseImp",alicuota.BaseImponible) ||
+               !Dinero(recibida,"Importe",alicuota.Importe))
+                return false;
+            pendientes.Remove(id);
+        }
+        return pendientes.Count==0;
     }
 
     private static bool Cantidad(XElement elemento,string nombre,long valor)=>
