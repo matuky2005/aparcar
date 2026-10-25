@@ -1131,6 +1131,25 @@ public sealed partial class MainWindow : Window
         return true;
     }
 
+    private void FiscalCobroCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(_procesandoFiscal || FiscalCobroCombo.SelectedItem is null)return;
+        try
+        {
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(AdaptadorWsfeFacturador.CuitValido(cuit) &&
+               _db.ConsumidorFinalPredeterminado(cuit) &&
+               _condicionesIvaConsultadas.Count>0 &&
+               _condicionesIvaCuit==cuit)
+                AplicarConsumidorFinalDesdeCatalogo(false);
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "No se pudo aplicar Consumidor Final por defecto: "+ex.Message;
+        }
+    }
+
     private void FiscalAplicarConsumidorFinal_Click(object sender,RoutedEventArgs e)
     {
         try { AplicarConsumidorFinalDesdeCatalogo(true); }
