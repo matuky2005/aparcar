@@ -13,6 +13,7 @@ public static class PermisosAparcar
     public const string Tarifas = "Tarifas.Editar";
     public const string Reportes = "Reportes.Consultar";
     public const string Impresion = "Tickets.Imprimir";
+    public const string Reimpresion = "Tickets.Reimprimir";
     public const string Usuarios = "Seguridad.Usuarios";
     public const string Auditoria = "Seguridad.Auditoria";
     public const string Respaldo = "Seguridad.Respaldo";
@@ -44,7 +45,7 @@ public static class RolesAparcar
              PermisosAparcar.CerrarCaja or PermisosAparcar.MovimientosCaja or
              PermisosAparcar.Devolucion or PermisosAparcar.Reportes or
              PermisosAparcar.Impresion or PermisosAparcar.Respaldo or
-             PermisosAparcar.Auditoria or PermisosAparcar.LavaderoConsultar or
+             PermisosAparcar.Auditoria or PermisosAparcar.Reimpresion or PermisosAparcar.LavaderoConsultar or
              PermisosAparcar.LavaderoOperar or PermisosAparcar.LavaderoCatalogo or
              PermisosAparcar.AbonosConsultar or PermisosAparcar.AbonosAdministrar) ||
         rol == Cajero && permiso is
