@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.15 · Identidad comercial fiscal en homologación · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.16 · Perfiles fiscales versionados · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -624,7 +624,26 @@
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
                         <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccionar solicitud fiscal"/>
-                        <TextBlock Text="DATOS COMERCIALES DE LA SOLICITUD (v0.15 - solo homologación)"
+                        <TextBlock Text="PERFILES FISCALES REUTILIZABLES (v0.16 - por CUIT)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Los perfiles guardan versiones históricas. Cargá o seleccioná uno para completar automáticamente los datos del emisor. Los datos se declaran manualmente: Aparcar aún no los verifica con ARCA."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="FiscalPerfilesCombo" Width="610" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná un perfil fiscal guardado"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FiscalPerfilActualizarButton" Content="Buscar perfiles"
+                                    Click="FiscalPerfilActualizar_Click"/>
+                            <Button x:Name="FiscalPerfilAplicarButton" Content="Aplicar perfil elegido"
+                                    Click="FiscalPerfilAplicar_Click"/>
+                            <Button x:Name="FiscalPerfilHistorialButton" Content="Ver historial de versiones"
+                                    Click="FiscalPerfilHistorial_Click"/>
+                        </StackPanel>
+                        <Button x:Name="FiscalPerfilGuardarButton"
+                                Content="Guardar datos del emisor como perfil / nueva versión"
+                                Click="FiscalPerfilGuardar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalPerfilEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" Opacity="0.8"/>
+                        <TextBlock Text="DATOS COMERCIALES DE LA SOLICITUD (solo homologación)"
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="Seleccioná primero una solicitud Preparada. Estos datos se guardan una sola vez, antes de solicitar CAE de prueba. CUIT, documento e IVA receptor se toman de la solicitud reservada; no se permite cambiarlos."
                                    TextWrapping="Wrap" Opacity="0.7"/>
