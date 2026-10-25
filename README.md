@@ -39,6 +39,34 @@ No se agregó dependencia de la aplicación WPF Facturador a la aplicación WinU
 
 Documentación oficial: https://www.arca.gob.ar/ws/documentacion/ws-factura-electronica.asp .
 
+## Etapa v0.12: autorización fiscal de prueba, basada en Facturador
+
+**Compilación y pruebas:** [GitHub Actions #40238678303](https://github.com/matuky2005/aparcar/actions/runs/40238678303): **64/64 pruebas aprobadas**, WinUI compilado, **0 artefactos publicados**. Workflow devuelto a modo manual.
+
+### Código reutilizado de Facturador
+Se tomó como referencia el código existente en el repositorio privado `matuky2005/Facturador`:
+- `src/Facturador.ARCA/Wsfe/WsfeCaeRequestBuilder.cs` — construcción de `FeCAEReq`, validación de totales y alícuotas, fechas de servicio y condición IVA;
+- `src/Facturador.ARCA/Wsfe/WsfeResponseParser.cs` — validación de CAE de 14 dígitos, vencimiento, tipo, punto de venta y número;
+- `src/Facturador.ARCA/Services/WsfeService.cs` — patrón `FECompUltimoAutorizado`, `FECAESolicitar` y `FECompConsultar` antes de cualquier reintento;
+- `src/Facturador.Domain/Rules/ValidadorCuit.cs` — control de dígito verificador de CUIT/CUIL.
+
+Se incorporaron a Aparcar mediante un adaptador **independiente**, sin copiar bases de clientes ni certificados de Facturador.
+
+### Nuevo circuito
+1. Un cobro confirmado positivo de Estacionamiento, Lavadero o Abono genera un pendiente fiscal único y no fiscal de forma transaccional.
+2. Un administrador completa CUIT emisor, PV, clase A/B/C, documento/condición IVA receptor, desglose neto/IVA/no gravado/exento, alícuota oficial y fechas de servicio. **No se inventan automáticamente** IVA, datos fiscales ni vencimientos.
+3. `FECompUltimoAutorizado` en homologación consulta el último número y se reserva `último + 1` dentro de SQLite, comprobando que no haya otro borrador/conciliación abierta del mismo emisor/PV/tipo. Una solicitud es **única por origen y cobro**.
+4. El usuario revisa el borrador y confirma explícitamente la **emisión de prueba**. **Antes de llamar a WSFEv1** Aparcar cambia su estado de `Preparada` a `PorConciliar` en una transacción auditada.
+5. El cliente `ArcaHomologacion` firma WSAA en memoria y llama `FECAESolicitar` **exclusivamente al endpoint de homologación**. El CAE/vencimiento solo se registra si la respuesta aprobatoria corresponde al PV, tipo, número y formato esperados.
+6. Ante corte de red, excepción, respuesta incompleta o duda, **no hay un segundo envío automático**. La solicitud conserva estado `PorConciliar` y exige `FECompConsultar`; solo se marca `Autorizada` cuando coinciden identidad y datos fiscales.
+7. Una devolución posterior del cobro bloquea el envío de un borrador que todavía no se remitió.
+
+Los estados de las facturas de prueba se conservan en `FacturasHomologacion` (migración v12) con datos serializados y SHA-256, auditoría y restricciones de unicidad. La clave PFX, certificado, CMS, token y sign **no se persisten** en estos registros.
+
+**Limitaciones:** no existe emisión productiva, PDF fiscal, impresión de factura con QR oficial, notas de crédito, consulta dinámica de condiciones IVA receptor ni tratamiento integral de percepciones/tributos. El IVA y la clase de factura deben revisarse antes de preparar cada operación. Ante un rechazo explícito o un problema que no pueda conciliarse, se exige resolución manual; no se reciclan números ni se edita en caliente una solicitud ya reservada. Un hash de base local no impide la manipulación por un atacante que controle la computadora. Un número obtenido por `FECompUltimoAutorizado` no equivale a una reserva oficial exclusiva entre distintas cajas o aplicativos.
+
+**No fue posible comprobar el servicio real con un PFX habilitado del contribuyente:** las pruebas de WSAA/WSFEv1 son SOAP simuladas y no producen CAE oficial. Se requiere homologación real, conciliación completa, certificación fiscal y ensayos de impresora antes de habilitar una caja comercial.
+
 ## Etapa v0.11: duplicados impresos y consulta ARCA en homologación
 
 **Validación:** [GitHub Actions #40169593413](https://github.com/matuky2005/aparcar/actions/runs/40169593413) — **55/55 pruebas aprobadas** y compilación WinUI 3 correcta, **sin artefactos descargables**. El workflow queda exclusivamente manual.
