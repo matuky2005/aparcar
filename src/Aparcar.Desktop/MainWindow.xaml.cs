@@ -346,6 +346,101 @@ public sealed partial class MainWindow : Window
         PresentesList.ItemsSource = filas;
     }
 
+    private void ActualizarSectores()
+    {
+        try
+        {
+            _sectoresConfigurados=_db.ListarSectores();
+            var actual=SectorInput.Text;
+            SectoresIngresoCombo.Items.Clear();
+            foreach(var sec in _sectoresConfigurados.Where(x=>x.Activo))
+                SectoresIngresoCombo.Items.Add(new ComboBoxItem{
+                    Content=$"{sec.Nombre} · {sec.Libres} libres / {sec.Capacidad} · {sec.Modo}",
+                    Tag=sec.Nombre
+                });
+            var i=_sectoresConfigurados.Where(x=>x.Activo)
+                .Select((sector,indice)=>new{sector,indice})
+                .FirstOrDefault(x=>string.Equals(x.sector.Nombre,actual,StringComparison.OrdinalIgnoreCase))?.indice??0;
+            if(SectoresIngresoCombo.Items.Count>0)
+                SectoresIngresoCombo.SelectedIndex=Math.Min(i,SectoresIngresoCombo.Items.Count-1);
+            ConfigSectoresList.ItemsSource=_sectoresConfigurados.Select(x=>
+                $"{x.Nombre} · {x.Ocupados}/{x.Capacidad} ocupadas · {x.Libres} libres · {x.Modo}" +
+                (x.Activo?"":" · DESHABILITADO")).ToList();
+            ConfigOcupacionText.Text=$"TOTAL: {_sectoresConfigurados.Sum(x=>x.Ocupados)} ocupados / " +
+                $"{_sectoresConfigurados.Sum(x=>x.Capacidad)} de capacidad nominal.";
+        }
+        catch(Exception ex){Mensaje.Text="Sectores: "+ex.Message;}
+    }
+
+    private void SectoresIngresoCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(SectorInput is null || IngresoSectorDisponibilidadText is null)return;
+        var nombre=(SectoresIngresoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if(string.IsNullOrWhiteSpace(nombre))return;
+        SectorInput.Text=nombre;
+        var sector=_sectoresConfigurados.FirstOrDefault(x=>x.Nombre==nombre);
+        IngresoSectorDisponibilidadText.Text=sector is null?"":$"Sector {sector.Nombre}: " +
+            $"{sector.Libres} lugares disponibles · {sector.Modo}";
+        if(sector?.Modo==ModosSector.Libre)PlazaIngresoInput.Text="";
+        PlazaIngresoInput.IsEnabled=sector?.Modo==ModosSector.Asignado;
+    }
+
+    private void ConfigSectoresList_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(ConfigSectoresList.SelectedIndex<0 ||
+           ConfigSectoresList.SelectedIndex>=_sectoresConfigurados.Count)return;
+        var sector=_sectoresConfigurados[ConfigSectoresList.SelectedIndex];
+        ConfigSectorNombreInput.Text=sector.Nombre;
+        ConfigSectorCapacidadInput.Text=sector.Capacidad.ToString(CultureInfo.InvariantCulture);
+        ConfigSectorModoCombo.SelectedIndex=sector.Modo==ModosSector.Asignado?1:0;
+        ConfigSectorActivoCheck.IsChecked=sector.Activo;
+        ActualizarListaPlazas();
+    }
+
+    private void ActualizarListaPlazas()
+    {
+        int indice=ConfigSectoresList.SelectedIndex;
+        if(indice<0 || indice>=_sectoresConfigurados.Count)return;
+        try
+        {
+            ConfigPlazasList.ItemsSource=_db.ListarPlazas(_sectoresConfigurados[indice].Nombre)
+                .Select(p=>$"{p.Codigo} · {(p.Habilitada?"Habilitada":"Inhabilitada")}" +
+                    (p.Ocupada?$" · OCUPADA: {p.Patente}":" · Libre")).ToList();
+        }
+        catch(Exception ex){Mensaje.Text="Plazas: "+ex.Message;}
+    }
+
+    private void GuardarSector_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            if(!int.TryParse(ConfigSectorCapacidadInput.Text,out var capacidad))
+                throw new ArgumentException("Indicá una capacidad válida.");
+            var modo=(ConfigSectorModoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+            _db.GuardarSector(ConfigSectorNombreInput.Text,capacidad,modo,
+                ConfigSectorActivoCheck.IsChecked==true);
+            Mensaje.Text="Configuración de sector guardada.";
+            ActualizarSectores();
+        }
+        catch(Exception ex){Mensaje.Text="Sector no guardado: "+ex.Message;}
+    }
+
+    private void GuardarPlaza_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var indice=ConfigSectoresList.SelectedIndex;
+            if(indice<0 || indice>=_sectoresConfigurados.Count)
+                throw new ArgumentException("Seleccioná primero un sector.");
+            _db.GuardarPlaza(_sectoresConfigurados[indice].Nombre,
+                ConfigPlazaCodigoInput.Text,ConfigPlazaHabilitadaCheck.IsChecked==true);
+            Mensaje.Text="Plaza guardada.";
+            ActualizarListaPlazas();
+            ActualizarSectores();
+        }
+        catch(Exception ex){Mensaje.Text="Plaza no guardada: "+ex.Message;}
+    }
+
     private void Ingresar_Click(object sender, RoutedEventArgs e)
     {
         if (_guardandoIngreso) return;
