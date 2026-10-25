@@ -65,6 +65,7 @@ public sealed partial class AparcarDb
         }
         ValidadorDocumentoFiscalPrueba.Validar(datos,solicitud);
         ValidarReferenciaPerfilFiscal(db,tx,datos);
+        VerificarVersionClienteFiscal(db,tx,datos,solicitud.CuitEmisor);
         var json=JsonSerializer.Serialize(datos);
         using(var cmd=db.CreateCommand())
         {
