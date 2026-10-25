@@ -55,7 +55,7 @@ public sealed partial class AparcarDb
         {
             cmd.CommandText="SELECT COALESCE(MAX(Numero),0) FROM EsquemaVersion";
             version=Convert.ToInt32(cmd.ExecuteScalar(),CultureInfo.InvariantCulture);
-            if(version is < 1 or > 14)
+            if(version is < 1 or > 15)
                 throw new InvalidOperationException("Versión de datos no compatible con este Aparcar.");
         }
         using(var cmd=origen.CreateCommand())
