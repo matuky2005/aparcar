@@ -628,6 +628,16 @@
                                 Click="FiscalEmitir_Click" HorizontalAlignment="Left"/>
                         <Button x:Name="FiscalConciliarButton" Content="Consultar ARCA para conciliar solicitud incierta"
                                 Click="FiscalConciliar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="COPIAS DE HOMOLOGACIÓN - NO SON FACTURAS VÁLIDAS"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Disponible solo para solicitudes de prueba Autorizadas con CAE; no se genera QR fiscal ni comprobante comercial."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="FiscalGuardarPdfButton"
+                                Content="Guardar PDF de PRUEBA (sin validez fiscal)"
+                                Click="FiscalGuardarPdf_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="FiscalImprimirButton"
+                                Content="Imprimir copia de PRUEBA en impresora configurada"
+                                Click="FiscalImprimir_Click" HorizontalAlignment="Left"/>
                         <TextBlock x:Name="FiscalResultadoText" IsTextSelectionEnabled="True"
                                    TextWrapping="Wrap"/>
 
