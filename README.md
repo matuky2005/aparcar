@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.16 (CI de v0.16 pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.17 (CI de v0.17 pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,15 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.17: constancia de inscripción ARCA y Consumidor Final
+
+- Se integra en homologación `ws_sr_constancia_inscripcion` (`getPersona_v2`, versión 4.1), usando **WSAA con ticket independiente para el servicio de padrón**. Consulta datos reales del CUIT si la credencial está habilitada; no es una consulta pública ni se ha probado con certificado autorizado.
+- La UI permite consultar constancia del **receptor** identificado por CUIT para obtener nombre/razón social y domicilio fiscal. También puede consultar constancia del **emisor** y completar campos del perfil. El IVA, IIBB, domicilio comercial y demás información requieren revisión; no se infieren IDs WSFE de un padrón.
+- Preferencia opcional de **Consumidor Final por defecto, por CUIT emisor**, guardada en SQLite con auditoría; puede desactivarse. Al consultar condiciones IVA vigentes para Factura B/C, si hay un cobro seleccionado y no está identificado el receptor, se sugiere `DocTipo 99 / DocNro 0` solo si el catálogo oficial contiene una condición única de Consumidor Final.
+- Bloqueo de consumidor final anónimo en operaciones de **$10.000.000 o más** conforme reglas vigentes en octubre de 2026; también se respeta la solicitud explícita de identificar al cliente y se evita sobrescribir un DNI/CUIT previamente ingresado.
+- Se agregaron pruebas de consulta SOAP simulada de padrón, respuesta inválida, reglas de identificación, actualización de preferencia y estado del emisor. **No se han ejecutado las nuevas pruebas ni la compilación WinUI todavía**.
+- Documentación de la etapa: [docs/ARCA_CONSTANCIA_CF_V17.md](docs/ARCA_CONSTANCIA_CF_V17.md). El proyecto permanece exclusivamente en homologación y sin instaladores.
 
 ## Etapa v0.16: perfiles fiscales por CUIT con historial de versiones
 
