@@ -115,6 +115,9 @@ public sealed partial class MainWindow : Window
         AutoImprimirCheck.IsChecked=_db.ObtenerPreferencia("AutoImprimir")!="false";
         TipoTarifaCombo.SelectedIndex=0;
         ActualizarSectores();
+        ActualizarTarifasSector();
+        GuardarTarifaSectorButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
+        GuardarHorarioButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
         var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
@@ -318,7 +321,7 @@ public sealed partial class MainWindow : Window
         }
         if (pantalla == "salida") BusquedaInput.Focus(FocusState.Programmatic);
         if (pantalla == "caja") ActualizarCaja();
-        if (pantalla == "tarifas") MostrarTarifaSeleccionada();
+        if (pantalla == "tarifas"){MostrarTarifaSeleccionada();ActualizarTarifasSector();}
         if (pantalla == "lavadero") RefrescarLavadero();
         if (pantalla == "abonados") RefrescarAbonados();
         if (pantalla == "reportes") ConsultarReporteActual();
@@ -639,6 +642,98 @@ public sealed partial class MainWindow : Window
             CortesiaInput.Text=tarifa.CortesiaMinutos.ToString();
         }
         catch (Exception ex) { Mensaje.Text = "No se pudo cargar la tarifa: "+ex.Message; }
+    }
+
+    private void ActualizarTarifasSector()
+    {
+        try
+        {
+            var anterior=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            TarifaSectorCombo.Items.Clear();
+            foreach(var sector in _db.ListarSectores())
+                TarifaSectorCombo.Items.Add(new ComboBoxItem{Content=sector.Nombre,Tag=sector.Nombre});
+            var opciones=TarifaSectorCombo.Items.Cast<ComboBoxItem>().ToList();
+            var actual=opciones.FirstOrDefault(x=>x.Tag?.ToString()==anterior)??opciones.FirstOrDefault();
+            if(actual is not null)TarifaSectorCombo.SelectedItem=actual;
+            MostrarTarifaSectorSeleccionada();
+        }
+        catch(Exception ex){Mensaje.Text="Tarifas por sector: "+ex.Message;}
+    }
+
+    private void TarifaSectorCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(_db is null || TarifaSectorCombo is null || TarifaSectorTipoCombo is null ||
+           TarifaFranjaCombo is null || TarifaSectorVersionText is null)return;
+        MostrarTarifaSectorSeleccionada();
+    }
+
+    private void MostrarTarifaSectorSeleccionada()
+    {
+        var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if(string.IsNullOrEmpty(sector))return;
+        var tipo=(TarifaSectorTipoCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Auto";
+        var franja=(TarifaFranjaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??FranjasTarifarias.Diurna;
+        try
+        {
+            var horario=_db.ObtenerHorarioTarifario(sector);
+            HorarioNocheInicioInput.Text=horario.InicioNoche.ToString("HH:mm");
+            HorarioNocheFinInput.Text=horario.FinNoche.ToString("HH:mm");
+            var vigente=_db.ObtenerTarifaSector(sector,tipo,franja);
+            TarifaSectorVersionText.Text=vigente is null
+                ?"Sin tarifa específica: se utilizará la general vigente al ingreso."
+                :$"Tarifa de {sector}/{tipo}/{franja}: versión {vigente.Version}.";
+            var baseTarifa=vigente?.ComoTarifaOperativa() ??
+                _db.ListarTarifas().Single(x=>x.TipoVehiculo==tipo);
+            TarifaSectorPrimeraInput.Text=EditarImporte(baseTarifa.PrimeraHoraCentavos);
+            TarifaSectorFraccionInput.Text=EditarImporte(baseTarifa.FraccionCentavos);
+            TarifaSectorMinutosInput.Text=baseTarifa.MinutosFraccion.ToString();
+            TarifaSectorTopeInput.Text=EditarImporte(baseTarifa.Tope24HorasCentavos);
+            TarifaSectorCortesiaInput.Text=baseTarifa.CortesiaMinutos.ToString();
+        }
+        catch(Exception ex){Mensaje.Text="Tarifa por sector: "+ex.Message;}
+    }
+
+    private static TimeOnly LeerHorario(string texto)
+    {
+        if(!TimeOnly.TryParseExact(texto.Trim(),"HH:mm",CultureInfo.InvariantCulture,
+            DateTimeStyles.None,out var horario))
+            throw new ArgumentException("Escribí el horario en formato HH:mm (ej.: 20:00).");
+        return horario;
+    }
+
+    private void GuardarHorario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??
+                throw new ArgumentException("Elegí un sector.");
+            var nuevo=_db.ConfigurarHorarioTarifario(sector,
+                LeerHorario(HorarioNocheInicioInput.Text),LeerHorario(HorarioNocheFinInput.Text));
+            Mensaje.Text=$"Horario nocturno de {nuevo.Sector} guardado. Se aplica a próximos ingresos.";
+            MostrarTarifaSectorSeleccionada();
+        }
+        catch(Exception ex){Mensaje.Text="Horario no guardado: "+ex.Message;}
+    }
+
+    private void GuardarTarifaSector_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??
+                throw new ArgumentException("Elegí un sector.");
+            var tipo=(TarifaSectorTipoCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+            var franja=(TarifaFranjaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+            if(!int.TryParse(TarifaSectorMinutosInput.Text,out var minutos)||
+               !int.TryParse(TarifaSectorCortesiaInput.Text,out var cortesia))
+                throw new ArgumentException("Minutos de fracción y cortesía inválidos.");
+            var tarifa=_db.GuardarTarifaSector(sector,tipo,franja,
+                LeerImporte(TarifaSectorPrimeraInput.Text),
+                LeerImporte(TarifaSectorFraccionInput.Text),minutos,
+                LeerImporte(TarifaSectorTopeInput.Text),cortesia);
+            Mensaje.Text=$"Tarifa {tarifa.Sector}/{tarifa.Franja} v{tarifa.Version} guardada para futuros ingresos.";
+            MostrarTarifaSectorSeleccionada();
+        }
+        catch(Exception ex){Mensaje.Text="Tarifa sectorial no guardada: "+ex.Message;}
     }
 
     private void GuardarTarifa_Click(object sender, RoutedEventArgs e)
