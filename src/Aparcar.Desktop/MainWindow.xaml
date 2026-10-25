@@ -535,6 +535,20 @@
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <Button Content="Crear respaldo consistente" Click="Respaldar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="RECUPERACIÓN SEGURA DE RESPALDOS" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Elegí una base Aparcar (.db). Primero se verifica su integridad. Al preparar la restauración no se reemplazan datos todavía; se aplica al reiniciar el programa."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="RutaRespaldoInput" Width="500"
+                                     PlaceholderText="Ruta de respaldo .db"/>
+                            <Button Content="Examinar" Click="ExaminarRespaldo_Click"/>
+                        </StackPanel>
+                        <Button Content="Verificar integridad del respaldo"
+                                Click="VerificarRespaldo_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="PrepararRestauracionButton" Content="Preparar restauración al reiniciar"
+                                Click="PrepararRestauracion_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="EstadoRestauracionText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
                         <TextBlock Text="El respaldo se guarda en Documentos/Aparcar/Respaldos. Copiá además una copia fuera de esta computadora."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
