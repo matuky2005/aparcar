@@ -39,6 +39,7 @@ public sealed partial class AparcarDb
                 CuitEmisor TEXT NOT NULL,
                 DocTipo INTEGER NOT NULL CHECK(DocTipo IN(80,86,96)),
                 DocNumero INTEGER NOT NULL CHECK(DocNumero>0),
+                NombreBusqueda TEXT NOT NULL,
                 VersionActual INTEGER NOT NULL CHECK(VersionActual>0),
                 Activo INTEGER NOT NULL CHECK(Activo IN (0,1)),
                 CreadoUtc TEXT NOT NULL,
@@ -57,6 +58,8 @@ public sealed partial class AparcarDb
             );
             CREATE INDEX IF NOT EXISTS IX_ClientesFiscales_Emisor
                 ON ClientesFiscales(CuitEmisor,Activo,DocNumero);
+            CREATE INDEX IF NOT EXISTS IX_ClientesFiscales_Nombre
+                ON ClientesFiscales(CuitEmisor,Activo,NombreBusqueda);
             INSERT OR IGNORE INTO EsquemaVersion(Numero,AplicadoUtc)
                 VALUES(15,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
             """;
@@ -189,13 +192,14 @@ public sealed partial class AparcarDb
             insertar.Transaction=tx;
             insertar.CommandText="""
                 INSERT INTO ClientesFiscales
-                    (Id,CuitEmisor,DocTipo,DocNumero,VersionActual,Activo,CreadoUtc,ActualizadoUtc)
-                VALUES($id,$cuit,$tipo,$numero,1,1,$fecha,$fecha);
+                    (Id,CuitEmisor,DocTipo,DocNumero,NombreBusqueda,VersionActual,Activo,CreadoUtc,ActualizadoUtc)
+                VALUES($id,$cuit,$tipo,$numero,$nombre,1,1,$fecha,$fecha);
                 """;
             insertar.Parameters.AddWithValue("$id",id.ToString("D"));
             insertar.Parameters.AddWithValue("$cuit",cuitEmisor);
             insertar.Parameters.AddWithValue("$tipo",receptor.DocumentoTipo);
             insertar.Parameters.AddWithValue("$numero",receptor.DocumentoNumero);
+            insertar.Parameters.AddWithValue("$nombre",receptor.Nombre.Trim());
             insertar.Parameters.AddWithValue("$fecha",ahora);
             insertar.ExecuteNonQuery();
         }
@@ -226,10 +230,11 @@ public sealed partial class AparcarDb
             actualizar.Transaction=tx;
             actualizar.CommandText="""
                 UPDATE ClientesFiscales SET VersionActual=$version,Activo=1,
-                   ActualizadoUtc=$fecha
+                   NombreBusqueda=$nombre,ActualizadoUtc=$fecha
                 WHERE Id=$id;
                 """;
             actualizar.Parameters.AddWithValue("$version",nuevaVersion);
+            actualizar.Parameters.AddWithValue("$nombre",receptor.Nombre.Trim());
             actualizar.Parameters.AddWithValue("$fecha",ahora);
             actualizar.Parameters.AddWithValue("$id",id.ToString("D"));
             if(actualizar.ExecuteNonQuery()!=1)
@@ -277,7 +282,7 @@ public sealed partial class AparcarDb
                  ON v.ClienteId=c.Id AND v.Version=c.VersionActual
             WHERE c.CuitEmisor=$cuit AND c.Activo=1
               AND ($busca='' OR CAST(c.DocNumero AS TEXT) LIKE $documento
-                   OR LOWER(v.DatosJson) LIKE $nombre ESCAPE '\')
+                   OR LOWER(c.NombreBusqueda) LIKE $nombre ESCAPE '\')
             ORDER BY c.ActualizadoUtc DESC LIMIT $max;
             """;
         cmd.Parameters.AddWithValue("$cuit",cuitEmisor);
