@@ -128,6 +128,15 @@ public sealed partial class MainWindow : Window
         var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
+        GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
+        CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
+        CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
+        if(_db.CajaCiegaObligatoria())
+        {
+            CajaCiegaTurnoCheck.IsChecked=true;
+            CajaCiegaTurnoCheck.IsEnabled=false;
+        }
+        ReimprimirTicketButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
         PrepararRestauracionButton.IsEnabled=
             RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
@@ -420,6 +429,20 @@ public sealed partial class MainWindow : Window
                     (p.Ocupada?$" · OCUPADA: {p.Patente}":" · Libre")).ToList();
         }
         catch(Exception ex){Mensaje.Text="Plazas: "+ex.Message;}
+    }
+
+    private void GuardarPoliticaCaja_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var obligatoria=CajaCiegaObligatoriaCheck.IsChecked==true;
+            _db.ConfigurarCajaCiegaObligatoria(obligatoria);
+            CajaCiegaTurnoCheck.IsChecked=obligatoria || CajaCiegaTurnoCheck.IsChecked==true;
+            CajaCiegaTurnoCheck.IsEnabled=!obligatoria;
+            Mensaje.Text=obligatoria?"Caja ciega obligatoria activada para próximos turnos.":
+                "Política de caja ciega opcional para próximos turnos.";
+        }
+        catch(Exception ex){Mensaje.Text="No se cambió la política: "+ex.Message;}
     }
 
     private void GuardarSector_Click(object sender,RoutedEventArgs e)
@@ -777,13 +800,22 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                var resumen=_db.ObtenerResumenCaja()!;
-                CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
+                var ciego=_db.EsTurnoCiego(turno.Id);
+                var rolActual=_db.SesionActual?.Rol;
+                var oculto=ciego && rolActual is not (RolesAparcar.Administrador or RolesAparcar.Supervisor);
+                if(oculto)
+                    CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
+                        "\nCAJA CIEGA: el total esperado está oculto. Ingresá el contado antes del cierre.";
+                else
+                {
+                    var resumen=_db.ObtenerResumenCaja()!;
+                    CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
                     $"\nFondo {Dinero(resumen.FondoInicialCentavos)} · Efectivo cobrado {Dinero(resumen.CobrosEfectivoCentavos)}" +
                     $" · Electrónicos {Dinero(resumen.CobrosElectronicosCentavos)}" +
                     $"\nDepósitos {Dinero(resumen.DepositosCentavos)} · Retiros {Dinero(resumen.RetirosCentavos)}" +
                     $" · Devoluciones {Dinero(resumen.DevolucionesEfectivoCentavos)}" +
                     $"\nEFECTIVO ESPERADO: {Dinero(resumen.EfectivoEsperadoCentavos)}";
+                }
                 AbrirCajaButton.IsEnabled = false;
                 CerrarCajaButton.IsEnabled = true;
             }
@@ -822,7 +854,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var turno = _db.AbrirTurno(OperadorCajaInput.Text,
-                LeerImporte(FondoInicialInput.Text));
+                LeerImporte(FondoInicialInput.Text),CajaCiegaTurnoCheck.IsChecked==true);
             Mensaje.Text=$"Caja abierta por {turno.Operador}.";
             UltimoArqueoText.Text="";
             ActualizarCaja();
@@ -837,13 +869,16 @@ public sealed partial class MainWindow : Window
             var turno=_db.ObtenerTurnoAbierto() ??
                 throw new InvalidOperationException("No hay turno abierto.");
             var contado=LeerImporte(EfectivoContadoInput.Text);
+            var ciega=_db.EsTurnoCiego(turno.Id);
+            var rolActual=_db.SesionActual?.Rol;
+            var oculto=ciega && rolActual is not (RolesAparcar.Administrador or RolesAparcar.Supervisor);
+            var resumenConfirmacion=oculto
+                ?$"CAJA CIEGA: efectivo contado {Dinero(contado)}. El esperado y la diferencia se calculan después de confirmar."
+                :$"Efectivo esperado {Dinero(turno.EsperadoCentavos)}; contado {Dinero(contado)}; diferencia {Dinero(contado-turno.EsperadoCentavos)}.";
             var dialogo=new ContentDialog
             {
                 Title="Confirmar cierre de caja",
-                Content=$"Efectivo esperado: {Dinero(turno.EsperadoCentavos)}\n" +
-                    $"Efectivo contado: {Dinero(contado)}\n" +
-                    $"Diferencia: {Dinero(contado-turno.EsperadoCentavos)}\n" +
-                    "El turno quedará cerrado para nuevos cobros.",
+                Content=resumenConfirmacion+"\nEl turno quedará cerrado para nuevos cobros.",
                 PrimaryButtonText="Confirmar cierre",
                 CloseButtonText="Cancelar",
                 DefaultButton=ContentDialogButton.Close,
@@ -1010,8 +1045,13 @@ public sealed partial class MainWindow : Window
             Mensaje.Text = "Ingresá un número de ticket válido para reimprimir.";
             return;
         }
-        try { ImprimirTicketSeguro(numero); }
-        catch (Exception ex) { Mensaje.Text = "No se pudo reimprimir: " + ex.Message; }
+        try
+        {
+            _db.AutorizarReimpresion(numero,MotivoReimpresionInput.Text);
+            MotivoReimpresionInput.Text="";
+            ImprimirTicketSeguro(numero);
+        }
+        catch (Exception ex) { Mensaje.Text = "No se pudo autorizar la reimpresión: " + ex.Message; }
     }
 
     private void IrConfig_Click(object sender, RoutedEventArgs e) =>
@@ -1170,6 +1210,10 @@ public sealed partial class MainWindow : Window
             ReporteFilasList.ItemsSource=datos.Lineas.Select(x=>
                 $"{x.FechaUtc.ToLocalTime():dd/MM HH:mm} · {x.Origen} #{x.Ticket:D7} · {x.Patente} · " +
                 $"{x.MedioPago} · {Dinero(x.ImporteCentavos)} · {x.Operador}").ToList();
+            PendientesFiscalesList.ItemsSource=_db.ListarPendientesFiscales(150)
+                .Select(f=>$"{f.FechaUtc.ToLocalTime():dd/MM HH:mm} · {f.Origen} · "+
+                    $"{Dinero(f.ImporteCentavos)} · {f.Estado} · Cobro {f.CobroId}")
+                .ToList();
             RutaReporteText.Text="";
         }
         catch(Exception ex)
