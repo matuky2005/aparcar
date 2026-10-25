@@ -574,6 +574,56 @@
                         <Button x:Name="ArcaProbarConexionButton" Content="Consultar último comprobante en homologación"
                                 HorizontalAlignment="Left" Click="ArcaProbarConexion_Click"/>
                         <TextBlock x:Name="ArcaResultadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="BORRADORES FISCALES — HOMOLOGACIÓN SOLAMENTE"
+                                   FontSize="17" FontWeight="SemiBold"/>
+                        <TextBlock Text="El operador confirma todos los datos fiscales. No se infiere condición IVA, clase de factura ni alícuota a partir de la patente. Las solicitudes son de PRUEBA, sin validez fiscal."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Actualizar operaciones y solicitudes" Click="FiscalActualizar_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cobro pendiente de facturación"/>
+                        <ComboBox x:Name="FiscalCobroCombo" Width="570" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegir cobro no devuelto"/>
+                        <TextBlock Text="Documento del receptor"/>
+                        <ComboBox x:Name="FiscalDocTipoCombo" SelectedIndex="0" Width="280" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="CUIT (80)" Tag="80"/>
+                            <ComboBoxItem Content="CUIL (86)" Tag="86"/>
+                            <ComboBoxItem Content="DNI (96)" Tag="96"/>
+                            <ComboBoxItem Content="Consumidor final sin identificar (99)" Tag="99"/>
+                        </ComboBox>
+                        <TextBox x:Name="FiscalDocNumeroInput" Width="280" HorizontalAlignment="Left"
+                                 PlaceholderText="Nro. documento; 0 si tipo 99"/>
+                        <TextBox x:Name="FiscalCondicionIvaInput" Width="280" HorizontalAlignment="Left"
+                                 PlaceholderText="ID condición IVA receptor según ARCA"/>
+                        <TextBlock Text="Desglose de importes fiscales (pesos; suma = cobro)"/>
+                        <TextBox x:Name="FiscalNetoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Neto gravado"/>
+                        <TextBox x:Name="FiscalIvaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="IVA"/>
+                        <TextBox x:Name="FiscalExentoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Exento"/>
+                        <TextBox x:Name="FiscalNoGravadoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="No gravado"/>
+                        <TextBox x:Name="FiscalAlicuotaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Código alícuota IVA (ej.: 5 = 21%)"/>
+                        <TextBlock Text="Fechas para Concepto 2 (servicios): yyyy-MM-dd"/>
+                        <TextBox x:Name="FiscalServicioDesdeInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Servicio desde"/>
+                        <TextBox x:Name="FiscalServicioHastaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Servicio hasta"/>
+                        <TextBox x:Name="FiscalVencimientoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Vencimiento del pago"/>
+                        <Button x:Name="FiscalPrepararButton" Content="Validar datos y reservar siguiente número en homologación"
+                                Click="FiscalPreparar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <Button x:Name="FiscalEmitirButton" Content="Solicitar CAE de PRUEBA (confirmación requerida)"
+                                Click="FiscalEmitir_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="FiscalConciliarButton" Content="Consultar ARCA para conciliar solicitud incierta"
+                                Click="FiscalConciliar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalResultadoText" IsTextSelectionEnabled="True"
+                                   TextWrapping="Wrap"/>
+
                                                 <TextBlock Text="RECUPERACIÓN SEGURA DE RESPALDOS" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="Elegí una base Aparcar (.db). Primero se verifica su integridad. Al preparar la restauración no se reemplazan datos todavía; se aplica al reiniciar el programa."
                                    TextWrapping="Wrap" Opacity="0.7"/>
