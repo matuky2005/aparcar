@@ -69,7 +69,15 @@
                             <ComboBoxItem Content="Camioneta"/>
                         </ComboBox>
                         <TextBlock Text="Sector"/>
-                        <TextBox x:Name="SectorInput" KeyDown="SectorInput_KeyDown" Text="General" Width="360" HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="SectoresIngresoCombo" Width="360"
+                                  HorizontalAlignment="Left" PlaceholderText="Seleccionar sector"
+                                  SelectionChanged="SectoresIngresoCombo_SelectionChanged"/>
+                        <TextBox x:Name="SectorInput" KeyDown="SectorInput_KeyDown" Text="General"
+                                 IsReadOnly="True" Width="360" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Plaza (solo para sectores de asignación individual; vacío = automática)"/>
+                        <TextBox x:Name="PlazaIngresoInput" KeyDown="PlazaIngresoInput_KeyDown"
+                                 Width="240" HorizontalAlignment="Left" PlaceholderText="Ej.: A-01"/>
+                        <TextBlock x:Name="IngresoSectorDisponibilidadText" TextWrapping="Wrap"/>
                         <CheckBox x:Name="AutoImprimirCheck" Content="Imprimir el ticket automáticamente después de guardar"
                                   IsChecked="True" />
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -163,7 +171,7 @@
                         <TextBox x:Name="CortesiaInput" Width="230" HorizontalAlignment="Left"/>
                         <Button Content="Guardar nueva versión de tarifa" Click="GuardarTarifa_Click"
                                 HorizontalAlignment="Left"/>
-                        <TextBlock Text="IMPORTANTE: aún no existe control de roles. No utilizar esta versión con operadores no autorizados."
+                        <TextBlock Text="Solo los administradores autorizados pueden editar tarifas. Los importes guardados se versionan."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
@@ -442,7 +450,38 @@
                     <StackPanel Spacing="14" MaxWidth="760" HorizontalAlignment="Left">
                         <TextBlock Text="Configuración técnica" FontSize="30" FontWeight="Bold"/>
                         <TextBlock Text="Base SQLite local (una PC, una cuenta Windows):"/>
-                        <TextBlock Text="IMPRESIÓN DE TICKETS" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="SECTORES Y PLAZAS" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Capacidad máxima por sector. Libre = sin plaza individual; Asignado = una plaza física por vehículo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Nombre de sector"/>
+                        <TextBox x:Name="ConfigSectorNombreInput" Width="300" HorizontalAlignment="Left"
+                                 PlaceholderText="Ej.: General, Techado, VIP"/>
+                        <TextBlock Text="Capacidad"/>
+                        <TextBox x:Name="ConfigSectorCapacidadInput" Width="200" HorizontalAlignment="Left"
+                                 PlaceholderText="Cantidad máxima de vehículos"/>
+                        <ComboBox x:Name="ConfigSectorModoCombo" Width="250"
+                                  HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Libre" Tag="Libre"/>
+                            <ComboBoxItem Content="Plaza asignada" Tag="Asignado"/>
+                        </ComboBox>
+                        <CheckBox x:Name="ConfigSectorActivoCheck" Content="Sector habilitado para nuevos ingresos"
+                                  IsChecked="True"/>
+                        <Button x:Name="ConfigGuardarSectorButton" Content="Guardar sector"
+                                Click="GuardarSector_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="SECTORES CONFIGURADOS" FontWeight="SemiBold"/>
+                        <ListView x:Name="ConfigSectoresList" Width="650" Height="160"
+                                  SelectionChanged="ConfigSectoresList_SelectionChanged"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="Plaza dentro del sector seleccionado"/>
+                        <TextBox x:Name="ConfigPlazaCodigoInput" Width="240" HorizontalAlignment="Left"
+                                 PlaceholderText="Ej.: A-01"/>
+                        <CheckBox x:Name="ConfigPlazaHabilitadaCheck" Content="Plaza habilitada"
+                                  IsChecked="True"/>
+                        <Button x:Name="ConfigGuardarPlazaButton" Content="Guardar plaza"
+                                Click="GuardarPlaza_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="ConfigPlazasList" Width="650" Height="170" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ConfigOcupacionText" TextWrapping="Wrap"/>
+                                                <TextBlock Text="IMPRESIÓN DE TICKETS" FontWeight="SemiBold" FontSize="18"/>
                         <TextBlock Text="Impresora instalada en Windows:"/>
                         <ComboBox x:Name="ImpresorasCombo" Width="390" HorizontalAlignment="Left" PlaceholderText="Elegir impresora"/>
                         <TextBlock Text="Ancho de papel:"/>
