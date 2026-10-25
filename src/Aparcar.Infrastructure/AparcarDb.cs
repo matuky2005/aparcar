@@ -81,6 +81,7 @@ public sealed partial class AparcarDb
         InicializarModulos();
         InicializarV7();
         InicializarV8();
+        InicializarV9();
     }
 
     public static string NormalizarPatente(string texto)
@@ -126,6 +127,7 @@ public sealed partial class AparcarDb
             var ticket = Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
             GuardarToken(db, tx, estadiaId);
             AsignarTarifaAlIngresar(db, tx, estadiaId, tipoVehiculo);
+            AsignarTarifaSectorAlIngresar(db,tx,estadiaId,sectorFinal,tipoVehiculo,DateTimeOffset.UtcNow);
             if(plazaElegida is not null)
                 OcuparPlaza(db,tx,Guid.Parse(estadiaId),sectorFinal,plazaElegida);
             AuditarSesion(db,tx,"Vehiculo.Ingreso",estadiaId,
