@@ -140,6 +140,7 @@ public sealed partial class MainWindow : Window
         TalonarioXActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
         TalonarioXEmitirButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
         TalonarioXReimprimirButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
+        ControlDocumentalActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reportes);
         FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
         FiscalBuscarClientesButton.IsEnabled=puedeConfigurar;
         FiscalAplicarClienteButton.IsEnabled=puedeConfigurar;
@@ -1148,6 +1149,35 @@ public sealed partial class MainWindow : Window
             _procesandoX=false;
             TalonarioXReimprimirButton.IsEnabled=RolesAparcar.Permite(
                 _db.SesionActual?.Rol??"",PermisosAparcar.Reimpresion);
+        }
+    }
+
+    private void ControlDocumentalActualizar_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var registros=_db.ListarEstadoDocumentalCobros(200);
+            ControlDocumentalCobrosList.ItemsSource=registros.Select(c=>
+                $"{c.FechaCobroUtc.ToLocalTime():dd/MM/yy HH:mm} · {c.Origen} · "+
+                $"{Dinero(c.ImporteCentavos)} · "+
+                (c.TieneTicketX?$"X {c.TalonarioX}-{c.NumeroX:D8}":"SIN X")+
+                " · "+(c.Devuelto?"DEVUELTO":c.EstadoSeguimiento)+
+                " · "+(c.EstadoHomologacion is null?"SIN SOLICITUD ARCA":
+                    $"HOMOLOGACIÓN {c.EstadoHomologacion}"+
+                    (c.EsHomologacionAutorizada?" (CAE DE PRUEBA)":""))+
+                $" · Cobro {c.CobroId:D}").ToList();
+            ControlDocumentalEstadoText.Text=
+                $"Cobros consultados: {registros.Count}; "+
+                $"con X: {registros.Count(c=>c.TieneTicketX)}; "+
+                $"devueltos: {registros.Count(c=>c.Devuelto)}; "+
+                $"homologación autorizada: {registros.Count(c=>c.EsHomologacionAutorizada)}. "+
+                "Los CAE de prueba y los tickets X NO constituyen factura de producción. "+
+                "No se verifica facturación externa.";
+        }
+        catch(Exception ex)
+        {
+            ControlDocumentalCobrosList.ItemsSource=null;
+            ControlDocumentalEstadoText.Text="No se pudo consultar el control documental: "+ex.Message;
         }
     }
 
