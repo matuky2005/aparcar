@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.23 · Emisión X opcional en cobros · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.23 · Caja rápida y emisión X voluntaria · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -43,7 +43,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Panel operativo" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.22 · Datos locales · Información operativa, sin movimientos nuevos ni facturación productiva."
+                        <TextBlock Text="Aparcar v0.23 · Caja rápida con cobros confirmados · ARCA solo en homologación."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Border Background="#E9F2FF" Padding="16" CornerRadius="10" MinWidth="200">
@@ -86,11 +86,73 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button x:Name="InicioEstimarSalidaButton" Content="Estimar tarifa actual"
                                     Click="InicioEstimarSalida_Click" IsEnabled="False"/>
-                            <Button x:Name="InicioPrepararSalidaButton" Content="Preparar salida (sin cobrar)"
+                            <Button x:Name="InicioPrepararSalidaButton" Content="Preparar caja rápida (sin cobrar)"
                                     Click="InicioPrepararSalida_Click" IsEnabled="False"/>
                         </StackPanel>
                         <TextBlock x:Name="InicioEstimacionText" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"/>
+                        <Border x:Name="InicioCobroPanelV23" Visibility="Collapsed"
+                                Background="#E9F2FF" CornerRadius="10" Padding="18">
+                            <StackPanel Spacing="10" MaxWidth="700">
+                                <TextBlock Text="CAJA RÁPIDA · SALIDA PREPARADA"
+                                           FontSize="18" FontWeight="SemiBold" Foreground="#164677"/>
+                                <TextBlock x:Name="InicioCobroDetalleText" TextWrapping="Wrap"
+                                           Foreground="#164677" IsTextSelectionEnabled="True"/>
+                                <TextBlock x:Name="InicioCobroImporteText" FontSize="28"
+                                           FontWeight="Bold" Foreground="#164677"/>
+                                <TextBlock x:Name="InicioCobroVigenciaText"
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <TextBlock Text="Medio de pago" Foreground="#164677"/>
+                                <ComboBox x:Name="InicioCobroMedioCombo" Width="250"
+                                          HorizontalAlignment="Left" SelectedIndex="0"
+                                          SelectionChanged="InicioCobroMedio_SelectionChanged"
+                                          KeyDown="InicioCobroMedio_KeyDown">
+                                    <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                                    <ComboBoxItem Content="Débito" Tag="Debito"/>
+                                    <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                                    <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                                    <ComboBoxItem Content="QR" Tag="QR"/>
+                                </ComboBox>
+                                <StackPanel x:Name="InicioCobroEfectivoPanel" Spacing="6">
+                                    <TextBlock Text="Efectivo recibido (ARS)" Foreground="#164677"/>
+                                    <TextBox x:Name="InicioCobroRecibidoInput" Width="250"
+                                             HorizontalAlignment="Left" PlaceholderText="Ej.: 5000"
+                                             TextChanged="InicioCobroRecibido_TextChanged"
+                                             KeyDown="InicioCobroRecibido_KeyDown"/>
+                                </StackPanel>
+                                <StackPanel x:Name="InicioCobroElectronicoPanel"
+                                            Spacing="8" Visibility="Collapsed">
+                                    <TextBlock Text="Referencia REAL del banco, tarjeta o billetera"
+                                               Foreground="#164677"/>
+                                    <TextBox x:Name="InicioCobroReferenciaInput" Width="400"
+                                             MaxLength="200" HorizontalAlignment="Left"
+                                             PlaceholderText="Nº de operación, mínimo 4 caracteres"
+                                             KeyDown="InicioCobroReferencia_KeyDown"/>
+                                    <CheckBox x:Name="InicioCobroVerificadoCheck"
+                                              Content="Verifiqué manualmente el pago en el proveedor"
+                                              KeyDown="InicioCobroVerificado_KeyDown"/>
+                                    <TextBlock Text="Aparcar no verifica transferencias, tarjetas ni QR automáticamente."
+                                               Foreground="#164677" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <TextBlock x:Name="InicioCobroVueltoText" Foreground="#164677"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <CheckBox x:Name="InicioCobroEmitirXCheck" IsChecked="False"
+                                          Content="Emitir Ticket X NO FISCAL para este cobro (si hay talonario e impresora)"/>
+                                <TextBlock Text="Ticket X y recibo no sustituyen factura ARCA. Si no se elige X, se aplica la preferencia de impresión automática del recibo."
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="InicioConfirmarCobroButton"
+                                            Content="Confirmar cobro y salida"
+                                            Click="InicioConfirmarCobro_Click" IsEnabled="False"/>
+                                    <Button Content="Usar formulario completo"
+                                            Click="InicioIrFormularioSalida_Click"/>
+                                    <Button Content="Cancelar preparación"
+                                            Click="InicioCancelarCobro_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="InicioCobroEstadoText" Foreground="#164677"
+                                           TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                            </StackPanel>
+                        </Border>
                         <TextBlock Text="OCUPACIÓN POR SECTOR" FontSize="18" FontWeight="SemiBold"/>
                         <ListView x:Name="InicioSectoresList" Width="760" Height="136"
                                   HorizontalAlignment="Left"/>
