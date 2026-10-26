@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
     private Guid _claveCobro = Guid.Empty;
     private ResumenRecaudacion? _reporteActual;
     private System.Collections.Generic.List<UsuarioListado> _usuariosActuales = new();
+    private System.Collections.Generic.IReadOnlyList<Estadia> _coincidenciasRapidasV22=Array.Empty<Estadia>();
     private System.Collections.Generic.List<ServicioLavado> _serviciosLavado=new();
     private System.Collections.Generic.List<OrdenLavado> _ordenesLavado=new();
     private System.Collections.Generic.List<PlanAbono> _planesAbono=new();
@@ -169,6 +170,10 @@ public sealed partial class MainWindow : Window
         ReciboCobroActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
         ReciboCobroImprimirOriginalButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Impresion);
         ReciboCobroImprimirCopiaButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
+        InicioNuevoIngresoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Ingreso);
+        InicioIrSalidaButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
+        InicioPrepararSalidaButton.IsEnabled=false;
+        InicioEstimarSalidaButton.IsEnabled=false;
         PrepararRestauracionButton.IsEnabled=
             RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
@@ -395,13 +400,155 @@ public sealed partial class MainWindow : Window
 
     private void Refrescar()
     {
-        var presentes = _db.ListarActivas();
-        TotalActivosText.Text = presentes.Count.ToString();
-        var filas = presentes
-            .Select(x => $"#{x.Ticket:D7}   {x.Patente,-12}  {x.TipoVehiculo,-11}  {x.IngresoUtc.ToLocalTime():dd/MM HH:mm}")
+        var presentes=_db.ListarActivas();
+        TotalActivosText.Text=presentes.Count.ToString(CultureInfo.InvariantCulture);
+        var filas=presentes
+            .Select(x=>$"#{x.Ticket:D7}   {x.Patente,-12}  {x.TipoVehiculo,-11}  {x.IngresoUtc.ToLocalTime():dd/MM HH:mm}")
             .ToList();
-        ResumenActivosList.ItemsSource = filas;
-        PresentesList.ItemsSource = filas;
+        PresentesList.ItemsSource=filas;
+        if(InicioPanel.Visibility==Visibility.Visible)
+            ActualizarPanelOperativoV22();
+    }
+
+    private void ActualizarPanelOperativoV22()
+    {
+        try
+        {
+            var panel=_db.ObtenerPanelOperativoV22(12);
+            TotalActivosText.Text=panel.Presentes.ToString(CultureInfo.InvariantCulture);
+            InicioLibresText.Text=panel.LibresHabilitados.ToString(CultureInfo.InvariantCulture);
+            InicioOcupacionText.Text=
+                $"Capacidad de sectores habilitados: {panel.CapacidadHabilitada:N0} · "+
+                $"Disponibles efectivos: {panel.LibresHabilitados:N0}. "+
+                "La disponibilidad en sectores con plaza asignada requiere plazas habilitadas libres.";
+            InicioCajaEstadoText.Text=panel.CajaAbierta
+                ?$"Turno de caja ABIERTO · Operador: {panel.OperadorTurno}."
+                :"Turno de caja CERRADO · Para cobrar debés abrir uno.";
+            InicioSectoresList.ItemsSource=panel.Sectores.Select(sec=>
+                $"{sec.Nombre} · {(sec.Activo?"HABILITADO":"SUSPENDIDO")} · "+
+                $"{sec.Ocupados}/{sec.Capacidad} ocupados · {sec.Libres} disponibles · "+
+                (sec.Modo==ModosSector.Asignado?"plaza asignada":"sector libre")).ToList();
+            ResumenActivosList.ItemsSource=panel.UltimosIngresos.Select(e=>
+                $"#{e.Ticket:D7} · {e.Patente} · {e.TipoVehiculo} · {e.Sector} · "+
+                $"{e.IngresoUtc.ToLocalTime():dd/MM HH:mm}").ToList();
+            InicioUltimasSalidasList.ItemsSource=panel.UltimasSalidas.Select(c=>
+                $"#{c.Ticket:D7} · {c.Patente} · {c.MedioPago} · "+
+                $"{c.FechaUtc.ToLocalTime():dd/MM HH:mm}").ToList();
+            InicioPanelEstadoText.Text=
+                $"Actualizado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}. "+
+                "La estimación de tarifa no congela el precio: se vuelve a calcular al cobrar. "+
+                "Las salidas listadas tienen cobro confirmado, sin representar su estado fiscal.";
+        }
+        catch(Exception ex)
+        {
+            TotalActivosText.Text="—";
+            InicioLibresText.Text="—";
+            InicioCajaEstadoText.Text="Estado de caja no disponible.";
+            InicioOcupacionText.Text="";
+            InicioSectoresList.ItemsSource=null;
+            ResumenActivosList.ItemsSource=null;
+            InicioUltimasSalidasList.ItemsSource=null;
+            InicioPanelEstadoText.Text="Error al consultar datos del panel: "+ex.Message+
+                ". No se modificó ninguna operación.";
+        }
+    }
+
+    private void InicioBusqueda_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        InicioBuscar_Click(sender,new RoutedEventArgs());
+    }
+
+    private void InicioBuscar_Click(object sender,RoutedEventArgs e)
+    {
+        _coincidenciasRapidasV22=Array.Empty<Estadia>();
+        InicioCoincidenciasList.ItemsSource=null;
+        InicioEstimacionText.Text="";
+        InicioEstimarSalidaButton.IsEnabled=false;
+        InicioPrepararSalidaButton.IsEnabled=false;
+        try
+        {
+            var resultados=_db.BuscarPresentesRapidoV22(InicioBusquedaInput.Text,25);
+            _coincidenciasRapidasV22=resultados;
+            InicioCoincidenciasList.ItemsSource=resultados.Select(estadia=>
+                $"#{estadia.Ticket:D7} · {estadia.Patente} · {estadia.TipoVehiculo} · "+
+                $"{estadia.Sector} · {estadia.IngresoUtc.ToLocalTime():dd/MM HH:mm}").ToList();
+            if(resultados.Count==1)
+                InicioCoincidenciasList.SelectedIndex=0;
+            InicioBusquedaEstadoText.Text=resultados.Count==0
+                ?"No hay vehículos presentes con ese ticket o prefijo de patente."
+                :$"{resultados.Count} coincidencia(s)"+
+                    (resultados.Count==25?" (máximo mostrado; afiná la búsqueda)":"")+
+                    ". Elegí el vehículo antes de preparar la salida.";
+        }
+        catch(Exception ex)
+        {
+            InicioBusquedaEstadoText.Text="Búsqueda no realizada: "+ex.Message;
+        }
+    }
+
+    private Estadia EstadiaRapidaSeleccionadaV22()
+    {
+        var indice=InicioCoincidenciasList.SelectedIndex;
+        if(indice<0 || indice>=_coincidenciasRapidasV22.Count)
+            throw new ArgumentException("Elegí un vehículo de los resultados.");
+        return _coincidenciasRapidasV22[indice];
+    }
+
+    private void InicioCoincidencias_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        var hay=InicioCoincidenciasList.SelectedIndex>=0 &&
+            InicioCoincidenciasList.SelectedIndex<_coincidenciasRapidasV22.Count;
+        var rol=_db?.SesionActual?.Rol??"";
+        InicioEstimarSalidaButton.IsEnabled=hay && RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
+        InicioPrepararSalidaButton.IsEnabled=hay && RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
+        InicioEstimacionText.Text="";
+    }
+
+    private void InicioEstimarSalida_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var elegido=EstadiaRapidaSeleccionadaV22();
+            var actual=_db.BuscarActiva(elegido.Ticket.ToString(CultureInfo.InvariantCulture));
+            if(actual is null || actual.Id!=elegido.Id)
+                throw new InvalidOperationException("La estadía cambió. Actualizá la búsqueda.");
+            var calculo=_db.CotizarSalida(elegido.Id);
+            InicioEstimacionText.Text=
+                $"Estimación para #{elegido.Ticket:D7} · {elegido.Patente}: "+
+                Dinero(calculo.ImporteCentavos)+(calculo.CubiertoPorAbono?" · CUBIERTO POR ABONO":"")+
+                $". Cotización válida hasta {calculo.VenceUtc.ToLocalTime():HH:mm:ss}. "+
+                "Se recalcula al confirmar cobro; esta consulta NO cobra ni finaliza.";
+        }
+        catch(Exception ex)
+        {
+            InicioEstimacionText.Text="No se pudo estimar: "+ex.Message;
+        }
+    }
+
+    private void InicioPrepararSalida_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Cobro);
+            var elegido=EstadiaRapidaSeleccionadaV22();
+            var actual=_db.BuscarActiva(elegido.Ticket.ToString(CultureInfo.InvariantCulture));
+            if(actual is null || actual.Id!=elegido.Id)
+                throw new InvalidOperationException("El vehículo ya no está presente. Actualizá.");
+            Navegacion.SelectedItem=Navegacion.MenuItems[2];
+            BusquedaInput.Text=elegido.Ticket.ToString(CultureInfo.InvariantCulture);
+            Buscar_Click(sender,new RoutedEventArgs());
+            if(_cotizacion is null)
+                throw new InvalidOperationException("No se pudo preparar la cotización actual.");
+            Mensaje.Text=$"Salida #{elegido.Ticket:D7} preparada. "+
+                "Comprobá medio de pago y confirmá manualmente para cobrar.";
+        }
+        catch(Exception ex)
+        {
+            InicioBusquedaEstadoText.Text="Salida no preparada: "+ex.Message;
+            Mensaje.Text="No se confirmó ningún cobro por la búsqueda rápida.";
+        }
     }
 
     private void ActualizarSectores()
