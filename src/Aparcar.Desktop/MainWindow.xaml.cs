@@ -2963,6 +2963,8 @@ public sealed partial class MainWindow : Window
         else if(e.Key==VirtualKey.F8 &&
                 RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Consulta))
             Navegacion.SelectedItem=Navegacion.MenuItems[3];
+        else if(e.Key==VirtualKey.F5 && InicioPanel.Visibility==Visibility.Visible)
+            InicioBuscar_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible)
             Buscar_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F10 && IngresoPanel.Visibility==Visibility.Visible
