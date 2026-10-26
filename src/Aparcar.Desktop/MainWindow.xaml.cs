@@ -141,6 +141,7 @@ public sealed partial class MainWindow : Window
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         TalonarioXCrearButton.IsEnabled=puedeConfigurar;
+        TalonarioXGuardarPreferidoButton.IsEnabled=puedeConfigurar;
         TalonarioXActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
         TalonarioXEmitirButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
         TalonarioXReimprimirButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
@@ -1325,16 +1326,22 @@ public sealed partial class MainWindow : Window
         _db.ExigirPermiso(PermisosAparcar.Consulta);
         var codigo=(TalonariosXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
         TalonariosXCombo.Items.Clear();
+        TalonarioXPreferidoCombo.Items.Clear();
+        var preferido=_db.ObtenerTalonarioXParaCobros()?.Codigo;
         foreach(var talonario in _db.ListarTalonariosX())
         {
-            var item=new ComboBoxItem
-            {
-                Tag=talonario.Codigo,
-                Content=$"{talonario.Codigo} · {talonario.Nombre} · "+
-                    $"último X {talonario.UltimoNumero:D8}"+(talonario.Habilitado?"":" · SUSPENDIDO")
-            };
+            var texto=$"{talonario.Codigo} · {talonario.Nombre} · "+
+                $"último X {talonario.UltimoNumero:D8}"+(talonario.Habilitado?"":" · SUSPENDIDO");
+            var item=new ComboBoxItem{Tag=talonario.Codigo,Content=texto};
             TalonariosXCombo.Items.Add(item);
             if(talonario.Codigo==codigo)TalonariosXCombo.SelectedItem=item;
+            if(talonario.Habilitado)
+            {
+                var opcion=new ComboBoxItem{Tag=talonario.Codigo,Content=texto};
+                TalonarioXPreferidoCombo.Items.Add(opcion);
+                if(talonario.Codigo==preferido)
+                    TalonarioXPreferidoCombo.SelectedItem=opcion;
+            }
         }
 
         CobrosXCombo.Items.Clear();
@@ -1370,6 +1377,79 @@ public sealed partial class MainWindow : Window
         catch(Exception ex)
         {
             TalonarioXResultadoText.Text="No se actualizó el talonario X: "+ex.Message;
+        }
+    }
+
+    private void TalonarioXGuardarPreferido_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var codigo=(TalonarioXPreferidoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ??
+                throw new ArgumentException("Elegí un talonario X habilitado.");
+            var guardado=_db.ConfigurarTalonarioXParaCobros(codigo);
+            TalonarioXResultadoText.Text=
+                $"Talonario X {guardado.Codigo} elegido para los cobros. "+
+                "La casilla Emitir X está desmarcada por defecto en cada operación.";
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se guardó el talonario X: "+ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Validar ANTES de registrar el cobro si se solicita emitir X.
+    /// Ninguna pantalla debe suponer que el ticket X reemplaza la factura ARCA.
+    /// </summary>
+    private string? PrepararXAntesDelCobro(bool emitir)
+    {
+        if(!emitir)return null;
+        _db.ExigirPermiso(PermisosAparcar.Cobro);
+        _db.ExigirPermiso(PermisosAparcar.Impresion);
+        var talonario=_db.ObtenerTalonarioXParaCobros() ??
+            throw new InvalidOperationException(
+                "Configurá el talonario X predeterminado antes de cobrar, o desmarcá Emitir X.");
+        if(!talonario.Habilitado)
+            throw new InvalidOperationException("El talonario X predeterminado está suspendido.");
+        if(string.IsNullOrWhiteSpace(_impresora))
+            throw new InvalidOperationException(
+                "Configurá la impresora para el X o desmarcá Emitir X.");
+        var impresora=new PrinterSettings{PrinterName=_impresora};
+        if(!impresora.IsValid)
+            throw new InvalidOperationException(
+                "La impresora configurada no está disponible; desmarcá Emitir X o corregí la impresora.");
+        return talonario.Codigo;
+    }
+
+    /// <summary>El cobro ya está confirmado. No lanzar errores ni repetir pagos.</summary>
+    private string EmitirXDespuesDelCobro(string? talonario,
+        string origen,Guid cobroId)
+    {
+        if(talonario is null)return "";
+        try
+        {
+            var resultado=_db.EmitirTicketX(talonario,origen,cobroId);
+            var ticket=resultado.Ticket;
+            var id=$"X {ticket.Talonario}-{ticket.Numero:D8}";
+            if(!resultado.EsNuevo)
+                return $"{id} ya estaba emitido. No se imprimió otro ORIGINAL: "+
+                    "pedí COPIA autorizada desde el historial X.";
+            try
+            {
+                EnviarTicketXImpresora(ticket,false,"");
+                return $"{id} emitido y enviado al controlador Windows "+
+                    "(no confirma impresión física; documento no fiscal).";
+            }
+            catch(Exception ex)
+            {
+                return $"{id} QUEDÓ EMITIDO pero falló la impresión: {ex.Message}. "+
+                    "No vuelvas a cobrar ni emitir: utilizá la reimpresión autorizada.";
+            }
+        }
+        catch(Exception ex)
+        {
+            return "COBRO CONFIRMADO, pero no se pudo registrar el X: "+
+                ex.Message+". Revisá la operación en el historial antes de volver a intentarlo.";
         }
     }
 
