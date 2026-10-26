@@ -53,10 +53,11 @@ internal static class TicketXPrinter
                     centro?centrado:StringFormat.GenericDefault);
                 y+=h;
             }
-            Linea("APARCAR",titulo,true);
+            Linea("X",titulo,true);
             Linea("DOCUMENTO NO VALIDO COMO FACTURA",fuerte,true);
+            Linea("APARCAR",titulo,true);
             Linea("TICKET X - CONTROL INTERNO",fuerte,true);
-            if(copia)Linea("COPIA - REIMPRESION",fuerte,true);
+            Linea(copia?"COPIA - REIMPRESION":"ORIGINAL",fuerte,true);
             Linea($"X  {ticket.Talonario}-{ticket.Numero:D8}",fuerte,true);
             Linea($"Emitido: {ticket.EmitidoUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}",normal);
             Linea($"Operacion: {ticket.Origen}",normal);
