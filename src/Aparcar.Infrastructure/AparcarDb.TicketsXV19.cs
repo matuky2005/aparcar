@@ -123,6 +123,64 @@ public sealed partial class AparcarDb
         return lista;
     }
 
+    /// <summary>
+    /// Talonario predeterminado de la operación diaria (no es un punto de venta ARCA).
+    /// La elección de imprimir X se hace igualmente en cada cobro.
+    /// </summary>
+    public TalonarioX? ObtenerTalonarioXParaCobros()
+    {
+        ExigirPermiso(PermisosAparcar.Consulta);
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="""
+            SELECT t.Codigo,t.Nombre,t.UltimoNumero,t.Habilitado
+            FROM PreferenciasDispositivos p
+            JOIN TalonariosX t ON t.Codigo=p.Valor
+            WHERE p.Clave='TicketX.TalonarioPredeterminado';
+            """;
+        using var r=cmd.ExecuteReader();
+        return r.Read()?new TalonarioX(r.GetString(0),r.GetString(1),
+            r.GetInt64(2),r.GetInt32(3)==1):null;
+    }
+
+    public TalonarioX ConfigurarTalonarioXParaCobros(string codigo)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        codigo=NormalizarCodigoX(codigo);
+        using var db=Abrir();
+        using var tx=db.BeginTransaction();
+        TalonarioX talonario;
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="""
+                SELECT Nombre,UltimoNumero,Habilitado
+                FROM TalonariosX WHERE Codigo=$codigo;
+                """;
+            cmd.Parameters.AddWithValue("$codigo",codigo);
+            using var r=cmd.ExecuteReader();
+            if(!r.Read() || r.GetInt32(2)!=1)
+                throw new InvalidOperationException(
+                    "El talonario X no existe o no está habilitado.");
+            talonario=new TalonarioX(codigo,r.GetString(0),r.GetInt64(1),true);
+        }
+        using(var cmd=db.CreateCommand())
+        {
+            cmd.Transaction=tx;
+            cmd.CommandText="""
+                INSERT INTO PreferenciasDispositivos(Clave,Valor)
+                VALUES('TicketX.TalonarioPredeterminado',$codigo)
+                ON CONFLICT(Clave) DO UPDATE SET Valor=excluded.Valor;
+                """;
+            cmd.Parameters.AddWithValue("$codigo",codigo);
+            cmd.ExecuteNonQuery();
+        }
+        AuditarSesion(db,tx,"TicketX.TalonarioCobros",codigo,
+            "Talonario seleccionado para la emisión X opcional al finalizar cobros.");
+        tx.Commit();
+        return talonario;
+    }
+
     private static (long Importe,string Medio,string Descripcion,DateTimeOffset Fecha,bool Devuelto)?
         ObtenerCobroX(SqliteConnection db,SqliteTransaction? tx,string origen,Guid id)
     {
