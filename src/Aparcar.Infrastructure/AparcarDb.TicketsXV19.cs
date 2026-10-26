@@ -226,9 +226,12 @@ public sealed partial class AparcarDb
         cmd.CommandText=$"SELECT {ColumnasX} FROM TicketsX WHERE Origen=$origen AND CobroId=$cobro";
         cmd.Parameters.AddWithValue("$origen",origen);
         cmd.Parameters.AddWithValue("$cobro",cobroId.ToString("D"));
-        using var r=cmd.ExecuteReader();
-        if(!r.Read())return null;
-        var x=LeerTicketX(r,false);
+        TicketX? x;
+        using(var r=cmd.ExecuteReader())
+        {
+            if(!r.Read())return null;
+            x=LeerTicketX(r,false);
+        }
         return x with {Devuelto=ObtenerCobroX(db,tx,origen,cobroId)?.Devuelto??true};
     }
 
@@ -320,7 +323,7 @@ public sealed partial class AparcarDb
         ExigirPermiso(copia?PermisosAparcar.Reimpresion:PermisosAparcar.Impresion);
         if(ticketId==Guid.Empty)throw new ArgumentException("Ticket X obligatorio.");
         motivo=(motivo??"").Trim();
-        if(copia && motivo.Length is <8 or >250)
+        if(copia && (motivo.Length is <8 or >250))
             throw new ArgumentException("La reimpresión exige motivo de 8 a 250 caracteres.");
         if(impresora is null || impresora.Trim().Length is <1 or >200)
             throw new ArgumentException("Seleccioná una impresora válida.");
