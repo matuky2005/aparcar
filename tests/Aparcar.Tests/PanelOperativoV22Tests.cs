@@ -125,6 +125,13 @@ public sealed class PanelOperativoV22Tests
             Assert.Equal("AD123BC",despues.UltimasSalidas.Single().Patente);
             Assert.Empty(db.BuscarPresentesRapidoV22("AD"));
             Assert.Single(db.ListarCobros());
+            Assert.False(despues.UltimasSalidas.Single().Devuelto);
+            db.ConfigurarPinSupervisorInicial("523461");
+            db.DevolverCobroEfectivo(cobro.Id,
+                "Devolucion completa de prueba","Supervisor","523461");
+            var reintegrado=db.ObtenerPanelOperativoV22();
+            Assert.True(reintegrado.UltimasSalidas.Single().Devuelto);
+            Assert.Equal(0,reintegrado.Presentes);
         }
         finally { Limpiar(dir); }
     }
