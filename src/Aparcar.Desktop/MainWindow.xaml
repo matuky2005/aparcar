@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.18 · Cartera fiscal de clientes · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.19 · Talonarios X no fiscales · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -554,6 +554,40 @@
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <Button Content="Crear respaldo consistente" Click="Respaldar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="TALONARIO X — DOCUMENTOS NO FISCALES" FontSize="18"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Emite tickets X numerados exclusivamente sobre cobros ya registrados, sin alterar caja ni sustituir la factura exigida por ARCA. La reimpresión requiere permiso de supervisor y motivo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="TalonarioXCodigoInput" Width="115"
+                                     PlaceholderText="Código 0001"/>
+                            <TextBox x:Name="TalonarioXNombreInput" Width="300"
+                                     PlaceholderText="Nombre del talonario / caja"/>
+                            <Button x:Name="TalonarioXCrearButton" Content="Crear talonario X"
+                                    Click="TalonarioXCrear_Click"/>
+                        </StackPanel>
+                        <ComboBox x:Name="TalonariosXCombo" Width="590" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná el talonario no fiscal"/>
+                        <Button x:Name="TalonarioXActualizarButton" Content="Actualizar talonarios, cobros y tickets"
+                                Click="TalonarioXActualizar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cobro confirmado para documentar (seleccionar)"
+                                   FontWeight="SemiBold"/>
+                        <ComboBox x:Name="CobrosXCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un cobro de estacionamiento, lavadero o abono"/>
+                        <Button x:Name="TalonarioXEmitirButton"
+                                Content="Emitir número X e imprimir comprobante no fiscal"
+                                Click="TalonarioXEmitir_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Historial y reimpresión del ticket X" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="HistorialXCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un X emitido para consultar/reimprimir"/>
+                        <TextBox x:Name="TalonarioXMotivoCopiaInput" Width="500"
+                                 MaxLength="250" HorizontalAlignment="Left"
+                                 PlaceholderText="Motivo de reimpresión (mínimo 8 caracteres)"/>
+                        <Button x:Name="TalonarioXReimprimirButton"
+                                Content="Reimprimir COPIA X (supervisor)"
+                                Click="TalonarioXReimprimir_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="TalonarioXResultadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
                         <TextBlock Text="ARCA / FACTURACIÓN — HOMOLOGACIÓN (SOLO CONSULTA)"
                                    FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="Permite probar credenciales WSAA y consultar el último comprobante WSFEv1 sin emitir CAE. No almacena certificado ni contraseña."
