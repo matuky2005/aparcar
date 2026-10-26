@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.18 (validación Windows pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.19 (CI Windows pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,17 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.19: talonarios X no fiscales para operaciones cobradas
+
+- Talonarios X propios por código de cuatro dígitos y numeración de ocho dígitos consecutivos. **No se registran como puntos de venta fiscales** y no generan CAE.
+- Nueva migración **SQLite 16** con respaldo previo y nuevas tablas `TalonariosX`, `TicketsX` e `ImpresionesX`. Se amplía el verificador de restauración al esquema 16.
+- Emisión X solo sobre **cobros confirmados positivos y no devueltos** de Estacionamiento, Lavadero o Abono. Una referencia de cobro admite un único X y reintentos idénticos devuelven el existente. Todo se guarda antes de imprimir para evitar perder números.
+- Impresión térmica de 58/80 mm con indicación destacada **DOCUMENTO NO VALIDO COMO FACTURA**, número, origen, importe, medio y fecha. No emite QR fiscal ni sustituye la documentación fiscal correspondiente.
+- Reimpresión identificada como copia, restringida por permiso y con motivo; se registran intentos y resultados de la impresora. Un X histórico cuyo cobro fue devuelto muestra una advertencia en copia.
+- **No se crean segundos cobros ni movimientos de caja por imprimir X**. Se mantienen los pendientes de facturación fiscal independientes.
+- Nuevas pruebas de numeración, cobros, duplicados, caja, reimpresión y devoluciones. **Aún requieren compilación/ejecución en Windows.**
+- Documento técnico: [docs/TALONARIOS_X_V19.md](docs/TALONARIOS_X_V19.md). PR continúa en borrador y sin instaladores.
 
 ## Etapa v0.18: cartera de clientes fiscales persistente
 
