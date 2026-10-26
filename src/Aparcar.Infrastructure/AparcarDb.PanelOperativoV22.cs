@@ -10,7 +10,7 @@ namespace Aparcar.Infrastructure;
 /// Los ingresos recientes incluyen únicamente vehículos aún presentes.
 /// </summary>
 public sealed record SalidaRecienteV22(
-    long Ticket,string Patente,string MedioPago,DateTimeOffset FechaUtc);
+    long Ticket,string Patente,string MedioPago,DateTimeOffset FechaUtc,bool Devuelto);
 
 public sealed record PanelOperativoV22(
     long Presentes,long CapacidadHabilitada,long LibresHabilitados,
@@ -85,7 +85,8 @@ public sealed partial class AparcarDb
         {
             cmd.Transaction=tx;
             cmd.CommandText="""
-                SELECT p.Ticket,e.Patente,m.MedioPago,p.FechaUtc
+                SELECT p.Ticket,e.Patente,m.MedioPago,p.FechaUtc,
+                    EXISTS(SELECT 1 FROM DevolucionesCaja d WHERE d.CobroId=p.Id)
                 FROM CobrosCaja p JOIN Estadias e ON e.Id=p.EstadiaId
                 JOIN CobroMedios m ON m.CobroId=p.Id
                 ORDER BY p.FechaUtc DESC,p.rowid DESC LIMIT $max;
@@ -95,7 +96,7 @@ public sealed partial class AparcarDb
             while(r.Read())salidas.Add(new SalidaRecienteV22(
                 r.GetInt64(0),r.GetString(1),r.GetString(2),
                 DateTimeOffset.Parse(r.GetString(3),CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind)));
+                    DateTimeStyles.RoundtripKind),r.GetInt64(4)!=0));
         }
         tx.Commit();
         long capacidad=0,libres=0;
