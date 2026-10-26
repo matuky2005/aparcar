@@ -5,7 +5,7 @@
 ## Interfaz de Inicio
 - Resumen de vehículos presentes, disponibilidad total de sectores habilitados y estado **abierto/cerrado** del turno. No se muestran saldos ni se elude la política de caja ciega.
 - Ocupación por sector, incluyendo modo Libre/Asignado y estado Habilitado/Suspendido. Disponibilidad de sectores asignados se calcula con plazas **efectivamente habilitadas y desocupadas**, no solo capacidad teórica.
-- Últimos ingresos **que continúan activos** y últimas salidas con **cobro confirmado**. No se presentan como totales fiscales.
+- Últimos ingresos **que continúan activos** y últimas salidas con **cobro confirmado**. Se marca **DEVUELTO** si ese cobro fue reintegrado; no se presentan como totales fiscales.
 - Búsqueda acotada por número de ticket exacto o prefijo de patente normalizada: devuelve hasta 25 registros activos. Ante varias coincidencias se debe seleccionar manualmente una.
 - Un clic permite estimar tarifa **sin cobrar**. Se vuelve a consultar la estadía para descartar selecciones obsoletas; la cotización tiene vencimiento y el precio definitivo se recalcula al cobrar.
 - El botón **Preparar salida (sin cobrar)** verifica nuevamente que la estadía siga activa, abre el formulario de salida y rellena ticket. El cobro sigue dependiendo de la validación manual y `ConfirmarPago`, con idempotencia conservada.
