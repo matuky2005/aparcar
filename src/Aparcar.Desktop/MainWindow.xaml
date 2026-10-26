@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.19 · Talonarios X no fiscales · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.21 · Operación rápida y control de impresiones · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -43,7 +43,7 @@
                 <ScrollViewer x:Name="InicioPanel" Visibility="Visible">
                     <StackPanel Spacing="16" MaxWidth="780" HorizontalAlignment="Left">
                         <TextBlock Text="Panel principal" FontSize="30" FontWeight="Bold"/>
-                        <TextBlock Text="Aparcar v0.12 · Datos locales · Solo facturación de prueba en homologación." Opacity="0.7"/>
+                        <TextBlock Text="Aparcar v0.21 · Datos locales · ARCA solo en homologación." Opacity="0.7"/>
                         <TextBlock x:Name="TotalActivosText" Text="0" FontSize="44" FontWeight="Bold"/>
                         <TextBlock Text="Vehículos presentes" Opacity="0.7"/>
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -84,7 +84,7 @@
                             <Button x:Name="GuardarIngresoButton" Content="F10 — Guardar ingreso" Click="Ingresar_Click"/>
                             <Button Content="Configurar impresora" Click="IrConfig_Click"/>
                         </StackPanel>
-                        <TextBlock x:Name="TicketPreviewText" Text="Enter: patente → categoría → sector → plaza (si corresponde) → guardar."
+                        <TextBlock x:Name="TicketPreviewText" Text="Enter: patente → categoría → sector → plaza (si corresponde) → guardar. F2: ingreso · F4: salida · F10: guardar."
                                    TextWrapping="Wrap" IsTextSelectionEnabled="True" Opacity="0.85"/>
                         <TextBlock Text="El ingreso queda guardado aunque falle la impresora; reimprimí sin registrarlo otra vez."
                                    TextWrapping="Wrap" Opacity="0.7"/>
@@ -111,7 +111,7 @@
                         <TextBlock x:Name="CotizacionVigenciaText" Text="" Opacity="0.7"/>
                         <TextBlock Text="Medio de pago:"/>
                         <ComboBox x:Name="MedioPagoCombo" Width="260" HorizontalAlignment="Left"
-                                  SelectedIndex="0" SelectionChanged="MedioPagoCombo_SelectionChanged">
+                                  SelectedIndex="0" SelectionChanged="MedioPagoCombo_SelectionChanged" KeyDown="MedioPagoCombo_KeyDown">
                             <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
                             <ComboBoxItem Content="Débito" Tag="Debito"/>
                             <ComboBoxItem Content="Crédito" Tag="Credito"/>
@@ -126,17 +126,40 @@
                         <StackPanel x:Name="ElectronicoPanel" Spacing="8" Visibility="Collapsed">
                             <TextBlock Text="Referencia de pago comprobada (nº operación o autorización)"/>
                             <TextBox x:Name="ReferenciaElectronicaInput" Width="365"
-                                     MaxLength="200" PlaceholderText="Referencia real del proveedor"/>
-                            <CheckBox x:Name="PagoVerificadoCheck" Content="Verifiqué la acreditación/autorización en el proveedor"/>
+                                     MaxLength="200" PlaceholderText="Referencia real del proveedor" KeyDown="ReferenciaElectronicaInput_KeyDown"/>
+                            <CheckBox x:Name="PagoVerificadoCheck" Content="Verifiqué la acreditación/autorización en el proveedor" KeyDown="PagoVerificadoCheck_KeyDown"/>
                             <TextBlock Text="Aparcar NO consulta bancos ni pasarelas: esto es una declaración manual."
                                        TextWrapping="Wrap" Opacity="0.7"/>
                         </StackPanel>
                         <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
-                        <Button x:Name="ConfirmarSalidaButton" Content="Confirmar cobro y finalizar salida"
+                        <Button x:Name="ConfirmarSalidaButton" Content="F10 — Confirmar cobro y finalizar salida"
                                 Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
                                 IsEnabled="False"/>
                         <TextBlock Text="Confirmá solamente un pago efectivamente recibido/verificado. Caja y salida se registran en una misma transacción."
                                    TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Enter: buscar → medio → importe/referencia → confirmar. F5: buscar · F10: confirmar cobro. La verificación electrónica se tilda con Espacio, nunca automáticamente."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock x:Name="SalidaResultadoReciboText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="HISTORIAL Y RECUPERACIÓN DE RECIBOS DE COBRO"
+                                   FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="El recibo es NO FISCAL. Recuperar una impresión nunca crea otro cobro. Enviado al controlador no garantiza papel impreso."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="ReciboCobroActualizarButton" Content="Actualizar recibos de cobro"
+                                Click="ReciboCobroActualizar_Click" HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="RecibosCobroCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un cobro confirmado del historial"/>
+                        <Button x:Name="ReciboCobroImprimirOriginalButton"
+                                Content="Imprimir ORIGINAL sin intento previo"
+                                Click="ReciboCobroImprimirOriginal_Click" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="ReciboCobroMotivoCopiaInput" Width="500" MaxLength="250"
+                                 HorizontalAlignment="Left"
+                                 PlaceholderText="Motivo de COPIA (mínimo 8 caracteres)"/>
+                        <Button x:Name="ReciboCobroImprimirCopiaButton"
+                                Content="Imprimir COPIA (supervisor)"
+                                Click="ReciboCobroImprimirCopia_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ReciboCobroHistorialEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
                     </StackPanel>
                 </ScrollViewer>
 
