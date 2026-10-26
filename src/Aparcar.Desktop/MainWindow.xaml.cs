@@ -81,6 +81,7 @@ public sealed partial class MainWindow : Window
         Navegacion.Visibility=Visibility.Collapsed;
         SalirButton.Visibility=Visibility.Collapsed;
         UsuarioActivoTexto.Text="Sin sesión";
+        LimpiarBusquedaRapidaV22();
     }
 
     private void BloquearInterfaz()
@@ -433,7 +434,7 @@ public sealed partial class MainWindow : Window
                 $"{e.IngresoUtc.ToLocalTime():dd/MM HH:mm}").ToList();
             InicioUltimasSalidasList.ItemsSource=panel.UltimasSalidas.Select(c=>
                 $"#{c.Ticket:D7} · {c.Patente} · {c.MedioPago} · "+
-                $"{c.FechaUtc.ToLocalTime():dd/MM HH:mm}").ToList();
+                $"{c.FechaUtc.ToLocalTime():dd/MM HH:mm}"+(c.Devuelto?" · DEVUELTO":"")).ToList();
             InicioPanelEstadoText.Text=
                 $"Actualizado: {DateTime.Now:dd/MM/yyyy HH:mm:ss}. "+
                 "La estimación de tarifa no congela el precio: se vuelve a calcular al cobrar. "+
@@ -451,6 +452,17 @@ public sealed partial class MainWindow : Window
             InicioPanelEstadoText.Text="Error al consultar datos del panel: "+ex.Message+
                 ". No se modificó ninguna operación.";
         }
+    }
+
+    private void LimpiarBusquedaRapidaV22()
+    {
+        _coincidenciasRapidasV22=Array.Empty<Estadia>();
+        InicioCoincidenciasList.ItemsSource=null;
+        InicioBusquedaInput.Text="";
+        InicioBusquedaEstadoText.Text="";
+        InicioEstimacionText.Text="";
+        InicioEstimarSalidaButton.IsEnabled=false;
+        InicioPrepararSalidaButton.IsEnabled=false;
     }
 
     private void InicioBusqueda_KeyDown(object sender,KeyRoutedEventArgs e)
