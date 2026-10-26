@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.17 · Constancia ARCA y Consumidor Final · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.18 · Cartera fiscal de clientes · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -605,6 +605,29 @@
                         </ComboBox>
                         <TextBox x:Name="FiscalDocNumeroInput" Width="280" HorizontalAlignment="Left"
                                  PlaceholderText="Nro. documento; 0 si tipo 99"/>
+                        <TextBlock Text="CARTERA DE CLIENTES FISCALES (v0.18)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Buscar clientes guardados por nombre, CUIT, CUIL o DNI. La cartera corresponde exclusivamente al CUIT emisor; Consumidor Final anónimo no se guarda."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="FiscalBuscarClientesInput" Width="340"
+                                     PlaceholderText="Nombre o número de documento"/>
+                            <Button x:Name="FiscalBuscarClientesButton" Content="Buscar clientes"
+                                    Click="FiscalBuscarClientes_Click"/>
+                        </StackPanel>
+                        <ComboBox x:Name="FiscalClientesCombo" Width="600"
+                                  HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná un cliente existente"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FiscalAplicarClienteButton" Content="Usar cliente"
+                                    Click="FiscalAplicarCliente_Click"/>
+                            <Button x:Name="FiscalVersionesClienteButton" Content="Ver versiones"
+                                    Click="FiscalVersionesCliente_Click"/>
+                            <Button x:Name="FiscalDesactivarClienteButton" Content="Desactivar"
+                                    Click="FiscalDesactivarCliente_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="FiscalClientesEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
                         <Button x:Name="FiscalConsultarConstanciaButton"
                                 Content="Consultar Constancia de Inscripción por CUIT (ARCA)"
                                 Click="FiscalConsultarConstancia_Click" HorizontalAlignment="Left"/>
@@ -698,6 +721,9 @@
                                  PlaceholderText="Domicilio del receptor"/>
                         <TextBox x:Name="FiscalCorreoReceptorInput" Width="480" HorizontalAlignment="Left"
                                  PlaceholderText="Correo receptor (opcional)"/>
+                        <Button x:Name="FiscalGuardarClienteButton"
+                                Content="Guardar cliente identificado / nueva versión"
+                                Click="FiscalGuardarCliente_Click" HorizontalAlignment="Left"/>
                         <TextBox x:Name="FiscalDescripcionServicioInput" Width="480" HorizontalAlignment="Left"
                                  PlaceholderText="Detalle: estacionamiento, abono o lavadero"/>
                         <TextBox x:Name="FiscalCondicionVentaInput" Width="360" HorizontalAlignment="Left"
