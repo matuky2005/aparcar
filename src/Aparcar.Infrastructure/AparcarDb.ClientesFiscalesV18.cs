@@ -254,7 +254,7 @@ public sealed partial class AparcarDb
                 throw new InvalidOperationException("No se pudo actualizar el cliente.");
         }
         AuditarSesion(db,tx,"Fiscal.ClienteGuardado",id.ToString("D"),
-            $"CUIT emisor {cuitEmisor}; versión {nuevaVersion}; sin datos personales en auditoría");
+            $"Versión {nuevaVersion}; no se registran datos identificatorios del cliente en auditoría");
         tx.Commit();
         return ObtenerClienteFiscal(id) ??
             throw new InvalidOperationException("No se pudo recuperar el cliente.");
