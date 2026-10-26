@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.23 (CI Windows pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.24 (compilación y CI Windows pendientes) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,15 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.24: auditoría de integridad y reimpresiones X
+
+- Se corrigió un problema de la v0.23: aunque un cobro tenía un único número X, se podían registrar varios intentos de impresión **ORIGINAL** para el mismo ticket.
+- Nueva migración **SQLite esquema 18** con respaldo previo, posterior al esquema 17 de recibos. El trigger `TR_TicketX_OriginalUnico` bloquea nuevos intentos ORIGINAL repetidos, sin borrar históricas que pudieran existir.
+- Se agrega validación en `RegistrarIntentoImpresionX`, con error explícito orientado a recuperar una **COPIA autorizada**, incluso cuando el intento anterior de impresión está pendiente o falló.
+- Nuevas pruebas para estados `Pendiente`, `Enviado`, `Error`, consultas, recuperación de históricos y acceso SQL directo.
+- La revisión estática comprobó **105 manejadores de eventos XAML**, migraciones, permisos y que el CI sigue manual y sin artefactos. Una prueba SQLite aislada también confirmó el bloqueo y que las copias siguen permitidas.
+- **Todavía no se compilaron ni ejecutaron tests C# en Windows** de v0.24. [Documentación de auditoría](docs/AUDITORIA_INTEGRIDAD_X_V24.md). No se generaron instaladores ni se hizo merge a `main`.
 
 ## Etapa v0.23: opción Ticket X desde cada cobro
 
