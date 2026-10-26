@@ -65,6 +65,9 @@ public static class PresentacionFiscalHomologacion
                     "La identidad comercial almacenada no coincide con el comprobante reservado.");
             if(datos.VersionPerfilEmisor is int version)
                 lineas.Add($"Perfil emisor utilizado: v{version} (snapshot historico)");
+            if(datos.ClienteFiscalId is Guid clienteId &&
+               datos.VersionClienteFiscal is int versionCliente)
+                lineas.Add($"Cliente fiscal vinculado: {clienteId:D} / v{versionCliente}");
             lineas.Add($"Emisor: {e.RazonSocial}");
             if(!string.IsNullOrWhiteSpace(e.NombreFantasia))
                 lineas.Add($"Nombre de fantasia: {e.NombreFantasia}");
