@@ -89,6 +89,7 @@ public sealed partial class AparcarDb
         InicializarV18Clientes();
         InicializarV19TicketsX();
         InicializarV21RecibosCobro();
+        InicializarV24IntegridadX();
     }
 
     public static string NormalizarPatente(string texto)
