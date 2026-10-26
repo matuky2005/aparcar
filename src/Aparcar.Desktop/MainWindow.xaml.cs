@@ -19,6 +19,8 @@ public sealed partial class MainWindow : Window
     private readonly AparcarDb _db;
     private Estadia? _estadiaSeleccionada;
     private bool _guardandoIngreso;
+    private bool _procesandoSalida;
+    private bool _procesandoImpresionCobro;
     private string? _impresora;
     private int _anchoTicket = 80;
     private CotizacionOperativa? _cotizacion;
@@ -164,6 +166,9 @@ public sealed partial class MainWindow : Window
             CajaCiegaTurnoCheck.IsEnabled=false;
         }
         ReimprimirTicketButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
+        ReciboCobroActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
+        ReciboCobroImprimirOriginalButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Impresion);
+        ReciboCobroImprimirCopiaButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Reimpresion);
         PrepararRestauracionButton.IsEnabled=
             RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
@@ -364,7 +369,12 @@ public sealed partial class MainWindow : Window
             ActualizarSectores();
             PatenteInput.Focus(FocusState.Programmatic);
         }
-        if (pantalla == "salida") BusquedaInput.Focus(FocusState.Programmatic);
+        if (pantalla == "salida")
+        {
+            if(RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Consulta))
+                ActualizarRecibosCobroV21();
+            BusquedaInput.Focus(FocusState.Programmatic);
+        }
         if (pantalla == "caja") ActualizarCaja();
         if (pantalla == "tarifas"){MostrarTarifaSeleccionada();ActualizarTarifasSector();}
         if (pantalla == "lavadero") RefrescarLavadero();
@@ -575,10 +585,7 @@ public sealed partial class MainWindow : Window
             ReferenciaElectronicaInput.Text = "";
             PagoVerificadoCheck.IsChecked = false;
             VueltoPrevistoText.Text = "";
-            if(MedioSeleccionado()==MediosPago.Efectivo)
-                EfectivoRecibidoInput.Focus(FocusState.Programmatic);
-            else
-                ReferenciaElectronicaInput.Focus(FocusState.Programmatic);
+            MedioPagoCombo.Focus(FocusState.Programmatic);
         }
         catch (Exception ex)
         {
@@ -606,7 +613,7 @@ public sealed partial class MainWindow : Window
 
     private void ConfirmarSalida_Click(object sender, RoutedEventArgs e)
     {
-        if (_cotizacion is null || _claveCobro == Guid.Empty) return;
+        if (_procesandoSalida || _cotizacion is null || _claveCobro == Guid.Empty) return;
         var medio=MedioSeleccionado();
         long entregado;
         try
@@ -617,6 +624,7 @@ public sealed partial class MainWindow : Window
         }
         catch(Exception ex){ Mensaje.Text="Importe: "+ex.Message;return; }
 
+        _procesandoSalida=true;
         ConfirmarSalidaButton.IsEnabled = false;
         try
         {
@@ -639,6 +647,9 @@ public sealed partial class MainWindow : Window
             ActualizarCaja();
             if (AutoImprimirCheck.IsChecked == true)
                 ImprimirCobroSeguro(cobro);
+            else
+                SalidaResultadoReciboText.Text="Cobro confirmado. Impresión automática desactivada; elegí el cobro en el historial para imprimir ORIGINAL.";
+            ActualizarRecibosCobroV21(cobro.Id);
             BusquedaInput.Focus(FocusState.Programmatic);
         }
         catch (Exception ex)
@@ -647,6 +658,10 @@ public sealed partial class MainWindow : Window
                 " Consultá la estadía y caja antes de reintentar.";
             ConfirmarSalidaButton.IsEnabled = false;
             _cotizacion = null;
+        }
+        finally
+        {
+            _procesandoSalida=false;
         }
     }
 
@@ -921,23 +936,140 @@ public sealed partial class MainWindow : Window
         catch(Exception ex){ Mensaje.Text="No se pudo cerrar caja: "+ex.Message; }
     }
 
-    private void ImprimirCobroSeguro(CobroConfirmadoV4 cobro)
+    private void ImprimirCobroSeguro(CobroConfirmadoV4 cobro,bool copia=false,
+        string motivo="",bool devuelto=false)
+    {
+        Guid intento=Guid.Empty;
+        try
+        {
+            // Persistir antes de enviarlo al driver: evita originales duplicados,
+            // inclusive tras reinicio, error del spooler o pérdida de energía.
+            intento=_db.RegistrarIntentoReciboCobroV21(cobro.Id,copia,motivo,_impresora??"");
+            var recibo=new CobroEfectivoConfirmado(cobro.Id,cobro.EstadiaId,cobro.Ticket,
+                cobro.ImporteCentavos,cobro.EntregadoCentavos,cobro.VueltoCentavos,cobro.FechaUtc);
+            TicketPrinter.ImprimirCobro(recibo,_impresora??"",_anchoTicket,
+                cobro.MedioPago,copia,devuelto);
+            _db.RegistrarResultadoReciboCobroV21(intento,true,
+                "Trabajo entregado al controlador Windows; salida en papel no confirmada.");
+            var texto=(copia?"COPIA":"ORIGINAL")+
+                $" del recibo #{cobro.Ticket:D7} enviada al controlador. "+
+                "No se creó otro cobro y no se confirma impresión física.";
+            SalidaResultadoReciboText.Text=texto;
+            Mensaje.Text+=" "+texto;
+        }
+        catch(Exception ex)
+        {
+            if(intento!=Guid.Empty)
+            {
+                try { _db.RegistrarResultadoReciboCobroV21(intento,false,ex.Message); }
+                catch { /* Conservar el problema inicial, incluidos errores de auditoría. */ }
+            }
+            var texto=$"El cobro #{cobro.Ticket:D7} SIGUE CONFIRMADO. "+
+                "No se pudo completar el envío del recibo: "+ex.Message+
+                ". NO repitas el cobro; consultá el historial de impresiones.";
+            SalidaResultadoReciboText.Text=texto;
+            Mensaje.Text+=" "+texto;
+        }
+    }
+
+    private void ActualizarRecibosCobroV21(Guid? seleccionar=null)
     {
         try
         {
-            var recibo=new CobroEfectivoConfirmado(cobro.Id,cobro.EstadiaId,cobro.Ticket,
-                cobro.ImporteCentavos,cobro.EntregadoCentavos,cobro.VueltoCentavos,cobro.FechaUtc);
-            TicketPrinter.ImprimirCobro(recibo,_impresora ?? "",_anchoTicket,cobro.MedioPago);
-            _db.RegistrarImpresion(cobro.EstadiaId,_impresora ?? "",true,
-                "Recibo de cobro: enviado al controlador Windows");
-            Mensaje.Text += " Recibo no fiscal enviado a impresora.";
+            var anterior=seleccionar?.ToString("D") ??
+                (RecibosCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            RecibosCobroCombo.Items.Clear();
+            foreach(var recibo in _db.ListarRecibosCobroV21(100))
+            {
+                var c=recibo.Cobro;
+                var item=new ComboBoxItem
+                {
+                    Tag=c.Id.ToString("D"),
+                    Content=$"{c.FechaUtc.ToLocalTime():dd/MM HH:mm} · "+
+                        $"#{c.Ticket:D7} · {c.MedioPago} · {Dinero(c.ImporteCentavos)} · "+
+                        (recibo.Devuelto?"DEVUELTO · ":"")+
+                        (recibo.TieneIntentoOriginal?
+                            $"Original registrado ({recibo.EstadoUltimaImpresion??"Pendiente"})":
+                            "Sin intento original registrado")
+                };
+                RecibosCobroCombo.Items.Add(item);
+                if(item.Tag?.ToString()==anterior)RecibosCobroCombo.SelectedItem=item;
+            }
+            ReciboCobroHistorialEstadoText.Text=
+                $"Últimos cobros consultados: {RecibosCobroCombo.Items.Count}. "+
+                "Una copia requiere motivo y permiso de supervisor. "+
+                "Si ya se imprimió con una versión anterior, revisá el papel antes de solicitar ORIGINAL.";
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
-            try { _db.RegistrarImpresion(cobro.EstadiaId,_impresora ?? "",false,
-                    "Error imprimiendo recibo de cobro: "+ex.Message); }
-            catch { /* Conservar el error de impresión original. */ }
-            Mensaje.Text += " EL COBRO ESTÁ CONFIRMADO, pero falló el recibo: "+ex.Message;
+            RecibosCobroCombo.Items.Clear();
+            ReciboCobroHistorialEstadoText.Text="No se pudo consultar el historial: "+ex.Message;
+        }
+    }
+
+    private void ReciboCobroActualizar_Click(object sender,RoutedEventArgs e)=>
+        ActualizarRecibosCobroV21();
+
+    private ReciboCobroV21 ReciboCobroElegidoV21()
+    {
+        if(!Guid.TryParse((RecibosCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+            out var cobroId))
+            throw new ArgumentException("Elegí un cobro confirmado del historial.");
+        return _db.ObtenerReciboCobroV21(cobroId);
+    }
+
+    private void ReciboCobroImprimirOriginal_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoImpresionCobro)return;
+        _procesandoImpresionCobro=true;
+        ReciboCobroImprimirOriginalButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Impresion);
+            var recibo=ReciboCobroElegidoV21();
+            if(recibo.TieneIntentoOriginal)
+                throw new InvalidOperationException(
+                    "Ya existe un intento de ORIGINAL. Usá COPIA autorizada.");
+            ImprimirCobroSeguro(recibo.Cobro,false,"",recibo.Devuelto);
+            ActualizarRecibosCobroV21(recibo.Cobro.Id);
+        }
+        catch(Exception ex)
+        {
+            ReciboCobroHistorialEstadoText.Text="No se envió ORIGINAL: "+ex.Message;
+        }
+        finally
+        {
+            _procesandoImpresionCobro=false;
+            ReciboCobroImprimirOriginalButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Impresion);
+        }
+    }
+
+    private void ReciboCobroImprimirCopia_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoImpresionCobro)return;
+        _procesandoImpresionCobro=true;
+        ReciboCobroImprimirCopiaButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Reimpresion);
+            var recibo=ReciboCobroElegidoV21();
+            var motivo=ReciboCobroMotivoCopiaInput.Text.Trim();
+            if(motivo.Length is <8 or >250)
+                throw new ArgumentException("Indicá un motivo de copia de 8 a 250 caracteres.");
+            ImprimirCobroSeguro(recibo.Cobro,true,motivo,recibo.Devuelto);
+            ReciboCobroMotivoCopiaInput.Text="";
+            ActualizarRecibosCobroV21(recibo.Cobro.Id);
+        }
+        catch(Exception ex)
+        {
+            ReciboCobroHistorialEstadoText.Text="No se envió COPIA: "+ex.Message;
+        }
+        finally
+        {
+            _procesandoImpresionCobro=false;
+            ReciboCobroImprimirCopiaButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Reimpresion);
         }
     }
 
