@@ -137,6 +137,11 @@ public sealed partial class MainWindow : Window
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         FiscalGuardarDatosDocumentoButton.IsEnabled=puedeConfigurar;
+        FiscalBuscarClientesButton.IsEnabled=puedeConfigurar;
+        FiscalAplicarClienteButton.IsEnabled=puedeConfigurar;
+        FiscalGuardarClienteButton.IsEnabled=puedeConfigurar;
+        FiscalVersionesClienteButton.IsEnabled=puedeConfigurar;
+        FiscalDesactivarClienteButton.IsEnabled=puedeConfigurar;
         FiscalConsultarConstanciaButton.IsEnabled=puedeConfigurar;
         FiscalConsultarConstanciaEmisorButton.IsEnabled=puedeConfigurar;
         FiscalGuardarPreferenciaCfButton.IsEnabled=puedeConfigurar;
@@ -958,6 +963,11 @@ public sealed partial class MainWindow : Window
     }
 
     private bool _procesandoFiscal;
+    private Guid? _clienteFiscalIdAplicado;
+    private int? _clienteFiscalVersionAplicada;
+    private string? _clienteFiscalCuitEmisorAplicado;
+    private ConstanciaInscripcionArca? _constanciaClienteConsultada;
+    private string? _constanciaClienteCuitEmisor;
     private int? _perfilFiscalVersionAplicada;
     private string? _perfilFiscalCuitAplicado;
     private System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> _condicionesIvaConsultadas=
@@ -982,6 +992,7 @@ public sealed partial class MainWindow : Window
         RefrescarFiscalHomologacion();
         RefrescarPerfilesFiscales();
         CargarPreferenciaCf();
+        RefrescarClientesFiscales();
     }
 
     private void RefrescarFiscalHomologacion()
@@ -1125,6 +1136,11 @@ public sealed partial class MainWindow : Window
         FiscalNombreReceptorInput.Text="CONSUMIDOR FINAL";
         FiscalDomicilioReceptorInput.Text="NR";
         FiscalCorreoReceptorInput.Text="";
+        _clienteFiscalIdAplicado=null;
+        _clienteFiscalVersionAplicada=null;
+        _clienteFiscalCuitEmisorAplicado=null;
+        _constanciaClienteConsultada=null;
+        _constanciaClienteCuitEmisor=null;
         FiscalPreferenciaCfEstadoText.Text=
             "Consumidor Final sin identificar aplicado desde catálogo oficial. "+
             "Podés sustituirlo por datos de un cliente identificado.";
@@ -1223,6 +1239,11 @@ public sealed partial class MainWindow : Window
                 throw new InvalidOperationException("Cambió el emisor o receptor durante la consulta; no se aplicaron datos.");
             FiscalNombreReceptorInput.Text=constancia.RazonSocial;
             FiscalDomicilioReceptorInput.Text=constancia.DomicilioFiscal;
+            _constanciaClienteConsultada=constancia;
+            _constanciaClienteCuitEmisor=cuitEmisor;
+            _clienteFiscalIdAplicado=null;
+            _clienteFiscalVersionAplicada=null;
+            _clienteFiscalCuitEmisorAplicado=null;
             FiscalConstanciaEstadoText.Text=
                 $"ARCA HOMOLOGACIÓN · {constancia.ConsultadaUtc.ToLocalTime():dd/MM/yyyy HH:mm} · "+
                 $"CUIT {constancia.Cuit} · {constancia.RazonSocial} · "+
@@ -1577,6 +1598,199 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void RefrescarClientesFiscales(Guid? seleccionar=null)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=ArcaCuitInput.Text.Trim();
+            var buscar=FiscalBuscarClientesInput.Text.Trim();
+            if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+            {
+                FiscalClientesCombo.Items.Clear();
+                FiscalClientesEstadoText.Text=
+                    "Ingresá un CUIT emisor válido para consultar su cartera de clientes.";
+                return;
+            }
+            var clientes=_db.BuscarClientesFiscales(cuit,buscar,100);
+            FiscalClientesCombo.Items.Clear();
+            foreach(var cliente in clientes)
+            {
+                var item=new ComboBoxItem
+                {
+                    Tag=cliente.Id.ToString("D"),
+                    Content=$"{cliente.Receptor.DocumentoNumero} · {cliente.Receptor.Nombre} · "+
+                        $"v{cliente.Version}"
+                };
+                FiscalClientesCombo.Items.Add(item);
+                if(cliente.Id==seleccionar)FiscalClientesCombo.SelectedItem=item;
+            }
+            FiscalClientesEstadoText.Text=$"{clientes.Count} cliente(s) encontrados para CUIT {cuit}. "+
+                "Se muestran hasta 100 coincidencias.";
+        }
+        catch(Exception ex)
+        {
+            FiscalClientesEstadoText.Text="No se pudo buscar clientes: "+ex.Message;
+        }
+    }
+
+    private Guid ClienteFiscalElegidoId()
+    {
+        if(!Guid.TryParse((FiscalClientesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var id))
+            throw new ArgumentException("Seleccioná un cliente guardado.");
+        return id;
+    }
+
+    private ReceptorDocumentoFiscal CapturarReceptorFiscalCliente()
+    {
+        if(!int.TryParse((FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var tipo) ||
+           !long.TryParse(FiscalDocNumeroInput.Text.Trim(),out var numero))
+            throw new ArgumentException("Ingresá tipo y número de documento válidos.");
+        int iva=0;
+        if(int.TryParse((FiscalCondicionIvaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out var idIva) &&
+           _condicionesIvaCuit==ArcaCuitInput.Text.Trim() &&
+           _condicionesIvaFechaUtc>=DateTimeOffset.UtcNow.AddMinutes(-30) &&
+           _condicionesIvaConsultadas.Any(x=>x.Id==idIva && x.Clase==
+                (_condicionesIvaTipo==1?"A":_condicionesIvaTipo==6?"B":"C")))
+            iva=idIva;
+        return new ReceptorDocumentoFiscal(
+            FiscalNombreReceptorInput.Text.Trim(),FiscalDomicilioReceptorInput.Text.Trim(),
+            tipo,numero,iva,FiscalCorreoReceptorInput.Text.Trim());
+    }
+
+    private void FiscalBuscarClientes_Click(object sender,RoutedEventArgs e)=>
+        RefrescarClientesFiscales();
+
+    private void FiscalGuardarCliente_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=ArcaCuitInput.Text.Trim();
+            var receptor=CapturarReceptorFiscalCliente();
+            var ultima=_constanciaClienteConsultada;
+            bool verificada=ultima is not null &&
+                _constanciaClienteCuitEmisor==cuit &&
+                ultima.Cuit==receptor.DocumentoNumero.ToString(CultureInfo.InvariantCulture) &&
+                receptor.DocumentoTipo==80 &&
+                ultima.RazonSocial==receptor.Nombre &&
+                ultima.DomicilioFiscal==receptor.Domicilio;
+            var guardado=_db.GuardarClienteFiscal(cuit,receptor,
+                verificada?"ConstanciaHomologacion":"Manual",
+                verificada?ultima!.ConsultadaUtc:null);
+            _clienteFiscalIdAplicado=guardado.Id;
+            _clienteFiscalVersionAplicada=guardado.Version;
+            _clienteFiscalCuitEmisorAplicado=cuit;
+            RefrescarClientesFiscales(guardado.Id);
+            FiscalClientesEstadoText.Text=
+                $"Cliente {guardado.Receptor.DocumentoNumero} guardado (v{guardado.Version}). "+
+                (verificada?"Origen: constancia de homologación ARCA. ":
+                    "Origen: datos revisados manualmente. ")+
+                "La versión se conservará en la solicitud fiscal.";
+        }
+        catch(Exception ex)
+        {
+            FiscalClientesEstadoText.Text="No se pudo guardar el cliente: "+ex.Message;
+        }
+    }
+
+    private void FiscalAplicarCliente_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var id=ClienteFiscalElegidoId();
+            var cliente=_db.ObtenerClienteFiscal(id) ??
+                throw new InvalidOperationException("Cliente no encontrado.");
+            if(!cliente.Activo)
+                throw new InvalidOperationException("El cliente está desactivado.");
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(cliente.CuitEmisor!=cuit)
+                throw new InvalidOperationException("El cliente no pertenece al CUIT emisor seleccionado.");
+            var receptor=cliente.Receptor;
+            // Priorizar un cliente identificado por encima del CF predeterminado.
+            FiscalIdentificarPorSolicitudClienteCheck.IsChecked=true;
+            var item=FiscalDocTipoCombo.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(x=>x.Tag?.ToString()==receptor.DocumentoTipo.ToString(
+                    CultureInfo.InvariantCulture))
+                ??throw new InvalidOperationException("Tipo de documento no disponible.");
+            FiscalDocTipoCombo.SelectedItem=item;
+            FiscalDocNumeroInput.Text=receptor.DocumentoNumero.ToString(CultureInfo.InvariantCulture);
+            FiscalNombreReceptorInput.Text=receptor.Nombre;
+            FiscalDomicilioReceptorInput.Text=receptor.Domicilio;
+            FiscalCorreoReceptorInput.Text=receptor.Correo??"";
+            // Un ID IVA histórico no sustituye la consulta vigente del catálogo de ARCA.
+            FiscalCondicionIvaCombo.SelectedItem=null;
+            var clase=(ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            if(_condicionesIvaCuit==cuit &&
+               _condicionesIvaFechaUtc>=DateTimeOffset.UtcNow.AddMinutes(-30) &&
+               clase==_condicionesIvaTipo.ToString(CultureInfo.InvariantCulture))
+            {
+                var permitido=_condicionesIvaConsultadas.Any(x=>
+                    x.Id==receptor.CondicionIvaId);
+                if(permitido)
+                    FiscalCondicionIvaCombo.SelectedItem=
+                        FiscalCondicionIvaCombo.Items.OfType<ComboBoxItem>()
+                            .FirstOrDefault(x=>x.Tag?.ToString()==
+                                receptor.CondicionIvaId.ToString(CultureInfo.InvariantCulture));
+            }
+            _constanciaClienteConsultada=null;
+            _constanciaClienteCuitEmisor=null;
+            _clienteFiscalIdAplicado=id;
+            _clienteFiscalVersionAplicada=cliente.Version;
+            _clienteFiscalCuitEmisorAplicado=cuit;
+            FiscalClientesEstadoText.Text=
+                $"Cliente cargado desde cartera: versión {cliente.Version}, "+
+                $"origen {cliente.OrigenDatos}. Verificá condición IVA desde catálogo ARCA. "+
+                "Si cambiás datos, guardá una nueva versión antes del snapshot fiscal.";
+        }
+        catch(Exception ex)
+        {
+            FiscalClientesEstadoText.Text="No se aplicó el cliente: "+ex.Message;
+        }
+    }
+
+    private void FiscalVersionesCliente_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var versiones=_db.ListarVersionesClienteFiscal(ClienteFiscalElegidoId(),12);
+            FiscalClientesEstadoText.Text="Versiones guardadas: "+
+                string.Join(" | ",versiones.Select(x=>
+                    $"v{x.Version} ({x.ModificadoUtc.ToLocalTime():dd/MM/yyyy HH:mm})"));
+        }
+        catch(Exception ex)
+        {
+            FiscalClientesEstadoText.Text="No se consultaron versiones: "+ex.Message;
+        }
+    }
+
+    private void FiscalDesactivarCliente_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var id=ClienteFiscalElegidoId();
+            _db.DesactivarClienteFiscal(id);
+            if(_clienteFiscalIdAplicado==id)
+            {
+                _clienteFiscalIdAplicado=null;
+                _clienteFiscalVersionAplicada=null;
+                _clienteFiscalCuitEmisorAplicado=null;
+            }
+            RefrescarClientesFiscales();
+            FiscalClientesEstadoText.Text=
+                "Cliente desactivado en la cartera. No se alteraron comprobantes históricos.";
+        }
+        catch(Exception ex)
+        {
+            FiscalClientesEstadoText.Text="No se desactivó el cliente: "+ex.Message;
+        }
+    }
+
     private void FiscalGuardarDatosDocumento_Click(object sender,RoutedEventArgs e)
     {
         try
@@ -1594,7 +1808,11 @@ public sealed partial class MainWindow : Window
                 FiscalDescripcionServicioInput.Text.Trim(),
                 FiscalCondicionVentaInput.Text.Trim(),
                 _perfilFiscalCuitAplicado==solicitud.CuitEmisor?
-                    _perfilFiscalVersionAplicada:null);
+                    _perfilFiscalVersionAplicada:null,
+                _clienteFiscalCuitEmisorAplicado==solicitud.CuitEmisor?
+                    _clienteFiscalIdAplicado:null,
+                _clienteFiscalCuitEmisorAplicado==solicitud.CuitEmisor?
+                    _clienteFiscalVersionAplicada:null);
             _db.RegistrarDatosDocumentoFiscalPrueba(solicitud.Id,datos);
             FiscalResultadoText.Text="Identidad comercial de HOMOLOGACIÓN guardada y congelada "+
                 "para esta solicitud. No equivale a emitir una factura.";
