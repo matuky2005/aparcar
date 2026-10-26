@@ -33,7 +33,8 @@ internal static class TicketPrinter
     }
 
     /// <summary>Recibo no fiscal: acredita un cobro confirmado por el operador.</summary>
-    public static void ImprimirCobro(CobroEfectivoConfirmado cobro,string impresora,int anchoMm,string medioPago = "Efectivo")
+    public static void ImprimirCobro(CobroEfectivoConfirmado cobro,string impresora,int anchoMm,
+        string medioPago = "Efectivo",bool copia=false,bool devuelto=false)
     {
         if (string.IsNullOrWhiteSpace(impresora))
             throw new InvalidOperationException("Seleccioná una impresora en Configuración.");
@@ -42,7 +43,7 @@ internal static class TicketPrinter
         if(!documento.PrinterSettings.IsValid)
             throw new InvalidOperationException("La impresora no está disponible en Windows.");
         int ancho=anchoMm==58 ? 228 : 315;
-        documento.DocumentName=$"Aparcar cobro {cobro.Ticket:D7}";
+        documento.DocumentName=$"Aparcar cobro {cobro.Ticket:D7}"+(copia?" COPIA":" ORIGINAL");
         documento.PrintController=new StandardPrintController();
         documento.DefaultPageSettings.PaperSize=new PaperSize("Recibo Aparcar",ancho,550);
         documento.DefaultPageSettings.Margins=new Margins(0,0,0,0);
@@ -66,12 +67,14 @@ internal static class TicketPrinter
             }
             Linea("APARCAR",t,34,true);
             Linea("COMPROBANTE NO FISCAL",b,30,true);
+            Linea(copia?"COPIA - REIMPRESIÓN":"ORIGINAL",b,27,true);
             Linea($"TICKET #{cobro.Ticket:D7}",b);
             Linea($"FECHA: {cobro.FechaUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}",n);
             Linea($"MEDIO: {medioPago.ToUpperInvariant()}",n);
             Linea($"TOTAL: {(cobro.ImporteCentavos/100m):N2}",b);
             Linea($"RECIBIDO: {(cobro.EfectivoRecibidoCentavos/100m):N2}",n);
             Linea($"VUELTO: {(cobro.VueltoCentavos/100m):N2}",b);
+            if(devuelto) Linea("COBRO DEVUELTO - DOCUMENTO HISTÓRICO",b,32,true);
             y+=8;
             Linea("Gracias por su visita.",n,25,true);
             Linea("No reemplaza factura ni ticket fiscal.",n,30,true);
