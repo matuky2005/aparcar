@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using Aparcar.Domain;
 using Microsoft.Data.Sqlite;
@@ -65,6 +66,18 @@ public sealed partial class AparcarDb
             """;
         cmd.ExecuteNonQuery();
         tx.Commit();
+    }
+
+    private static string NormalizarBusquedaCliente(string valor)
+    {
+        var texto=valor.Normalize(NormalizationForm.FormD);
+        var salida=new StringBuilder(texto.Length);
+        foreach(var ch in texto)
+        {
+            if(CharUnicodeInfo.GetUnicodeCategory(ch)!=UnicodeCategory.NonSpacingMark)
+                salida.Append(char.ToLowerInvariant(ch));
+        }
+        return salida.ToString().Normalize(NormalizationForm.FormC);
     }
 
     public static void ValidarClienteFiscal(ReceptorDocumentoFiscal r)
@@ -199,7 +212,7 @@ public sealed partial class AparcarDb
             insertar.Parameters.AddWithValue("$cuit",cuitEmisor);
             insertar.Parameters.AddWithValue("$tipo",receptor.DocumentoTipo);
             insertar.Parameters.AddWithValue("$numero",receptor.DocumentoNumero);
-            insertar.Parameters.AddWithValue("$nombre",receptor.Nombre.Trim());
+            insertar.Parameters.AddWithValue("$nombre",NormalizarBusquedaCliente(receptor.Nombre.Trim()));
             insertar.Parameters.AddWithValue("$fecha",ahora);
             insertar.ExecuteNonQuery();
         }
@@ -234,7 +247,7 @@ public sealed partial class AparcarDb
                 WHERE Id=$id;
                 """;
             actualizar.Parameters.AddWithValue("$version",nuevaVersion);
-            actualizar.Parameters.AddWithValue("$nombre",receptor.Nombre.Trim());
+            actualizar.Parameters.AddWithValue("$nombre",NormalizarBusquedaCliente(receptor.Nombre.Trim()));
             actualizar.Parameters.AddWithValue("$fecha",ahora);
             actualizar.Parameters.AddWithValue("$id",id.ToString("D"));
             if(actualizar.ExecuteNonQuery()!=1)
@@ -282,13 +295,13 @@ public sealed partial class AparcarDb
                  ON v.ClienteId=c.Id AND v.Version=c.VersionActual
             WHERE c.CuitEmisor=$cuit AND c.Activo=1
               AND ($busca='' OR CAST(c.DocNumero AS TEXT) LIKE $documento
-                   OR LOWER(c.NombreBusqueda) LIKE $nombre ESCAPE '\')
+                   OR c.NombreBusqueda LIKE $nombre ESCAPE '\')
             ORDER BY c.ActualizadoUtc DESC LIMIT $max;
             """;
         cmd.Parameters.AddWithValue("$cuit",cuitEmisor);
         cmd.Parameters.AddWithValue("$busca",filtro);
         cmd.Parameters.AddWithValue("$documento",filtro+"%");
-        string escapar=filtro.ToLowerInvariant()
+        string escapar=NormalizarBusquedaCliente(filtro)
             .Replace("\\","\\\\").Replace("%","\\%").Replace("_","\\_");
         cmd.Parameters.AddWithValue("$nombre","%"+escapar+"%");
         cmd.Parameters.AddWithValue("$max",max);
