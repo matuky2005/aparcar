@@ -394,6 +394,20 @@ public sealed partial class AparcarDb
             if(Convert.ToInt32(check.ExecuteScalar(),CultureInfo.InvariantCulture)!=1)
                 throw new InvalidOperationException("Ticket X inexistente.");
         }
+        if(!copia)
+        {
+            using var revisar=db.CreateCommand();
+            revisar.Transaction=tx;
+            revisar.CommandText="""
+                SELECT COUNT(*) FROM ImpresionesX
+                WHERE TicketXId=$ticket AND EsCopia=0;
+                """;
+            revisar.Parameters.AddWithValue("$ticket",ticketId.ToString("D"));
+            if(Convert.ToInt64(revisar.ExecuteScalar(),CultureInfo.InvariantCulture)>0)
+                throw new InvalidOperationException(
+                    "El ticket X ya tiene un intento ORIGINAL. Para recuperar papel, " +
+                    "solicitá una COPIA autorizada; no se repite el original.");
+        }
         var id=Guid.NewGuid();
         using(var cmd=db.CreateCommand())
         {
@@ -409,7 +423,13 @@ public sealed partial class AparcarDb
             cmd.Parameters.AddWithValue("$motivo",motivo);
             cmd.Parameters.AddWithValue("$impresora",impresora.Trim());
             cmd.Parameters.AddWithValue("$fecha",DateTimeOffset.UtcNow.ToString("O"));
-            cmd.ExecuteNonQuery();
+            try {cmd.ExecuteNonQuery();}
+            catch(SqliteException ex) when(!copia && ex.SqliteErrorCode==19)
+            {
+                throw new InvalidOperationException(
+                    "La impresión ORIGINAL ya fue solicitada. El duplicado se bloqueó " +
+                    "en SQLite; pedí COPIA autorizada.",ex);
+            }
         }
         AuditarSesion(db,tx,copia?"TicketX.Reimpresion":"TicketX.Impresion",ticketId.ToString("D"),
             copia?$"Solicitada copia. Motivo: {motivo}":"Solicitada impresión original X");
