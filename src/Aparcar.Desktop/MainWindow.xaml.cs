@@ -28,6 +28,9 @@ public sealed partial class MainWindow : Window
     private ResumenRecaudacion? _reporteActual;
     private System.Collections.Generic.List<UsuarioListado> _usuariosActuales = new();
     private System.Collections.Generic.IReadOnlyList<Estadia> _coincidenciasRapidasV22=Array.Empty<Estadia>();
+    private CotizacionOperativa? _cotizacionInicioV23;
+    private Guid _claveInicioV23=Guid.Empty;
+    private bool _procesandoInicioV23;
     private System.Collections.Generic.List<ServicioLavado> _serviciosLavado=new();
     private System.Collections.Generic.List<OrdenLavado> _ordenesLavado=new();
     private System.Collections.Generic.List<PlanAbono> _planesAbono=new();
@@ -176,6 +179,7 @@ public sealed partial class MainWindow : Window
         InicioIrSalidaButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
         InicioPrepararSalidaButton.IsEnabled=false;
         InicioEstimarSalidaButton.IsEnabled=false;
+        CancelarPreparacionInicioV23();
         PrepararRestauracionButton.IsEnabled=
             RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
@@ -457,6 +461,7 @@ public sealed partial class MainWindow : Window
 
     private void LimpiarBusquedaRapidaV22()
     {
+        CancelarPreparacionInicioV23();
         _coincidenciasRapidasV22=Array.Empty<Estadia>();
         InicioCoincidenciasList.ItemsSource=null;
         InicioBusquedaInput.Text="";
@@ -464,6 +469,23 @@ public sealed partial class MainWindow : Window
         InicioEstimacionText.Text="";
         InicioEstimarSalidaButton.IsEnabled=false;
         InicioPrepararSalidaButton.IsEnabled=false;
+    }
+
+    private void CancelarPreparacionInicioV23()
+    {
+        _cotizacionInicioV23=null;
+        _claveInicioV23=Guid.Empty;
+        InicioCobroPanelV23.Visibility=Visibility.Collapsed;
+        InicioConfirmarCobroButton.IsEnabled=false;
+        InicioCobroEmitirXCheck.IsChecked=false;
+        InicioCobroReferenciaInput.Text="";
+        InicioCobroRecibidoInput.Text="";
+        InicioCobroVerificadoCheck.IsChecked=false;
+        InicioCobroVueltoText.Text="";
+        InicioCobroEstadoText.Text="";
+        InicioCobroDetalleText.Text="";
+        InicioCobroImporteText.Text="";
+        InicioCobroVigenciaText.Text="";
     }
 
     private void InicioBusqueda_KeyDown(object sender,KeyRoutedEventArgs e)
@@ -475,6 +497,7 @@ public sealed partial class MainWindow : Window
 
     private void InicioBuscar_Click(object sender,RoutedEventArgs e)
     {
+        CancelarPreparacionInicioV23();
         _coincidenciasRapidasV22=Array.Empty<Estadia>();
         InicioCoincidenciasList.ItemsSource=null;
         InicioEstimacionText.Text="";
@@ -511,6 +534,7 @@ public sealed partial class MainWindow : Window
 
     private void InicioCoincidencias_SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
+        CancelarPreparacionInicioV23();
         var hay=InicioCoincidenciasList.SelectedIndex>=0 &&
             InicioCoincidenciasList.SelectedIndex<_coincidenciasRapidasV22.Count;
         var rol=_db?.SesionActual?.Rol??"";
@@ -542,25 +566,226 @@ public sealed partial class MainWindow : Window
 
     private void InicioPrepararSalida_Click(object sender,RoutedEventArgs e)
     {
+        CancelarPreparacionInicioV23();
         try
         {
             _db.ExigirPermiso(PermisosAparcar.Cobro);
             var elegido=EstadiaRapidaSeleccionadaV22();
             var actual=_db.BuscarActiva(elegido.Ticket.ToString(CultureInfo.InvariantCulture));
             if(actual is null || actual.Id!=elegido.Id)
-                throw new InvalidOperationException("El vehículo ya no está presente. Actualizá.");
-            Navegacion.SelectedItem=Navegacion.MenuItems[2];
-            BusquedaInput.Text=elegido.Ticket.ToString(CultureInfo.InvariantCulture);
-            Buscar_Click(sender,new RoutedEventArgs());
-            if(_cotizacion is null)
-                throw new InvalidOperationException("No se pudo preparar la cotización actual.");
-            Mensaje.Text=$"Salida #{elegido.Ticket:D7} preparada. "+
-                "Comprobá medio de pago y confirmá manualmente para cobrar.";
+                throw new InvalidOperationException("El vehículo ya no está presente. Actualizá la búsqueda.");
+            _cotizacionInicioV23=_db.CotizarSalida(actual.Id);
+            _claveInicioV23=Guid.NewGuid();
+            var c=_cotizacionInicioV23;
+            InicioCobroDetalleText.Text=
+                $"Ticket #{c.Ticket:D7} · {c.Patente} · {c.TipoVehiculo} · "+
+                $"{actual.Sector} · Ingreso {actual.IngresoUtc.ToLocalTime():dd/MM HH:mm}";
+            InicioCobroImporteText.Text="Total estimado: "+Dinero(c.ImporteCentavos);
+            InicioCobroVigenciaText.Text=
+                $"Vence a las {c.VenceUtc.ToLocalTime():HH:mm:ss}. "+
+                "Se recalcula dentro de la transacción al confirmar; un cambio de tarifa/tiempo exige reconfirmar.";
+            InicioCobroMedioCombo.SelectedIndex=0;
+            InicioCobroRecibidoInput.Text=c.CubiertoPorAbono?"0":"";
+            InicioCobroReferenciaInput.Text="";
+            InicioCobroVerificadoCheck.IsChecked=false;
+            InicioCobroEmitirXCheck.IsChecked=false;
+            InicioCobroPanelV23.Visibility=Visibility.Visible;
+            InicioConfirmarCobroButton.IsEnabled=c.TurnoId.HasValue;
+            InicioCobroEstadoText.Text=c.TurnoId.HasValue
+                ?"Confirmá únicamente si recibiste el dinero o verificaste el pago."
+                :"No hay turno de caja abierto. Abrí uno desde Caja antes de cobrar.";
+            InicioCobroMedioCombo.Focus(FocusState.Programmatic);
+            InicioBusquedaEstadoText.Text="Salida preparada SIN COBRAR. Revisá medio, total y comprobante.";
         }
         catch(Exception ex)
         {
-            InicioBusquedaEstadoText.Text="Salida no preparada: "+ex.Message;
-            Mensaje.Text="No se confirmó ningún cobro por la búsqueda rápida.";
+            CancelarPreparacionInicioV23();
+            InicioBusquedaEstadoText.Text="Caja rápida no preparada: "+ex.Message;
+        }
+    }
+
+    private string InicioCobroMedioSeleccionadoV23() =>
+        (InicioCobroMedioCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??MediosPago.Efectivo;
+
+    private void InicioCobroMedio_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(InicioCobroEfectivoPanel is null || InicioCobroElectronicoPanel is null)return;
+        var efectivo=InicioCobroMedioSeleccionadoV23()==MediosPago.Efectivo;
+        InicioCobroEfectivoPanel.Visibility=efectivo?Visibility.Visible:Visibility.Collapsed;
+        InicioCobroElectronicoPanel.Visibility=efectivo?Visibility.Collapsed:Visibility.Visible;
+        InicioCobroVueltoV23();
+    }
+
+    private void InicioCobroRecibido_TextChanged(object sender,TextChangedEventArgs e)=>
+        InicioCobroVueltoV23();
+
+    private void InicioCobroVueltoV23()
+    {
+        if(InicioCobroVueltoText is null)return;
+        var c=_cotizacionInicioV23;
+        if(c is null){InicioCobroVueltoText.Text="";return;}
+        if(InicioCobroMedioSeleccionadoV23()!=MediosPago.Efectivo)
+        {
+            InicioCobroVueltoText.Text="Pago electrónico: "+Dinero(c.ImporteCentavos)+
+                " (exacto; debe acreditarse y verificarse manualmente).";
+            return;
+        }
+        try
+        {
+            var efectivo=LeerImporte(InicioCobroRecibidoInput.Text);
+            InicioCobroVueltoText.Text=efectivo>=c.ImporteCentavos
+                ?"Vuelto estimado: "+Dinero(efectivo-c.ImporteCentavos)
+                :"Faltante: "+Dinero(c.ImporteCentavos-efectivo);
+        }
+        catch {InicioCobroVueltoText.Text="Ingresá el efectivo recibido para calcular el vuelto.";}
+    }
+
+    private void InicioCobroMedio_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter || InicioCobroMedioCombo.IsDropDownOpen)return;
+        e.Handled=true;
+        if(InicioCobroMedioSeleccionadoV23()==MediosPago.Efectivo)
+            InicioCobroRecibidoInput.Focus(FocusState.Programmatic);
+        else
+            InicioCobroReferenciaInput.Focus(FocusState.Programmatic);
+    }
+
+    private void InicioCobroRecibido_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        InicioConfirmarCobroButton.Focus(FocusState.Programmatic);
+    }
+
+    private void InicioCobroReferencia_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        InicioCobroVerificadoCheck.Focus(FocusState.Programmatic);
+    }
+
+    private void InicioCobroVerificado_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        // La verificación externa SOLO se tilda con Espacio o clic del operador.
+        InicioConfirmarCobroButton.Focus(FocusState.Programmatic);
+    }
+
+    private void InicioIrFormularioSalida_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Cobro);
+            if(_cotizacionInicioV23 is null)throw new InvalidOperationException("Prepará primero la salida.");
+            var ticket=_cotizacionInicioV23.Ticket;
+            CancelarPreparacionInicioV23();
+            Navegacion.SelectedItem=Navegacion.MenuItems[2];
+            BusquedaInput.Text=ticket.ToString(CultureInfo.InvariantCulture);
+            Buscar_Click(sender,new RoutedEventArgs());
+            Mensaje.Text="Salida abierta en el formulario completo. Aún NO se cobró.";
+        }
+        catch(Exception ex){InicioBusquedaEstadoText.Text="No se pudo abrir la salida: "+ex.Message;}
+    }
+
+    private void InicioCancelarCobro_Click(object sender,RoutedEventArgs e)
+    {
+        CancelarPreparacionInicioV23();
+        InicioBusquedaEstadoText.Text="Se canceló la preparación. No se generó ningún cobro.";
+    }
+
+    private void InicioConfirmarCobro_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoInicioV23 || _cotizacionInicioV23 is null ||
+           _claveInicioV23==Guid.Empty || !InicioConfirmarCobroButton.IsEnabled)return;
+
+        var c=_cotizacionInicioV23;
+        var medio=InicioCobroMedioSeleccionadoV23();
+        var referencia=InicioCobroReferenciaInput.Text;
+        bool verificado=InicioCobroVerificadoCheck.IsChecked==true;
+        long entregado;
+        string? talonarioX;
+        try
+        {
+            entregado=medio==MediosPago.Efectivo
+                ?LeerImporte(InicioCobroRecibidoInput.Text):c.ImporteCentavos;
+            PoliticaCobroRapidoV23.Validar(c.ImporteCentavos,medio,entregado,
+                referencia,verificado);
+            // No registrar el pago si faltan talonario o impresora del X solicitado.
+            talonarioX=PrepararXAntesDelCobro(InicioCobroEmitirXCheck.IsChecked==true);
+        }
+        catch(Exception ex)
+        {
+            InicioCobroEstadoText.Text="NO se cobró: "+ex.Message;
+            return;
+        }
+        _procesandoInicioV23=true;
+        InicioConfirmarCobroButton.IsEnabled=false;
+        CobroConfirmadoV4? cobro=null;
+        try
+        {
+            cobro=_db.ConfirmarPago(c,medio,entregado,referencia,verificado,_claveInicioV23);
+            // Se invalida inmediatamente la cotización, antes de refrescar o imprimir.
+            _cotizacionInicioV23=null;
+            _claveInicioV23=Guid.Empty;
+            var resumen=$"Cobro #{cobro.Ticket:D7} CONFIRMADO · {medio} · "+
+                Dinero(cobro.ImporteCentavos)+
+                (medio==MediosPago.Efectivo?$" · Vuelto: {Dinero(cobro.VueltoCentavos)}":
+                    " · Pago externo verificado por operador");
+            InicioCobroEstadoText.Text=resumen;
+            Mensaje.Text=resumen;
+            InicioCobroImporteText.Text="";
+            InicioCobroVigenciaText.Text="";
+            InicioCobroEmitirXCheck.IsChecked=false;
+            InicioCobroVerificadoCheck.IsChecked=false;
+            InicioCobroRecibidoInput.Text="";
+            InicioCobroReferenciaInput.Text="";
+            try {Refrescar();ActualizarCaja();}
+            catch(Exception ex)
+            {
+                InicioCobroEstadoText.Text+=". No se pudo actualizar la vista: "+ex.Message+
+                    ". El cobro SIGUE CONFIRMADO; no lo repitas.";
+            }
+            if(talonarioX is not null)
+            {
+                var resultadoX=EmitirXDespuesDelCobro(talonarioX,"Estacionamiento",cobro.Id);
+                InicioCobroEstadoText.Text+=". "+resultadoX;
+                Mensaje.Text+=". "+resultadoX;
+            }
+            else if(AutoImprimirCheck.IsChecked==true)
+            {
+                ImprimirCobroSeguro(cobro);
+                InicioCobroEstadoText.Text+=". "+SalidaResultadoReciboText.Text;
+            }
+            else
+                InicioCobroEstadoText.Text+=". Recibo no impreso por configuración. "+
+                    "Podés imprimirlo desde Salida y cobro > Historial.";
+            InicioBusquedaEstadoText.Text=
+                $"Ticket #{cobro.Ticket:D7} finalizado y cobrado. Buscá otro vehículo.";
+            _coincidenciasRapidasV22=Array.Empty<Estadia>();
+            InicioCoincidenciasList.ItemsSource=null;
+            InicioBusquedaInput.Text="";
+            InicioCobroPanelV23.Visibility=Visibility.Collapsed;
+            InicioCobroEmitirXCheck.IsChecked=false;
+            InicioPanelEstadoText.Text=InicioCobroEstadoText.Text;
+            InicioBusquedaInput.Focus(FocusState.Programmatic);
+        }
+        catch(Exception ex)
+        {
+            InicioCobroEstadoText.Text=cobro is null
+                ?"No se pudo confirmar o verificar el cobro: "+ex.Message+
+                    ". Revisá caja y estadía antes de volver a intentarlo."
+                :$"Cobro #{cobro.Ticket:D7} YA CONFIRMADO, pero falló una acción posterior: "+
+                    ex.Message+". No vuelvas a cobrar.";
+            InicioPanelEstadoText.Text=InicioCobroEstadoText.Text;
+            _cotizacionInicioV23=null;
+            _claveInicioV23=Guid.Empty;
+            InicioCobroEmitirXCheck.IsChecked=false;
+        }
+        finally
+        {
+            _procesandoInicioV23=false;
+            InicioConfirmarCobroButton.IsEnabled=false;
         }
     }
 
@@ -802,6 +1027,8 @@ public sealed partial class MainWindow : Window
         string? talonarioX;
         try
         {
+            PoliticaCobroRapidoV23.Validar(_cotizacion.ImporteCentavos,medio,entregado,
+                ReferenciaElectronicaInput.Text,PagoVerificadoCheck.IsChecked==true);
             talonarioX=PrepararXAntesDelCobro(SalidaEmitirXCheck.IsChecked==true);
         }
         catch(Exception ex)
