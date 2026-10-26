@@ -677,6 +677,32 @@ public sealed partial class MainWindow : Window
     private static string EditarImporte(long centavos) =>
         (centavos / 100m).ToString("0.##", CultureInfo.GetCultureInfo("es-AR"));
 
+    private void MedioPagoCombo_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter || MedioPagoCombo.IsDropDownOpen)return;
+        e.Handled=true;
+        if(MedioSeleccionado()==MediosPago.Efectivo)
+            EfectivoRecibidoInput.Focus(FocusState.Programmatic);
+        else
+            ReferenciaElectronicaInput.Focus(FocusState.Programmatic);
+    }
+
+    private void ReferenciaElectronicaInput_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        // Solo se avanza el foco. Aparcar jamás verifica un pago automáticamente.
+        PagoVerificadoCheck.Focus(FocusState.Programmatic);
+    }
+
+    private void PagoVerificadoCheck_KeyDown(object sender,KeyRoutedEventArgs e)
+    {
+        if(e.Key!=VirtualKey.Enter)return;
+        e.Handled=true;
+        // La aprobación explícita se activa con Espacio o clic del operador.
+        ConfirmarSalidaButton.Focus(FocusState.Programmatic);
+    }
+
     private void EfectivoRecibidoInput_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key != VirtualKey.Enter) return;
@@ -2407,18 +2433,27 @@ public sealed partial class MainWindow : Window
         Buscar_Click(sender, new RoutedEventArgs());
     }
 
-    private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
+    private void RootGrid_KeyDown(object sender,KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.F2)
-            Navegacion.SelectedItem = Navegacion.MenuItems[1];
-        else if (e.Key == VirtualKey.F4)
-            Navegacion.SelectedItem = Navegacion.MenuItems[2];
-        else if (e.Key == VirtualKey.F8)
-            Navegacion.SelectedItem = Navegacion.MenuItems[3];
-        else if (e.Key == VirtualKey.F10 && IngresoPanel.Visibility == Visibility.Visible)
-            Ingresar_Click(sender, new RoutedEventArgs());
+        if(PantallaAcceso.Visibility==Visibility.Visible || _db.SesionActual is null)return;
+        if(e.Key==VirtualKey.F2 &&
+           RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Ingreso))
+            Navegacion.SelectedItem=Navegacion.MenuItems[1];
+        else if(e.Key==VirtualKey.F4 &&
+                RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Cobro))
+            Navegacion.SelectedItem=Navegacion.MenuItems[2];
+        else if(e.Key==VirtualKey.F8)
+            Navegacion.SelectedItem=Navegacion.MenuItems[3];
+        else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible)
+            Buscar_Click(sender,new RoutedEventArgs());
+        else if(e.Key==VirtualKey.F10 && IngresoPanel.Visibility==Visibility.Visible
+                && GuardarIngresoButton.IsEnabled && !_guardandoIngreso)
+            Ingresar_Click(sender,new RoutedEventArgs());
+        else if(e.Key==VirtualKey.F10 && SalidaPanel.Visibility==Visibility.Visible
+                && ConfirmarSalidaButton.IsEnabled && !_procesandoSalida)
+            ConfirmarSalida_Click(sender,new RoutedEventArgs());
         else return;
-        e.Handled = true;
+        e.Handled=true;
     }
 
     private void MovimientoManual_Click(object sender,RoutedEventArgs e)
