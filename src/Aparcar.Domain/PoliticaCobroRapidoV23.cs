@@ -1,3 +1,5 @@
+using System;
+
 namespace Aparcar.Domain;
 
 /// <summary>
