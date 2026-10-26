@@ -220,7 +220,7 @@ public sealed partial class AparcarDb
             insertar.Parameters.AddWithValue("$hash",Huella(json));
             insertar.Parameters.AddWithValue("$origen",origenDatos);
             insertar.Parameters.AddWithValue("$consulta",constanciaConsultadaUtc is null?
-                DBNull.Value:constanciaConsultadaUtc.Value.ToUniversalTime().ToString("O"));
+                (object)DBNull.Value:constanciaConsultadaUtc.Value.ToUniversalTime().ToString("O"));
             insertar.Parameters.AddWithValue("$fecha",ahora);
             insertar.ExecuteNonQuery();
         }
