@@ -83,6 +83,19 @@ public sealed class ClientesFiscalesV18Tests
     }
 
     [Fact]
+    public void BuscaNombresConAcentosSinDuplicarRegistros()
+    {
+        var(db,dir)=NuevaDb();
+        try
+        {
+            db.GuardarClienteFiscal("20123456786",Receptor(nombre:"Álvaro Núñez"));
+            Assert.Single(db.BuscarClientesFiscales("20123456786","alvaro"));
+            Assert.Single(db.BuscarClientesFiscales("20123456786","NUNEZ"));
+        }
+        finally {Limpiar(dir);}
+    }
+
+    [Fact]
     public void HistoricoFiscalInmutableAunqueClienteCambie()
     {
         var(db,dir)=NuevaDb();
