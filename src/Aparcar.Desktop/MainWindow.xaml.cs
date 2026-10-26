@@ -799,6 +799,16 @@ public sealed partial class MainWindow : Window
         }
         catch(Exception ex){Mensaje.Text="Importe inválido: "+ex.Message;return;}
 
+        string? talonarioX;
+        try
+        {
+            talonarioX=PrepararXAntesDelCobro(SalidaEmitirXCheck.IsChecked==true);
+        }
+        catch(Exception ex)
+        {
+            Mensaje.Text="No se confirmó el pago: "+ex.Message;
+            return;
+        }
         _procesandoSalida=true;
         ConfirmarSalidaButton.IsEnabled=false;
         CobroConfirmadoV4? cobro=null;
@@ -833,12 +843,20 @@ public sealed partial class MainWindow : Window
                 Mensaje.Text+=" La vista de caja no se actualizó: "+ex.Message+
                     ". El cobro sigue CONFIRMADO; no lo repitas.";
             }
-            if(AutoImprimirCheck.IsChecked==true)
+            if(talonarioX is not null)
+            {
+                var resultadoX=EmitirXDespuesDelCobro(
+                    talonarioX,"Estacionamiento",cobro.Id);
+                SalidaResultadoReciboText.Text=resultadoX;
+                Mensaje.Text+=" "+resultadoX;
+            }
+            else if(AutoImprimirCheck.IsChecked==true)
                 ImprimirCobroSeguro(cobro);
             else
                 SalidaResultadoReciboText.Text=
                     "Cobro confirmado. Impresión automática desactivada: "+
                     "elegí el recibo en el historial para imprimir ORIGINAL.";
+            SalidaEmitirXCheck.IsChecked=false;
             ActualizarRecibosCobroV21(cobro.Id);
             BusquedaInput.Focus(FocusState.Programmatic);
         }
