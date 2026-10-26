@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.17 (CI de v0.17 pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.18 (validación Windows pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,16 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.18: cartera de clientes fiscales persistente
+
+- Se añade una cartera por **CUIT emisor y documento del receptor** (CUIT/CUIL/DNI). Consumidor Final anónimo 99/0 no se guarda como cliente.
+- Migración SQLite **esquema 15** con respaldo antes del cambio. `ClientesFiscales` mantiene una versión vigente y `VersionesClientesFiscales` conserva cada versión histórica como JSON y hash.
+- Desde la pantalla fiscal se puede buscar por nombre o documento, aplicar los datos existentes, guardar cambios con versión nueva, consultar versiones y desactivar registros sin alterar comprobantes anteriores.
+- La consulta de Constancia ARCA v0.17 puede usarse para obtener nombre y domicilio. Guardar en cartera es **una acción explícita**, y únicamente se marca origen `ConstanciaHomologacion` si datos y CUIT coinciden con la consulta efectuada. No se asigna IVA sin catálogo WSFE vigente.
+- La solicitud fiscal en homologación conserva su snapshot, ahora con referencia opcional al ID y versión del cliente. La transacción rechaza referencias de otro emisor o datos modificados que no correspondan a esa versión.
+- Se suman pruebas de unicidad, versionado, aislamiento de emisores, inmutabilidad, baja/reactivación y protección SHA-256. **Compilación y ejecución de tests en Windows pendientes.**
+- Más detalles: [docs/CLIENTES_FISCALES_V18.md](docs/CLIENTES_FISCALES_V18.md). No se generan MSIX/ZIP y no se fusiona el PR.
 
 ## Etapa v0.17: constancia de inscripción ARCA y Consumidor Final
 
