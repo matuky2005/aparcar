@@ -2967,6 +2967,10 @@ public sealed partial class MainWindow : Window
             InicioBuscar_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible)
             Buscar_Click(sender,new RoutedEventArgs());
+        else if(e.Key==VirtualKey.F10 && InicioPanel.Visibility==Visibility.Visible
+                && InicioCobroPanelV23.Visibility==Visibility.Visible
+                && InicioConfirmarCobroButton.IsEnabled && !_procesandoInicioV23)
+            InicioConfirmarCobro_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F10 && IngresoPanel.Visibility==Visibility.Visible
                 && GuardarIngresoButton.IsEnabled && !_guardandoIngreso)
             Ingresar_Click(sender,new RoutedEventArgs());
