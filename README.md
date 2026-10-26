@@ -2,7 +2,12 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.24 (compilación y CI Windows pendientes) — NO apto para uso comercial ni cobros reales.**
+> **Estado: Aparcar v0.24 — instalador EXE de pruebas en preparación. NO apto para uso comercial ni cobros reales.**
+
+### Instalador de pruebas Windows x64
+
+El instalador `Aparcar-Setup-0.24.0-x64.exe` se genera en GitHub Actions **solo si** pasan la compilación WinUI 3, los tests y la publicación autocontenida. La descarga aparece como artefacto de un run exitoso del workflow `Aparcar - Instalador Windows x64`. No es MSIX, no está firmado y ARCA sigue exclusivamente en homologación. [Instrucciones de instalación y preservación de datos](docs/INSTALADOR_WINDOWS_V024.md).
+
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
