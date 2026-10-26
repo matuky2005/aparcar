@@ -78,7 +78,7 @@
                         <TextBox x:Name="PlazaIngresoInput" KeyDown="PlazaIngresoInput_KeyDown"
                                  Width="240" HorizontalAlignment="Left" PlaceholderText="Ej.: A-01"/>
                         <TextBlock x:Name="IngresoSectorDisponibilidadText" TextWrapping="Wrap"/>
-                        <CheckBox x:Name="AutoImprimirCheck" Content="Imprimir el ticket automáticamente después de guardar"
+                        <CheckBox x:Name="AutoImprimirCheck" Content="Imprimir automáticamente ingreso y recibo de cobro (no fiscal)"
                                   IsChecked="True" />
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Button x:Name="GuardarIngresoButton" Content="F10 — Guardar ingreso" Click="Ingresar_Click"/>
