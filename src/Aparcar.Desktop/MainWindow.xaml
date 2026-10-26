@@ -588,6 +588,18 @@
                                 Click="TalonarioXReimprimir_Click" HorizontalAlignment="Left"/>
                         <TextBlock x:Name="TalonarioXResultadoText" TextWrapping="Wrap"
                                    IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="CONTROL DOCUMENTAL DE COBROS" FontSize="18"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Consulta de seguimiento local: X no fiscal, devoluciones y solicitudes ARCA exclusivamente de HOMOLOGACIÓN. No se verifica facturación de producción ni se considera cumplida por un Ticket X."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="ControlDocumentalActualizarButton"
+                                Content="Consultar estado documental de cobros"
+                                Click="ControlDocumentalActualizar_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ControlDocumentalEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <ListView x:Name="ControlDocumentalCobrosList" Width="650" Height="230"
+                                  HorizontalAlignment="Left"/>
                         <TextBlock Text="ARCA / FACTURACIÓN — HOMOLOGACIÓN (SOLO CONSULTA)"
                                    FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="Permite probar credenciales WSAA y consultar el último comprobante WSFEv1 sin emitir CAE. No almacena certificado ni contraseña."
