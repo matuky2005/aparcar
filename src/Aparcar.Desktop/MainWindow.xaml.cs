@@ -513,37 +513,52 @@ public sealed partial class MainWindow : Window
         catch(Exception ex){Mensaje.Text="Plaza no guardada: "+ex.Message;}
     }
 
-    private void Ingresar_Click(object sender, RoutedEventArgs e)
+    private void Ingresar_Click(object sender,RoutedEventArgs e)
     {
-        if (_guardandoIngreso) return;
-        _guardandoIngreso = true;
-        GuardarIngresoButton.IsEnabled = false;
+        if(_guardandoIngreso)return;
+        _guardandoIngreso=true;
+        GuardarIngresoButton.IsEnabled=false;
+        long? numero=null;
         try
         {
-            var tipo = (TipoInput.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            var numero = _db.RegistrarIngreso(PatenteInput.Text, tipo, SectorInput.Text,
+            var tipo=(TipoInput.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+            // Esta operación finaliza el alta ANTES de tocar el spooler.
+            numero=_db.RegistrarIngreso(PatenteInput.Text,tipo,SectorInput.Text,
                 string.IsNullOrWhiteSpace(PlazaIngresoInput.Text)?null:PlazaIngresoInput.Text);
-            var ticket = _db.ObtenerTicket(numero);
-            TicketPreviewText.Text = $"Ticket {ticket.Numero:D7} · {ticket.Patente} · {ticket.TipoVehiculo} · {ticket.Sector}" +
-                                    (ticket.Plaza is null?"":$" / plaza {ticket.Plaza}") + " · " +
-                                    $"{ticket.FechaIngresoUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}";
-            Mensaje.Text = $"Ingreso guardado. Ticket #{numero:D7}.";
-            PatenteInput.Text = "";
-            PlazaIngresoInput.Text = "";
-            Refrescar();
-            ActualizarSectores();
-            // Nunca volver a crear una estadía por un problema de impresión.
-            if (AutoImprimirCheck.IsChecked == true)
-                ImprimirTicketSeguro(numero);
+            Mensaje.Text=$"Ingreso #{numero.Value:D7} GUARDADO en la base de datos.";
+            PatenteInput.Text="";
+            PlazaIngresoInput.Text="";
+            try
+            {
+                var ticket=_db.ObtenerTicket(numero.Value);
+                TicketPreviewText.Text=$"Ticket {ticket.Numero:D7} · {ticket.Patente} · "+
+                    $"{ticket.TipoVehiculo} · {ticket.Sector}"+
+                    (ticket.Plaza is null?"":$" / plaza {ticket.Plaza}")+
+                    $" · {ticket.FechaIngresoUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}";
+                Refrescar();
+                ActualizarSectores();
+            }
+            catch(Exception ex)
+            {
+                Mensaje.Text+=$" La actualización visual falló: {ex.Message}. "+
+                    "El ingreso YA ESTÁ GUARDADO. No lo registres nuevamente.";
+            }
+            if(AutoImprimirCheck.IsChecked==true)
+                ImprimirTicketSeguro(numero.Value);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
-            Mensaje.Text = "Ingreso no registrado: " + ex.Message;
+            Mensaje.Text=numero.HasValue
+                ?$"Ingreso #{numero.Value:D7} YA GUARDADO; error posterior: {ex.Message}. "+
+                    "No vuelvas a registrarlo."
+                :"No se pudo completar el ingreso: "+ex.Message+
+                    ". Revisá vehículos presentes antes de volver a intentar.";
         }
         finally
         {
-            _guardandoIngreso = false;
-            GuardarIngresoButton.IsEnabled = true;
+            _guardandoIngreso=false;
+            GuardarIngresoButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Ingreso);
             PatenteInput.Focus(FocusState.Programmatic);
         }
     }
@@ -611,53 +626,72 @@ public sealed partial class MainWindow : Window
             "Total externo exacto por verificar: "+Dinero(_cotizacion.ImporteCentavos);
     }
 
-    private void ConfirmarSalida_Click(object sender, RoutedEventArgs e)
+    private void ConfirmarSalida_Click(object sender,RoutedEventArgs e)
     {
-        if (_procesandoSalida || _cotizacion is null || _claveCobro == Guid.Empty) return;
+        if(_procesandoSalida || _cotizacion is null || _claveCobro==Guid.Empty)return;
         var medio=MedioSeleccionado();
         long entregado;
         try
         {
             entregado=medio==MediosPago.Efectivo
-                ? LeerImporte(EfectivoRecibidoInput.Text)
-                : _cotizacion.ImporteCentavos;
+                ?LeerImporte(EfectivoRecibidoInput.Text)
+                :_cotizacion.ImporteCentavos;
         }
-        catch(Exception ex){ Mensaje.Text="Importe: "+ex.Message;return; }
+        catch(Exception ex){Mensaje.Text="Importe inválido: "+ex.Message;return;}
 
         _procesandoSalida=true;
-        ConfirmarSalidaButton.IsEnabled = false;
+        ConfirmarSalidaButton.IsEnabled=false;
+        CobroConfirmadoV4? cobro=null;
         try
         {
-            var cobro=_db.ConfirmarPago(_cotizacion,medio,entregado,
+            // Transacción idempotente; cualquier operación posterior es SOLO presentación.
+            cobro=_db.ConfirmarPago(_cotizacion,medio,entregado,
                 ReferenciaElectronicaInput.Text,PagoVerificadoCheck.IsChecked==true,_claveCobro);
-            Mensaje.Text = $"Ticket #{cobro.Ticket:D7} cobrado por {medio}: {Dinero(cobro.ImporteCentavos)}" +
-                (medio==MediosPago.Efectivo ? $" · Vuelto {Dinero(cobro.VueltoCentavos)}." : " · Confirmación externa declarada.");
-            SalidaDetalleText.Text = "Cobro y salida confirmados. Buscá el siguiente vehículo.";
-            SalidaImporteText.Text = "";
-            CotizacionVigenciaText.Text = "";
-            VueltoPrevistoText.Text = "";
-            BusquedaInput.Text = "";
-            EfectivoRecibidoInput.Text = "";
-            ReferenciaElectronicaInput.Text = "";
-            PagoVerificadoCheck.IsChecked = false;
-            _cotizacion = null;
-            _estadiaSeleccionada = null;
-            _claveCobro = Guid.Empty;
-            Refrescar();
-            ActualizarCaja();
-            if (AutoImprimirCheck.IsChecked == true)
+            // Invalidar la cotización ANTES de imprimir y refrescar la interfaz.
+            _cotizacion=null;
+            _estadiaSeleccionada=null;
+            _claveCobro=Guid.Empty;
+            Mensaje.Text=$"Cobro #{cobro.Ticket:D7} CONFIRMADO por {medio}: "+
+                Dinero(cobro.ImporteCentavos)+
+                (medio==MediosPago.Efectivo?$" · Vuelto {Dinero(cobro.VueltoCentavos)}.":
+                    " · Verificación externa declarada.");
+            SalidaDetalleText.Text="Cobro y salida confirmados. Buscá el siguiente vehículo.";
+            SalidaImporteText.Text="";
+            CotizacionVigenciaText.Text="";
+            VueltoPrevistoText.Text="";
+            BusquedaInput.Text="";
+            EfectivoRecibidoInput.Text="";
+            ReferenciaElectronicaInput.Text="";
+            PagoVerificadoCheck.IsChecked=false;
+            try
+            {
+                Refrescar();
+                ActualizarCaja();
+            }
+            catch(Exception ex)
+            {
+                Mensaje.Text+=" La vista de caja no se actualizó: "+ex.Message+
+                    ". El cobro sigue CONFIRMADO; no lo repitas.";
+            }
+            if(AutoImprimirCheck.IsChecked==true)
                 ImprimirCobroSeguro(cobro);
             else
-                SalidaResultadoReciboText.Text="Cobro confirmado. Impresión automática desactivada; elegí el cobro en el historial para imprimir ORIGINAL.";
+                SalidaResultadoReciboText.Text=
+                    "Cobro confirmado. Impresión automática desactivada: "+
+                    "elegí el recibo en el historial para imprimir ORIGINAL.";
             ActualizarRecibosCobroV21(cobro.Id);
             BusquedaInput.Focus(FocusState.Programmatic);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
-            Mensaje.Text = "No se confirmó la operación: " + ex.Message +
-                " Consultá la estadía y caja antes de reintentar.";
-            ConfirmarSalidaButton.IsEnabled = false;
-            _cotizacion = null;
+            Mensaje.Text=cobro is null
+                ?"No se pudo confirmar o verificar el estado del cobro: "+ex.Message+
+                    ". Consultá la estadía y caja antes de reintentar."
+                :$"Cobro #{cobro.Ticket:D7} YA CONFIRMADO. Falló una acción posterior: "+
+                    ex.Message+". No vuelvas a cobrar.";
+            ConfirmarSalidaButton.IsEnabled=false;
+            _cotizacion=null;
+            _claveCobro=Guid.Empty;
         }
         finally
         {
@@ -2442,7 +2476,8 @@ public sealed partial class MainWindow : Window
         else if(e.Key==VirtualKey.F4 &&
                 RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Cobro))
             Navegacion.SelectedItem=Navegacion.MenuItems[2];
-        else if(e.Key==VirtualKey.F8)
+        else if(e.Key==VirtualKey.F8 &&
+                RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Consulta))
             Navegacion.SelectedItem=Navegacion.MenuItems[3];
         else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible)
             Buscar_Click(sender,new RoutedEventArgs());
