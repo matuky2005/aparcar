@@ -15,7 +15,7 @@
                            VerticalAlignment="Center"/>
                 <Button x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="Mensaje" Text="v0.22 · Panel operativo y búsqueda rápida · Versión técnica"
+                <TextBlock x:Name="Mensaje" Text="v0.23 · Emisión X opcional en cobros · Versión técnica"
                            Foreground="White" VerticalAlignment="Center" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -183,6 +183,9 @@
                                        TextWrapping="Wrap" Opacity="0.7"/>
                         </StackPanel>
                         <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="SalidaEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL al confirmar este cobro"
+                                  IsChecked="False"/>
                         <Button x:Name="ConfirmarSalidaButton" Content="F10 — Confirmar cobro y finalizar salida"
                                 Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
                                 IsEnabled="False"/>
@@ -407,6 +410,9 @@
                                  PlaceholderText="Referencia de pago externo"/>
                         <CheckBox x:Name="LavVerificadoCheck"
                                   Content="Verifiqué el pago externo en su proveedor"/>
+                        <CheckBox x:Name="LavEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL para este lavado"
+                                  IsChecked="False"/>
                         <Button x:Name="LavCobrarButton" Content="Confirmar cobro de lavado"
                                 Click="CobrarLavado_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Los pagos externos se verifican manualmente. El pago de la orden se registra una sola vez."
@@ -481,6 +487,9 @@
                                  PlaceholderText="Referencia de pago externo"/>
                         <CheckBox x:Name="AbVerificadoCheck"
                                   Content="Verifiqué el pago externo en el proveedor"/>
+                        <CheckBox x:Name="AbEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL para este abono"
+                                  IsChecked="False"/>
                         <Button x:Name="AbCobrarButton" Content="Cobrar y activar contrato pendiente"
                                 Click="CobrarAbono_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Cobertura sin retroactividad. La permanencia debe estar completamente dentro del horario y vigencia. Una renovación anticipada empieza al vencer la anterior."
@@ -642,6 +651,16 @@
                         </StackPanel>
                         <ComboBox x:Name="TalonariosXCombo" Width="590" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccioná el talonario no fiscal"/>
+                        <TextBlock Text="Talonario X predeterminado para cobrar (no fiscal)"
+                                   FontWeight="SemiBold"/>
+                        <ComboBox x:Name="TalonarioXPreferidoCombo" Width="590" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí el talonario que usarán los cajeros al tildar Emitir X"/>
+                        <Button x:Name="TalonarioXGuardarPreferidoButton"
+                                Content="Guardar talonario X para cobros"
+                                Click="TalonarioXGuardarPreferido_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cada cobro requiere tildar Emitir X expresamente. Si la impresora falla, el X sigue registrado y se recupera desde el historial."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
                         <Button x:Name="TalonarioXActualizarButton" Content="Actualizar talonarios, cobros y tickets"
                                 Click="TalonarioXActualizar_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Cobro confirmado para documentar (seleccionar)"
