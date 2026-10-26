@@ -2,7 +2,7 @@
 
 Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, abonados y varias cajas.
 
-> **Estado: código de desarrollo v0.19 (CI Windows pendiente) — NO apto para uso comercial ni cobros reales.**
+> **Estado: código de desarrollo v0.23 (CI Windows pendiente) — NO apto para uso comercial ni cobros reales.**
 
 ## Etapa v0.5: usuarios, permisos y auditoría
 
@@ -21,6 +21,17 @@ Sistema de estacionamientos para Windows, con diseño para incorporar lavadero, 
 ### Regla de CI durante el desarrollo
 
 El workflow `Aparcar - Validacion manual sin artefactos` **no se ejecuta por cada push**; se invoca manualmente cuando queremos verificar código. No produce ZIP, MSIX ni usa `upload-artifact`. Los instaladores volverán a generarse cuando acordemos un hito importante del proyecto.
+
+## Etapa v0.23: opción Ticket X desde cada cobro
+
+- En **Salida y cobro**, **Lavadero** y **Abonados** se agrega una casilla **«Emitir ticket X NO FISCAL»** desmarcada por defecto.
+- El administrador configura un talonario X predeterminado desde la sección de talonarios. Se guarda como preferencia con auditoría, sin reiniciar el contador y sin crear un punto de venta fiscal.
+- Si se marca X, el programa verifica ANTES de cobrar los permisos del operador, la existencia del talonario habilitado y la impresora Windows configurada.
+- La transacción del cobro se confirma primero; únicamente después se emite el ticket X referenciado por `Origen/CobroId`. El pago nunca se repite por errores de impresión y el mismo cobro no puede obtener otro X.
+- En estacionamiento, imprimir X **sustituye solo la impresión automática del recibo operativo**, no sustituye la factura A/B/C exigible ni cancela pendientes ARCA.
+- Si falla el envío a impresora tras grabar el X, se conserva el número, se informa **COBRO CONFIRMADO** y se utiliza **copia autorizada** desde el historial para recuperarlo.
+- No se crean nuevas tablas: permanece **SQLite 16**. Pruebas unitarias agregadas para la preferencia X y sus validaciones; compilación y ejecución reales en Windows pendientes.
+- [Documentación del flujo X en caja](docs/TICKET_X_COBRO_V23.md). Sin ZIP/MSIX ni artefactos, PR todavía en borrador.
 
 ## Etapa v0.19: talonarios X no fiscales para operaciones cobradas
 
