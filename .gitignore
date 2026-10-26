@@ -12,6 +12,8 @@ TestResults/
 *.pfx
 *.cer
 Aparcar_VisualStudio/
+dist/
+
 # Nunca subir bases de clientes ni respaldos
 *.db
 *.db-wal
