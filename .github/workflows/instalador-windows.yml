@@ -1,0 +1,71 @@
+name: Aparcar - Instalador Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/base-winui-sqlite-v0.1
+    paths:
+      - '.github/workflows/instalador-windows.yml'
+      - 'scripts/**'
+      - 'installer/**'
+      - 'src/**'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aparcar-installer-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compilar-probar-empaquetar:
+    name: Build, tests y setup EXE x64
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar SDK .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Generar solucion, compilar y ejecutar TODAS las pruebas
+        shell: pwsh
+        run: |
+          ./scripts/Preparar-Aparcar.ps1
+
+      - name: Instalar Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw "No pudo instalarse Inno Setup." }
+
+      - name: Publicar WinUI 3 self-contained y crear instalador EXE
+        shell: pwsh
+        run: |
+          ./scripts/Crear-Instalador-Aparcar.ps1
+
+      - name: Guardar hash SHA256 verificable
+        shell: pwsh
+        run: |
+          Get-FileHash -Algorithm SHA256 dist/Aparcar-Setup-0.24.0-x64.exe |
+            ForEach-Object { "$($_.Hash)  Aparcar-Setup-0.24.0-x64.exe" } |
+            Set-Content -Encoding ascii dist/SHA256.txt
+
+      - name: Subir instalador descargable solo si paso todo
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aparcar-Setup-0.24.0-x64
+          path: |
+            dist/Aparcar-Setup-0.24.0-x64.exe
+            dist/SHA256.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
