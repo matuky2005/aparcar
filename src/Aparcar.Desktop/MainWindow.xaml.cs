@@ -2943,22 +2943,42 @@ public sealed partial class MainWindow : Window
     {
         if(_procesandoCobroExtra)return;
         _procesandoCobroExtra=true;
+        CobroComplementario? cobro=null;
         try
         {
+            var talonarioX=PrepararXAntesDelCobro(LavEmitirXCheck.IsChecked==true);
             var orden=OrdenSeleccionada();
             var medio=MedioCombo(LavPagoMedioCombo);
             var recibido=medio==MediosPago.Efectivo?
                 LeerImporte(LavRecibidoInput.Text):orden.PrecioCentavos;
-            var cobro=_db.CobrarComplemento("Lavadero",orden.Id,medio,recibido,
+            cobro=_db.CobrarComplemento("Lavadero",orden.Id,medio,recibido,
                 LavReferenciaInput.Text,LavVerificadoCheck.IsChecked==true,Guid.NewGuid());
+            // De aquí en adelante el pago está CONFIRMADO: nunca reintentar.
             Mensaje.Text=$"Lavado #{orden.Numero:D5} cobrado: {Dinero(cobro.ImporteCentavos)}."+
                 $" Vuelto {Dinero(cobro.VueltoCentavos)}.";
+            if(talonarioX is not null)
+                Mensaje.Text+=" "+EmitirXDespuesDelCobro(talonarioX,"Lavadero",cobro.Id);
+            LavEmitirXCheck.IsChecked=false;
             LavRecibidoInput.Text="";LavReferenciaInput.Text="";LavVerificadoCheck.IsChecked=false;
-            RefrescarLavadero();
-            ActualizarCaja();
+            try
+            {
+                RefrescarLavadero();
+                ActualizarCaja();
+            }
+            catch(Exception ex)
+            {
+                Mensaje.Text+=" El cobro quedó confirmado, pero la pantalla no se actualizó: "+
+                    ex.Message+". No cobres de nuevo.";
+            }
         }
-        catch(Exception ex){ Mensaje.Text="No se confirmó el lavado: "+ex.Message; }
-        finally{_procesandoCobroExtra=false;}
+        catch(Exception ex)
+        {
+            Mensaje.Text=cobro is null
+                ?"No se confirmó el lavado: "+ex.Message
+                :"El lavado YA FUE COBRADO. Falló una acción posterior: "+ex.Message+
+                    ". No vuelvas a cobrar.";
+        }
+        finally {_procesandoCobroExtra=false;}
     }
 
     private void RefrescarAbonados()
@@ -3107,22 +3127,41 @@ public sealed partial class MainWindow : Window
     {
         if(_procesandoCobroExtra)return;
         _procesandoCobroExtra=true;
+        CobroComplementario? cobro=null;
         try
         {
+            var talonarioX=PrepararXAntesDelCobro(AbEmitirXCheck.IsChecked==true);
             var contrato=ContratoSeleccionado();
             var medio=MedioCombo(AbPagoMedioCombo);
             var recibido=medio==MediosPago.Efectivo?
                 LeerImporte(AbRecibidoInput.Text):contrato.PrecioCentavos;
-            var cobro=_db.CobrarComplemento("Abono",contrato.Id,medio,recibido,
+            cobro=_db.CobrarComplemento("Abono",contrato.Id,medio,recibido,
                 AbReferenciaInput.Text,AbVerificadoCheck.IsChecked==true,Guid.NewGuid());
-            Mensaje.Text=$"Abono de {contrato.Patente} activado: {Dinero(cobro.ImporteCentavos)}." +
-                $" Vuelto {Dinero(cobro.VueltoCentavos)}. Cobertura desde el momento del pago.";
+            Mensaje.Text=$"Abono de {contrato.Patente} activado: {Dinero(cobro.ImporteCentavos)}."+
+                $" Vuelto {Dinero(cobro.VueltoCentavos)}. Cobertura desde el pago.";
+            if(talonarioX is not null)
+                Mensaje.Text+=" "+EmitirXDespuesDelCobro(talonarioX,"Abono",cobro.Id);
+            AbEmitirXCheck.IsChecked=false;
             AbRecibidoInput.Text="";AbReferenciaInput.Text="";AbVerificadoCheck.IsChecked=false;
-            RefrescarAbonados();
-            ActualizarCaja();
+            try
+            {
+                RefrescarAbonados();
+                ActualizarCaja();
+            }
+            catch(Exception ex)
+            {
+                Mensaje.Text+=" El cobro quedó confirmado, pero la pantalla no se actualizó: "+
+                    ex.Message+". No cobres de nuevo.";
+            }
         }
-        catch(Exception ex){ Mensaje.Text="No se confirmó el abono: "+ex.Message; }
-        finally{_procesandoCobroExtra=false;}
+        catch(Exception ex)
+        {
+            Mensaje.Text=cobro is null
+                ?"No se confirmó el abono: "+ex.Message
+                :"El abono YA FUE COBRADO. Falló una acción posterior: "+ex.Message+
+                    ". No vuelvas a cobrar.";
+        }
+        finally {_procesandoCobroExtra=false;}
     }
 
     private void ExportarPdf_Click(object sender,RoutedEventArgs e)
