@@ -1,4 +1,4 @@
-Warning: truncated output (original token count: 26753)
+Warning: truncated output (original token count: 26634)
 Total output lines: 1269
 
 <Window
@@ -44,7 +44,7 @@ Total output lines: 1269
                 <Grid x:Name="InicioPanel" Visibility="Visible">
     <TabView x:Name="InicioPanelTabs" IsAddTabButtonVisible="False">
         <TabView.TabItems>
-            <TabViewItem Header="Caja rápida" IsClosable="False">
+            <TabViewItem Header="Caja rápida">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Panel operativo" FontSize="30" FontWeight="Bold"/>
@@ -163,7 +163,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Ocupación y movimientos" IsClosable="False">
+            <TabViewItem Header="Ocupación y movimientos">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="OCUPACIÓN POR SECTOR" FontSize="18" FontWeight="SemiBold"/>
@@ -220,7 +220,7 @@ Total output lines: 1269
                 <Grid x:Name="SalidaPanel" Visibility="Collapsed">
     <TabView x:Name="SalidaPanelTabs" IsAddTabButtonVisible="False">
         <TabView.TabItems>
-            <TabViewItem Header="Cobrar" IsClosable="False">
+            <TabViewItem Header="Cobrar">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Salida y cobranza" FontSize="30" FontWeight="Bold"/>
@@ -277,7 +277,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Recibos" IsClosable="False">
+            <TabViewItem Header="Recibos">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="HISTORIAL Y RECUPERACIÓN DE RECIBOS DE COBRO"
@@ -317,7 +317,7 @@ Total output lines: 1269
                 <Grid x:Name="TarifasPanel" Visibility="Collapsed">
     <TabView x:Name="TarifasPanelTabs" IsAddTabButtonVisible="False">
         <TabView.TabItems>
-            <TabViewItem Header="Tarifas generales" IsClosable="False">
+            <TabViewItem Header="Tarifas generales">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Tarifas configurables" FontSize="30" FontWeight="Bold"/>
@@ -344,7 +344,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Por sector y horario" IsClosable="False">
+            <TabViewItem Header="Por sector y horario">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="TARIFAS POR SECTOR Y FRANJA" FontWeight="SemiBold" FontSize="18"/>
@@ -396,7 +396,7 @@ Total output lines: 1269
                 <Grid x:Name="CajaPanel" Visibility="Collapsed">
     <TabView x:Name="CajaPanelTabs" IsAddTabButtonVisible="False">
         <TabView.TabItems>
-            <TabViewItem Header="Turno" IsClosable="False">
+            <TabViewItem Header="Turno">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Caja principal — efectivo y medios electrónicos" FontSize="30" FontWeight="Bold"/>
@@ -422,7 +422,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Cierres Z" IsClosable="False">
+            <TabViewItem Header="Cierres Z">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="CIERRES Z OPERATIVOS" FontSize="18" FontWeight="SemiBold"/>
@@ -433,7 +433,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Movimientos" IsClosable="False">
+            <TabViewItem Header="Movimientos">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="MOVIMIENTOS DE EFECTIVO" FontWeight="Bold"/>
@@ -448,7 +448,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Devoluciones" IsClosable="False">
+            <TabViewItem Header="Devoluciones">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="DEVOLUCIONES DE EFECTIVO" FontWeight="Bold"/>
@@ -477,7 +477,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Cobros" IsClosable="False">
+            <TabViewItem Header="Cobros">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="ÚLTIMOS COBROS" FontWeight="Bold"/>
@@ -496,10 +496,14 @@ Total output lines: 1269
                 <Grid x:Name="LavaderoPanel" Visibility="Collapsed">
     <TabView x:Name="LavaderoPanelTabs" IsAddTabButtonVisible="False">
         <TabView.TabItems>
-            <TabViewItem Header="Órdenes y cobros" IsClosable="False">
+            <TabViewItem Header="Órdenes y cobros">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
-                        <TextBlock Text="Lavad…6753 tokens truncated…      Click="GuardarSector_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Lavadero" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Órdenes de trabajo y cobros separados del estacionamiento. No generan otro ingreso del vehículo."
+                                   TextWrapping=…6634 tokens truncated…ecked="True"/>
+                        <Button x:Name="ConfigGuardarSectorButton" Content="Guardar sector"
+                                Click="GuardarSector_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="SECTORES CONFIGURADOS" FontWeight="SemiBold"/>
                         <ListView x:Name="ConfigSectoresList" Width="650" Height="160"
                                   SelectionChanged="ConfigSectoresList_SelectionChanged"
@@ -516,7 +520,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Impresora" IsClosable="False">
+            <TabViewItem Header="Impresora">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="IMPRESIÓN DE TICKETS" FontWeight="SemiBold" FontSize="18"/>
@@ -547,7 +551,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Talonarios" IsClosable="False">
+            <TabViewItem Header="Talonarios">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="TALONARIO X — DOCUMENTOS NO FISCALES" FontSize="18"
@@ -610,7 +614,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Certificados ARCA" IsClosable="False">
+            <TabViewItem Header="Certificados ARCA">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="CERTIFICADOS ARCA" FontSize="20" FontWeight="SemiBold"/>
@@ -653,7 +657,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Facturación de prueba" IsClosable="False">
+            <TabViewItem Header="Facturación de prueba">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="BORRADORES FISCALES — HOMOLOGACIÓN SOLAMENTE"
@@ -752,7 +756,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Solicitudes ARCA" IsClosable="False">
+            <TabViewItem Header="Solicitudes ARCA">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
@@ -837,7 +841,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Control documental" IsClosable="False">
+            <TabViewItem Header="Control documental">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="CONTROL DOCUMENTAL DE COBROS" FontSize="18"
@@ -855,7 +859,7 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-            <TabViewItem Header="Caja y respaldos" IsClosable="False">
+            <TabViewItem Header="Caja y respaldos">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="SEGURIDAD DE CAJA" FontWeight="SemiBold" FontSize="18"/>
