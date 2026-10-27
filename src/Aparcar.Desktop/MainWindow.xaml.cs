@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 42238)
-Total output lines: 3574
+Warning: truncated output (original token count: 42264)
+Total output lines: 3575
 
 using System;
 using System.IO;
@@ -17,8 +17,9 @@ using WinRT.Interop;
 
 namespace Aparcar.Desktop;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindowView : UserControl
 {
+    private readonly Window _hostWindow;
     private readonly AparcarDb _db;
     private Estadia? _estadiaSeleccionada;
     private bool _guardandoIngreso;
@@ -44,10 +45,10 @@ public sealed partial class MainWindow : Window
     private bool _procesandoCobroExtra;
     private System.Collections.Generic.List<SectorEstacionamiento> _sectoresConfigurados = new();
 
-    public MainWindow()
+    public MainWindowView(Window hostWindow)
     {
+        _hostWindow = hostWindow ?? throw new ArgumentNullException(nameof(hostWindow));
         InitializeComponent();
-        Title = "Aparcar — Estacionamientos (demostración)";
 
         // V0.1: una sola cuenta de Windows. Fuera del directorio del paquete MSIX.
         var ruta = Path.Combine(
@@ -1270,7 +1271,816 @@ public sealed partial class MainWindow : Window
     private void TarifaSectorCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
     {
         if(_db is null || TarifaSectorCombo is null || TarifaSectorTipoCombo is null ||
- …12238 tokens truncated…mite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+           TarifaFranjaCombo is null || TarifaSectorVersionText is null)return;
+        MostrarTarifaSectorSeleccionada();
+    }
+
+    private void MostrarTarifaSectorSeleccionada()
+    {
+        var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if(string.IsNullOrEmpty(sector))return;
+        var tipo=(TarifaSectorTipoCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"Auto";
+        var franja=(TarifaFranjaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??FranjasTarifarias.Diurna;
+        try
+        {
+            var horario=_db.ObtenerHorarioTarifario(sector);
+            HorarioNocheInicioInput.Text=horario.InicioNoche.ToString("HH:mm");
+            HorarioNocheFinInput.Text=horario.FinNoche.ToString("HH:mm");
+            var vigente=_db.ObtenerTarifaSector(sector,tipo,franja);
+            TarifaSectorVersionText.Text=vigente is null
+                ?"Sin tarifa específica: se utilizará la general vigente al ingreso."
+                :$"Tarifa de {sector}/{tipo}/{franja}: versión {vigente.Version}.";
+            var baseTarifa=vigente?.ComoTarifaOperativa() ??
+                _db.ListarTarifas().Single(x=>x.TipoVehiculo==tipo);
+            TarifaSectorPrimeraInput.Text=EditarImporte(baseTarifa.PrimeraHoraCentavos);
+            TarifaSectorFraccionInput.Text=EditarImporte(baseTarifa.FraccionCentavos);
+            TarifaSectorMinutosInput.Text=baseTarifa.MinutosFraccion.ToString();
+            TarifaSectorTopeInput.Text=EditarImporte(baseTarifa.Tope24HorasCentavos);
+            TarifaSectorCortesiaInput.Text=baseTarifa.CortesiaMinutos.ToString();
+        }
+        catch(Exception ex){Mensaje.Text="Tarifa por sector: "+ex.Message;}
+    }
+
+    private static TimeOnly LeerHorario(string texto)
+    {
+        if(!TimeOnly.TryParseExact(texto.Trim(),"HH:mm",CultureInfo.InvariantCulture,
+            DateTimeStyles.None,out var horario))
+            throw new ArgumentException("Escribí el horario en formato HH:mm (ej.: 20:00).");
+        return horario;
+    }
+
+    private void GuardarHorario_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??
+                throw new ArgumentException("Elegí un sector.");
+            var nuevo=_db.ConfigurarHorarioTarifario(sector,
+                LeerHorario(HorarioNocheInicioInput.Text),LeerHorario(HorarioNocheFinInput.Text));
+            Mensaje.Text=$"Horario nocturno de {nuevo.Sector} guardado. Se aplica a próximos ingresos.";
+            MostrarTarifaSectorSeleccionada();
+        }
+        catch(Exception ex){Mensaje.Text="Horario no guardado: "+ex.Message;}
+    }
+
+    private void GuardarTarifaSector_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var sector=(TarifaSectorCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??
+                throw new ArgumentException("Elegí un sector.");
+            var tipo=(TarifaSectorTipoCombo.SelectedItem as ComboBoxItem)?.Content?.ToString()??"";
+            var franja=(TarifaFranjaCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+            if(!int.TryParse(TarifaSectorMinutosInput.Text,out var minutos)||
+               !int.TryParse(TarifaSectorCortesiaInput.Text,out var cortesia))
+                throw new ArgumentException("Minutos de fracción y cortesía inválidos.");
+            var tarifa=_db.GuardarTarifaSector(sector,tipo,franja,
+                LeerImporte(TarifaSectorPrimeraInput.Text),
+                LeerImporte(TarifaSectorFraccionInput.Text),minutos,
+                LeerImporte(TarifaSectorTopeInput.Text),cortesia);
+            Mensaje.Text=$"Tarifa {tarifa.Sector}/{tarifa.Franja} v{tarifa.Version} guardada para futuros ingresos.";
+            MostrarTarifaSectorSeleccionada();
+        }
+        catch(Exception ex){Mensaje.Text="Tarifa sectorial no guardada: "+ex.Message;}
+    }
+
+    private void GuardarTarifa_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var tipo=(TipoTarifaCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            if(!int.TryParse(MinutosFraccionInput.Text,out var fraccion) ||
+               !int.TryParse(CortesiaInput.Text,out var cortesia))
+                throw new ArgumentException("Minutos y cortesía deben ser números enteros.");
+            var tarifa=_db.CambiarTarifa(tipo,LeerImporte(PrimeraHoraInput.Text),
+                LeerImporte(FraccionPrecioInput.Text),fraccion,
+                LeerImporte(TopeDiaInput.Text),cortesia);
+            Mensaje.Text=$"Tarifa de {tipo} guardada. Versión {tarifa.Version}.";
+            MostrarTarifaSeleccionada();
+        }
+        catch(Exception ex) { Mensaje.Text = "No se guardó la tarifa: "+ex.Message; }
+    }
+
+    private void ActualizarCaja_Click(object sender, RoutedEventArgs e) => ActualizarCaja();
+
+    private void ActualizarCaja()
+    {
+        try
+        {
+            var turno = _db.ObtenerTurnoAbierto();
+            if (turno is null)
+            {
+                CajaEstadoText.Text = "No hay turno abierto.";
+                AbrirCajaButton.IsEnabled = true;
+                CerrarCajaButton.IsEnabled = false;
+            }
+            else
+            {
+                var ciego=_db.EsTurnoCiego(turno.Id);
+                var rolActual=_db.SesionActual?.Rol;
+                var oculto=ciego && rolActual is not (RolesAparcar.Administrador or RolesAparcar.Supervisor);
+                if(oculto)
+                    CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
+                        "\nCAJA CIEGA: el total esperado está oculto. Ingresá el contado antes del cierre.";
+                else
+                {
+                    var resumen=_db.ObtenerResumenCaja()!;
+                    CajaEstadoText.Text=$"Turno de {turno.Operador} desde {turno.AperturaUtc.ToLocalTime():dd/MM HH:mm}" +
+                    $"\nFondo {Dinero(resumen.FondoInicialCentavos)} · Efectivo cobrado {Dinero(resumen.CobrosEfectivoCentavos)}" +
+                    $" · Electrónicos {Dinero(resumen.CobrosElectronicosCentavos)}" +
+                    $"\nDepósitos {Dinero(resumen.DepositosCentavos)} · Retiros {Dinero(resumen.RetirosCentavos)}" +
+                    $" · Devoluciones {Dinero(resumen.DevolucionesEfectivoCentavos)}" +
+                    $"\nEFECTIVO ESPERADO: {Dinero(resumen.EfectivoEsperadoCentavos)}";
+                }
+                AbrirCajaButton.IsEnabled = false;
+                CerrarCajaButton.IsEnabled = true;
+            }
+            CobrosCajaList.ItemsSource = _db.ListarCobros(60).Select(c =>
+                $"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}" +
+                $" · {c.FechaUtc.ToLocalTime():dd/MM HH:mm} · {c.Operador}").ToList();
+            MovimientosCajaList.ItemsSource=_db.ListarMovimientosManuales(30).Select(m=>
+                $"{m.FechaUtc.ToLocalTime():dd/MM HH:mm} · {m.Tipo} · {Dinero(m.ImporteCentavos)} · {m.Motivo}").ToList();
+            CobrosDevolucionCombo.Items.Clear();
+            var rol=_db.SesionActual?.Rol??"";
+            var puedeDevolver=RolesAparcar.Permite(rol,PermisosAparcar.Devolucion);
+            CobrosDevolucionCombo.IsEnabled=puedeDevolver;
+            if(puedeDevolver)
+                foreach(var c in _db.CobrosEfectivoParaDevolver(100).Where(c=>!c.Devuelto))
+                    CobrosDevolucionCombo.Items.Add(new ComboBoxItem{
+                        Content=$"#{c.Ticket:D7} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
+                        Tag=c.Id.ToString("D")
+                    });
+            DevolucionComplementoCombo.Items.Clear();
+            DevolucionComplementoCombo.IsEnabled=puedeDevolver;
+            if(puedeDevolver)
+                foreach(var c in _db.ListarComplementosReembolsables())
+                    DevolucionComplementoCombo.Items.Add(new ComboBoxItem{
+                        Content=$"{c.Categoria} · {c.Patente} · {Dinero(c.ImporteCentavos)}",
+                        Tag=c.CobroId.ToString("D")
+                    });
+            CrearPinButton.IsEnabled=
+                RolesAparcar.Permite(rol,PermisosAparcar.Usuarios) &&
+                !_db.ExistePinSupervisor();
+        }
+        catch (Exception ex) { Mensaje.Text = "Error al cargar caja: "+ex.Message; }
+    }
+
+    private void AbrirCaja_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var turno = _db.AbrirTurno(OperadorCajaInput.Text,
+                LeerImporte(FondoInicialInput.Text),CajaCiegaTurnoCheck.IsChecked==true);
+            Mensaje.Text=$"Caja abierta por {turno.Operador}.";
+            UltimoArqueoText.Text="";
+            ActualizarCaja();
+        }
+        catch(Exception ex) { Mensaje.Text="No se abrió la caja: "+ex.Message; }
+    }
+
+    private async void CerrarCaja_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var turno=_db.ObtenerTurnoAbierto() ??
+                throw new InvalidOperationException("No hay turno abierto.");
+            var contado=LeerImporte(EfectivoContadoInput.Text);
+            var ciega=_db.EsTurnoCiego(turno.Id);
+            var rolActual=_db.SesionActual?.Rol;
+            var oculto=ciega && rolActual is not (RolesAparcar.Administrador or RolesAparcar.Supervisor);
+            var resumenConfirmacion=oculto
+                ?$"CAJA CIEGA: efectivo contado {Dinero(contado)}. El esperado y la diferencia se calculan después de confirmar."
+                :$"Efectivo esperado {Dinero(turno.EsperadoCentavos)}; contado {Dinero(contado)}; diferencia {Dinero(contado-turno.EsperadoCentavos)}.";
+            var dialogo=new ContentDialog
+            {
+                Title="Confirmar cierre de caja",
+                Content=resumenConfirmacion+"\nEl turno quedará cerrado para nuevos cobros.",
+                PrimaryButtonText="Confirmar cierre",
+                CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,
+                XamlRoot=RootGrid.XamlRoot
+            };
+            if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
+            var arqueo=_db.CerrarTurno(turno.Id,contado);
+            UltimoArqueoText.Text=$"Turno cerrado. Esperado {Dinero(arqueo.EsperadoCentavos)}" +
+                $" · Contado {Dinero(arqueo.ContadoCentavos)} · Diferencia {Dinero(arqueo.DiferenciaCentavos)}"+
+                $" · Cierre Z N° {arqueo.NumeroCierreZ:D8}.";
+            Mensaje.Text=$"Turno cerrado y Cierre Z N° {arqueo.NumeroCierreZ:D8} guardado.";
+            ActualizarCaja();
+            ActualizarCierresZ();
+        }
+        catch(Exception ex){ Mensaje.Text="No se pudo cerrar caja: "+ex.Message; }
+    }
+
+    private void ImprimirCobroSeguro(CobroConfirmadoV4 cobro,bool copia=false,
+        string motivo="",bool devuelto=false)
+    {
+        Guid intento=Guid.Empty;
+        bool enviado=false;
+        try
+        {
+            // Persistir antes de enviarlo al driver: evita originales duplicados,
+            // inclusive tras reinicio, error del spooler o pérdida de energía.
+            intento=_db.RegistrarIntentoReciboCobroV21(cobro.Id,copia,motivo,_impresora??"");
+            var recibo=new CobroEfectivoConfirmado(cobro.Id,cobro.EstadiaId,cobro.Ticket,
+                cobro.ImporteCentavos,cobro.EntregadoCentavos,cobro.VueltoCentavos,cobro.FechaUtc);
+            TicketPrinter.ImprimirCobro(recibo,_impresora??"",_anchoTicket,
+                cobro.MedioPago,copia,devuelto);
+            enviado=true;
+            _db.RegistrarResultadoReciboCobroV21(intento,true,
+                "Trabajo entregado al controlador Windows; salida en papel no confirmada.");
+            var texto=(copia?"COPIA":"ORIGINAL")+
+                $" del recibo #{cobro.Ticket:D7} enviada al controlador. "+
+                "No se creó otro cobro y no se confirma impresión física.";
+            SalidaResultadoReciboText.Text=texto;
+            Mensaje.Text+=" "+texto;
+        }
+        catch(Exception ex)
+        {
+            if(intento!=Guid.Empty && !enviado)
+            {
+                try { _db.RegistrarResultadoReciboCobroV21(intento,false,ex.Message); }
+                catch { /* Conservar el problema inicial, incluidos errores de auditoría. */ }
+            }
+            var texto=$"El cobro #{cobro.Ticket:D7} SIGUE CONFIRMADO. "+
+                (enviado?"El recibo fue enviado al controlador, pero no se pudo actualizar su registro: ":
+                    "No se pudo completar el envío del recibo: ")+ex.Message+
+                ". NO repitas el cobro; consultá el historial y revisá la impresora.";
+            SalidaResultadoReciboText.Text=texto;
+            Mensaje.Text+=" "+texto;
+        }
+    }
+
+    private void ActualizarRecibosCobroV21(Guid? seleccionar=null)
+    {
+        try
+        {
+            var anterior=seleccionar?.ToString("D") ??
+                (RecibosCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            RecibosCobroCombo.Items.Clear();
+            foreach(var recibo in _db.ListarRecibosCobroV21(100))
+            {
+                var c=recibo.Cobro;
+                var item=new ComboBoxItem
+                {
+                    Tag=c.Id.ToString("D"),
+                    Content=$"{c.FechaUtc.ToLocalTime():dd/MM HH:mm} · "+
+                        $"#{c.Ticket:D7} · {c.MedioPago} · {Dinero(c.ImporteCentavos)} · "+
+                        (recibo.Devuelto?"DEVUELTO · ":"")+
+                        (recibo.TieneIntentoOriginal?
+                            $"Original registrado ({recibo.EstadoUltimaImpresion??"Pendiente"})":
+                            "Sin intento original registrado")
+                };
+                RecibosCobroCombo.Items.Add(item);
+                if(item.Tag?.ToString()==anterior)RecibosCobroCombo.SelectedItem=item;
+            }
+            ReciboCobroHistorialEstadoText.Text=
+                $"Últimos cobros consultados: {RecibosCobroCombo.Items.Count}. "+
+                "Una copia requiere motivo y permiso de supervisor. "+
+                "Si ya se imprimió con una versión anterior, revisá el papel antes de solicitar ORIGINAL.";
+        }
+        catch(Exception ex)
+        {
+            RecibosCobroCombo.Items.Clear();
+            ReciboCobroHistorialEstadoText.Text="No se pudo consultar el historial: "+ex.Message;
+        }
+    }
+
+    private void ReciboCobroActualizar_Click(object sender,RoutedEventArgs e)=>
+        ActualizarRecibosCobroV21();
+
+    private ReciboCobroV21 ReciboCobroElegidoV21()
+    {
+        if(!Guid.TryParse((RecibosCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+            out var cobroId))
+            throw new ArgumentException("Elegí un cobro confirmado del historial.");
+        return _db.ObtenerReciboCobroV21(cobroId);
+    }
+
+    private void ReciboCobroImprimirOriginal_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoImpresionCobro)return;
+        _procesandoImpresionCobro=true;
+        ReciboCobroImprimirOriginalButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Impresion);
+            var recibo=ReciboCobroElegidoV21();
+            if(recibo.TieneIntentoOriginal)
+                throw new InvalidOperationException(
+                    "Ya existe un intento de ORIGINAL. Usá COPIA autorizada.");
+            ImprimirCobroSeguro(recibo.Cobro,false,"",recibo.Devuelto);
+            ActualizarRecibosCobroV21(recibo.Cobro.Id);
+        }
+        catch(Exception ex)
+        {
+            ReciboCobroHistorialEstadoText.Text="No se envió ORIGINAL: "+ex.Message;
+        }
+        finally
+        {
+            _procesandoImpresionCobro=false;
+            ReciboCobroImprimirOriginalButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Impresion);
+        }
+    }
+
+    private void ReciboCobroImprimirCopia_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoImpresionCobro)return;
+        _procesandoImpresionCobro=true;
+        ReciboCobroImprimirCopiaButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Reimpresion);
+            var recibo=ReciboCobroElegidoV21();
+            var motivo=ReciboCobroMotivoCopiaInput.Text.Trim();
+            if(motivo.Length is <8 or >250)
+                throw new ArgumentException("Indicá un motivo de copia de 8 a 250 caracteres.");
+            ImprimirCobroSeguro(recibo.Cobro,true,motivo,recibo.Devuelto);
+            ReciboCobroMotivoCopiaInput.Text="";
+            ActualizarRecibosCobroV21(recibo.Cobro.Id);
+        }
+        catch(Exception ex)
+        {
+            ReciboCobroHistorialEstadoText.Text="No se envió COPIA: "+ex.Message;
+        }
+        finally
+        {
+            _procesandoImpresionCobro=false;
+            ReciboCobroImprimirCopiaButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Reimpresion);
+        }
+    }
+
+    private void CargarImpresoras()
+    {
+        try
+        {
+            ImpresorasCombo.Items.Clear();
+            foreach (string nombre in PrinterSettings.InstalledPrinters)
+                ImpresorasCombo.Items.Add(nombre);
+            _impresora = _db.ObtenerPreferencia("Impresora");
+            _anchoTicket = _db.ObtenerPreferencia("PapelMm") == "58" ? 58 : 80;
+            AnchoTicketCombo.SelectedIndex = _anchoTicket == 58 ? 0 : 1;
+            if (!string.IsNullOrWhiteSpace(_impresora))
+            {
+                foreach (var p in ImpresorasCombo.Items)
+                    if (string.Equals(p?.ToString(), _impresora, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ImpresorasCombo.SelectedItem = p;
+                        break;
+                    }
+            }
+            ImpresoraEstadoText.Text=ImpresorasCombo.Items.Count==0
+                ?"Windows no informa impresoras instaladas. Instalá el controlador y actualizá la lista."
+                :string.IsNullOrWhiteSpace(_impresora)
+                    ?"Elegí la impresora y el ancho, guardá y enviá una página de prueba."
+                    :ImpresorasCombo.SelectedItem is null
+                        ?"La impresora guardada no aparece en Windows. Seleccioná otra y guardá."
+                        :$"Seleccionada: {_impresora} · {_anchoTicket} mm.";
+        }
+        catch (Exception ex)
+        {
+            ImpresoraEstadoText.Text = Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
+        }
+    }
+
+    private bool _procesandoX;
+
+    private void ActualizarTalonariosX()
+    {
+        _db.ExigirPermiso(PermisosAparcar.Consulta);
+        var codigo=(TalonariosXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        TalonariosXCombo.Items.Clear();
+        TalonarioXPreferidoCombo.Items.Clear();
+        var preferido=_db.ObtenerTalonarioXParaCobros()?.Codigo;
+        foreach(var talonario in _db.ListarTalonariosX())
+        {
+            var texto=$"{talonario.Codigo} · {talonario.Nombre} · "+
+                $"último X {talonario.UltimoNumero:D8}"+(talonario.Habilitado?"":" · SUSPENDIDO");
+            var item=new ComboBoxItem{Tag=talonario.Codigo,Content=texto};
+            TalonariosXCombo.Items.Add(item);
+            if(talonario.Codigo==codigo)TalonariosXCombo.SelectedItem=item;
+            if(talonario.Habilitado)
+            {
+                var opcion=new ComboBoxItem{Tag=talonario.Codigo,Content=texto};
+                TalonarioXPreferidoCombo.Items.Add(opcion);
+                if(talonario.Codigo==preferido)
+                    TalonarioXPreferidoCombo.SelectedItem=opcion;
+            }
+        }
+
+        CobrosXCombo.Items.Clear();
+        foreach(var cobro in _db.ListarCobrosParaX(200))
+        {
+            CobrosXCombo.Items.Add(new …2264 tokens truncated…{
+            var texto=(HistorialXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+            var partes=texto.Split('|');
+            if(partes.Length!=2 ||
+               !long.TryParse(partes[1],NumberStyles.None,CultureInfo.InvariantCulture,
+                    out long numero))
+                throw new ArgumentException("Seleccioná un ticket X del historial.");
+            var ticket=_db.ObtenerTicketX(partes[0],numero);
+            EnviarTicketXImpresora(ticket,true,TalonarioXMotivoCopiaInput.Text);
+            TalonarioXResultadoText.Text=
+                $"COPIA X {ticket.Talonario}-{ticket.Numero:D8} enviada a impresora. "+
+                "Solicitud de reimpresión registrada para auditoría.";
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se pudo confirmar el resultado de la reimpresión: "+ex.Message+". Revisá la impresora antes de repetirla.";
+        }
+        finally
+        {
+            _procesandoX=false;
+            TalonarioXReimprimirButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Reimpresion);
+        }
+    }
+
+    private void ControlDocumentalActualizar_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var registros=_db.ListarEstadoDocumentalCobros(200);
+            ControlDocumentalCobrosList.ItemsSource=registros.Select(c=>
+                $"{c.FechaCobroUtc.ToLocalTime():dd/MM/yy HH:mm} · {c.Origen} · "+
+                $"{Dinero(c.ImporteCentavos)} · "+
+                (c.TieneTicketX?$"X {c.TalonarioX}-{c.NumeroX:D8}":"SIN X")+
+                " · "+(c.Devuelto?"DEVUELTO":c.EstadoSeguimiento)+
+                " · "+(c.EstadoHomologacion is null?"SIN SOLICITUD ARCA":
+                    $"HOMOLOGACIÓN {c.EstadoHomologacion}"+
+                    (c.EsHomologacionAutorizada?" (CAE DE PRUEBA)":""))+
+                $" · Cobro {c.CobroId:D}").ToList();
+            ControlDocumentalEstadoText.Text=
+                $"Cobros consultados: {registros.Count}; "+
+                $"con X: {registros.Count(c=>c.TieneTicketX)}; "+
+                $"devueltos: {registros.Count(c=>c.Devuelto)}; "+
+                $"homologación autorizada: {registros.Count(c=>c.EsHomologacionAutorizada)}. "+
+                "Los CAE de prueba y los tickets X NO constituyen factura de producción. "+
+                "No se verifica facturación externa.";
+        }
+        catch(Exception ex)
+        {
+            ControlDocumentalCobrosList.ItemsSource=null;
+            ControlDocumentalEstadoText.Text="No se pudo consultar el control documental: "+ex.Message;
+        }
+    }
+
+    private bool _procesandoFiscal;
+    private Guid? _clienteFiscalIdAplicado;
+    private int? _clienteFiscalVersionAplicada;
+    private string? _clienteFiscalCuitEmisorAplicado;
+    private ConstanciaInscripcionArca? _constanciaClienteConsultada;
+    private string? _constanciaClienteCuitEmisor;
+    private int? _perfilFiscalVersionAplicada;
+    private string? _perfilFiscalCuitAplicado;
+    private System.Collections.Generic.IReadOnlyList<CondicionIvaReceptorWsfe> _condicionesIvaConsultadas=
+        Array.Empty<CondicionIvaReceptorWsfe>();
+    private string? _condicionesIvaCuit;
+    private int _condicionesIvaTipo;
+    private DateTimeOffset _condicionesIvaFechaUtc;
+
+    private static long LeerFiscalImporte(string valor) =>
+        string.IsNullOrWhiteSpace(valor)?0:LeerImporte(valor);
+
+    private static DateOnly LeerFechaFiscal(string texto)
+    {
+        if(!DateOnly.TryParseExact(texto.Trim(),"yyyy-MM-dd",CultureInfo.InvariantCulture,
+            DateTimeStyles.None,out var fecha))
+            throw new ArgumentException("Usá fecha yyyy-MM-dd.");
+        return fecha;
+    }
+
+    private void FiscalActualizar_Click(object sender,RoutedEventArgs e)
+    {
+        RefrescarFiscalHomologacion();
+        RefrescarPerfilesFiscales();
+        CargarPreferenciaCf();
+        RefrescarClientesFiscales();
+    }
+
+    private void RefrescarFiscalHomologacion()
+    {
+        try
+        {
+            var solicitudes=_db.ListarFacturasHomologacion(150);
+            var reservados=solicitudes.Select(x=>(x.Origen,x.CobroId)).ToHashSet();
+            FiscalCobroCombo.Items.Clear();
+            foreach(var p in _db.ListarPendientesFiscales(150)
+                .Where(p=>p.Estado=="PendienteDatosFiscales" &&
+                    !reservados.Contains((p.Origen,p.CobroId))))
+                FiscalCobroCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=p.Origen+"|"+p.CobroId.ToString("D"),
+                    Content=$"{p.FechaUtc.ToLocalTime():dd/MM/yy HH:mm} · {p.Origen} · " +
+                        $"{Dinero(p.ImporteCentavos)} · {p.CobroId}"
+                });
+            FiscalSolicitudesCombo.Items.Clear();
+            foreach(var f in solicitudes)
+                FiscalSolicitudesCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=f.Id.ToString("D"),
+                    Content=$"{f.Estado} · {f.Origen} · PV {f.Comprobante.PuntoVenta} " +
+                        $"tipo {f.Comprobante.Tipo} Nº {f.Comprobante.Numero} · " +
+                        $"{Dinero((long)(f.Comprobante.Total*100m))}"
+                });
+            // No sobrescribir el resultado del CAE o un error de conciliación.
+        }
+        catch(Exception ex){FiscalResultadoText.Text="Fiscal: "+ex.Message;}
+    }
+
+    private (string Origen,Guid CobroId,long Centavos) FiscalCobroElegido()
+    {
+        var identificador=(FiscalCobroCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+        var partes=identificador.Split('|');
+        if(partes.Length!=2 || !Guid.TryParse(partes[1],out var id))
+            throw new ArgumentException("Seleccioná un cobro todavía no facturado.");
+        var pendiente=_db.ListarPendientesFiscales(1000)
+            .SingleOrDefault(x=>x.CobroId==id && x.Origen==partes[0] &&
+                x.Estado=="PendienteDatosFiscales")
+            ??throw new InvalidOperationException("El cobro ya no está disponible.");
+        return(partes[0],id,pendiente.ImporteCentavos);
+    }
+
+    private SolicitudFiscalPrueba FiscalSolicitudElegida()
+    {
+        if(!Guid.TryParse((FiscalSolicitudesCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+            out var id))
+            throw new ArgumentException("Seleccioná una solicitud fiscal.");
+        return _db.ObtenerFacturaHomologacion(id);
+    }
+
+    private void ValidarCredencialesFiscal()
+    {
+        if(!File.Exists(ArcaCertificadoInput.Text))
+            throw new FileNotFoundException("Elegí un certificado de homologación .pfx válido.");
+        if(string.IsNullOrWhiteSpace(ArcaClavePfxInput.Password))
+            throw new ArgumentException("Ingresá la contraseña del certificado PFX.");
+    }
+
+    private void CargarPreferenciaCf()
+    {
+        try
+        {
+            var cuit=ArcaCuitInput.Text.Trim();
+            FiscalCfPorDefectoCheck.IsChecked=
+                AdaptadorWsfeFacturador.CuitValido(cuit) &&
+                _db.ConsumidorFinalPredeterminado(cuit);
+            FiscalPreferenciaCfEstadoText.Text=
+                AdaptadorWsfeFacturador.CuitValido(cuit)
+                ?"Preferencia cargada para CUIT "+cuit+"."
+                :"Ingresá un CUIT emisor válido para consultar o guardar la preferencia.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text="No se pudo consultar la preferencia: "+ex.Message;
+        }
+    }
+
+    private void FiscalGuardarPreferenciaCf_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var cuit=ArcaCuitInput.Text.Trim();
+            bool activo=FiscalCfPorDefectoCheck.IsChecked==true;
+            _db.ConfigurarConsumidorFinalPredeterminado(cuit,activo);
+            FiscalPreferenciaCfEstadoText.Text=
+                $"CUIT {cuit}: Consumidor Final predeterminado {(activo?"activado":"desactivado")}. " +
+                "Las operaciones que requieren receptor identificado nunca se completan como 99/0.";
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text="No se guardó la preferencia: "+ex.Message;
+        }
+    }
+
+    private bool AplicarConsumidorFinalDesdeCatalogo(bool seleccionManual)
+    {
+        _db.ExigirPermiso(PermisosAparcar.Configuracion);
+        var cuit=ArcaCuitInput.Text.Trim();
+        if(_condicionesIvaCuit!=cuit ||
+           _condicionesIvaFechaUtc<DateTimeOffset.UtcNow.AddMinutes(-30))
+            throw new InvalidOperationException(
+                "Consultá condiciones IVA oficiales recientes antes de elegir Consumidor Final.");
+        if(!int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                out int tipo) || tipo!=_condicionesIvaTipo)
+            throw new InvalidOperationException("La clase de factura cambió: actualizá el catálogo IVA.");
+        var (_,_,centavos)=FiscalCobroElegido();
+        var sugerido=ReglasConsumidorFinalV17.Resolver(tipo,centavos,_condicionesIvaConsultadas,
+            FiscalIdentificarPorSolicitudClienteCheck.IsChecked==true);
+        if(sugerido is null)
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "No se aplicó Consumidor Final sin identificar. Revisá la clase, el importe "+
+                "y el catálogo IVA oficial. Para operaciones de $10.000.000 o más "+
+                "debe informarse documento del receptor. También se exige cuando el cliente "+
+                "solicita identificar su operación.";
+            return false;
+        }
+        if(!seleccionManual && !string.IsNullOrWhiteSpace(FiscalDocNumeroInput.Text) &&
+            FiscalDocNumeroInput.Text.Trim()!="0")
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "Se conserva el documento ya cargado. Usá el botón si querés cambiar a Consumidor Final.";
+            return false;
+        }
+        var tipoItem=FiscalDocTipoCombo.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(x=>x.Tag?.ToString()=="99")
+            ??throw new InvalidOperationException("No está disponible el documento 99.");
+        var ivaItem=FiscalCondicionIvaCombo.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(x=>x.Tag?.ToString()==
+                sugerido.CondicionIvaId.ToString(CultureInfo.InvariantCulture))
+            ??throw new InvalidOperationException(
+                "El catálogo mostrado no incluye el código oficial de Consumidor Final.");
+        FiscalDocTipoCombo.SelectedItem=tipoItem;
+        FiscalDocNumeroInput.Text="0";
+        FiscalCondicionIvaCombo.SelectedItem=ivaItem;
+        // No reutilizar datos personales del receptor previamente seleccionado.
+        FiscalNombreReceptorInput.Text="CONSUMIDOR FINAL";
+        FiscalDomicilioReceptorInput.Text="NR";
+        FiscalCorreoReceptorInput.Text="";
+        _clienteFiscalIdAplicado=null;
+        _clienteFiscalVersionAplicada=null;
+        _clienteFiscalCuitEmisorAplicado=null;
+        _constanciaClienteConsultada=null;
+        _constanciaClienteCuitEmisor=null;
+        FiscalPreferenciaCfEstadoText.Text=
+            "Consumidor Final sin identificar aplicado desde catálogo oficial. "+
+            "Podés sustituirlo por datos de un cliente identificado.";
+        return true;
+    }
+
+    private void FiscalCobroCombo_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(_procesandoFiscal || FiscalCobroCombo.SelectedItem is null)return;
+        try
+        {
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(AdaptadorWsfeFacturador.CuitValido(cuit) &&
+               _db.ConsumidorFinalPredeterminado(cuit) &&
+               _condicionesIvaConsultadas.Count>0 &&
+               _condicionesIvaCuit==cuit)
+                AplicarConsumidorFinalDesdeCatalogo(false);
+        }
+        catch(Exception ex)
+        {
+            FiscalPreferenciaCfEstadoText.Text=
+                "No se pudo aplicar Consumidor Final por defecto: "+ex.Message;
+        }
+    }
+
+    private void FiscalAplicarConsumidorFinal_Click(object sender,RoutedEventArgs e)
+    {
+        try { AplicarConsumidorFinalDesdeCatalogo(true); }
+        catch(Exception ex)
+        { FiscalPreferenciaCfEstadoText.Text="No se aplicó Consumidor Final: "+ex.Message; }
+    }
+
+    private async void FiscalConsultarConstanciaEmisor_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarConstanciaEmisorButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+                throw new ArgumentException("Ingresá un CUIT emisor válido.");
+            using var arca=new ArcaHomologacion();
+            var constancia=await arca.ConsultarConstanciaInscripcionAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuit,cuit);
+            if(ArcaCuitInput.Text.Trim()!=constancia.Cuit)
+                throw new InvalidOperationException("Cambió el CUIT emisor durante la consulta.");
+            FiscalRazonSocialEmisorInput.Text=constancia.RazonSocial;
+            if(!string.IsNullOrWhiteSpace(constancia.DomicilioFiscal))
+                FiscalDomicilioEmisorInput.Text=constancia.DomicilioFiscal;
+            // No inferir ni sobrescribir IVA, IIBB, nombre de fantasía o inicio de actividades.
+            FiscalConstanciaEmisorEstadoText.Text=
+                $"Constancia de HOMOLOGACIÓN {constancia.ConsultadaUtc.ToLocalTime():dd/MM/yyyy HH:mm}: "+
+                $"{constancia.RazonSocial}; CUIT {constancia.Cuit}. "+
+                $"Domicilio fiscal: {constancia.DomicilioFiscal}. "+
+                $"Impuestos informados: {string.Join(", ",constancia.ImpuestosInformados)}. "+
+                "Revisá domicilio comercial, IVA, Ingresos Brutos e inicio de actividades antes de guardar un perfil.";
+        }
+        catch(Exception ex)
+        {
+            FiscalConstanciaEmisorEstadoText.Text="Consulta del emisor no disponible: "+ex.Message;
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarConstanciaEmisorButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+        }
+    }
+
+    private async void FiscalConsultarConstancia_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarConstanciaButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuitEmisor=ArcaCuitInput.Text.Trim();
+            if((FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()!="80")
+                throw new ArgumentException("Para constancia de inscripción seleccioná documento CUIT (80).");
+            var cuit=FiscalDocNumeroInput.Text.Trim();
+            if(!AdaptadorWsfeFacturador.CuitValido(cuit))
+                throw new ArgumentException("Ingresá un CUIT válido de 11 dígitos.");
+            using var arca=new ArcaHomologacion();
+            var constancia=await arca.ConsultarConstanciaInscripcionAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuitEmisor,cuit);
+            // Confirmar que no se modificó el documento durante la consulta.
+            if(FiscalDocNumeroInput.Text.Trim()!=constancia.Cuit ||
+               ArcaCuitInput.Text.Trim()!=cuitEmisor ||
+               (FiscalDocTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()!="80")
+                throw new InvalidOperationException("Cambió el emisor o receptor durante la consulta; no se aplicaron datos.");
+            FiscalNombreReceptorInput.Text=constancia.RazonSocial;
+            FiscalDomicilioReceptorInput.Text=constancia.DomicilioFiscal;
+            _constanciaClienteConsultada=constancia;
+            _constanciaClienteCuitEmisor=cuitEmisor;
+            _clienteFiscalIdAplicado=null;
+            _clienteFiscalVersionAplicada=null;
+            _clienteFiscalCuitEmisorAplicado=null;
+            FiscalConstanciaEstadoText.Text=
+                $"ARCA HOMOLOGACIÓN · {constancia.ConsultadaUtc.ToLocalTime():dd/MM/yyyy HH:mm} · "+
+                $"CUIT {constancia.Cuit} · {constancia.RazonSocial} · "+
+                $"Estado {constancia.EstadoClave} · "+
+                $"Impuestos informados: {string.Join(", ",constancia.ImpuestosInformados)}. "+
+                "Comprobá la situación tributaria con el profesional y elegí condición IVA "+
+                "desde el catálogo WSFEv1; la consulta de padrón no determina el ID automáticamente.";
+        }
+        catch(Exception ex)
+        {
+            FiscalConstanciaEstadoText.Text="Constancia no disponible: "+ex.Message+
+                " Los datos del receptor no se modificaron.";
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarConstanciaButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
+        }
+    }
+
+    private async void FiscalConsultarCondiciones_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;
+        FiscalConsultarCondicionesButton.IsEnabled=false;
+        // Invalidar el catálogo anterior ANTES de cualquier operación de red.
+        _condicionesIvaConsultadas=Array.Empty<CondicionIvaReceptorWsfe>();
+        _condicionesIvaCuit=null;
+        _condicionesIvaTipo=0;
+        FiscalCondicionIvaCombo.Items.Clear();
+        FiscalCondicionIvaEstadoText.Text="";
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            ValidarCredencialesFiscal();
+            var cuit=ArcaCuitInput.Text.Trim();
+            if(!int.TryParse((ArcaCbteTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),
+                    out var tipo) || tipo is not (1 or 6 or 11))
+                throw new ArgumentException("Elegí factura A, B o C.");
+            string clase=tipo switch {1=>"A",6=>"B",11=>"C",_=>throw new ArgumentException("Clase inválida.")};
+            using var arca=new ArcaHomologacion();
+            var catalogo=await arca.ConsultarCondicionesIvaReceptorAsync(
+                ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,cuit,clase);
+            _condicionesIvaConsultadas=catalogo;
+            _condicionesIvaCuit=cuit;
+            _condicionesIvaTipo=tipo;
+            _condicionesIvaFechaUtc=DateTimeOffset.UtcNow;
+            foreach(var item in catalogo)
+                FiscalCondicionIvaCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=item.Id.ToString(CultureInfo.InvariantCulture),
+                    Content=$"{item.Id} · {item.Descripcion}"
+                });
+            FiscalCondicionIvaEstadoText.Text=
+                $"Catálogo oficial cargado: {catalogo.Count} condición(es) válidas para factura {clase}. " +
+                "Seleccioná una opción; no se determinó automáticamente la condición del cliente.";
+            if(_db.ConsumidorFinalPredeterminado(cuit) &&
+               FiscalCobroCombo.SelectedItem is not null)
+                AplicarConsumidorFinalDesdeCatalogo(false);
+        }
+        catch(Exception ex)
+        {
+            FiscalCondicionIvaEstadoText.Text="No se obtuvo un catálogo verificable: "+ex.Message;
+        }
+        finally
+        {
+            ArcaClavePfxInput.Password="";
+            _procesandoFiscal=false;
+            FiscalConsultarCondicionesButton.IsEnabled=
+                RolesAparcar.Permite(_db.SesionActual?.Rol??"",PermisosAparcar.Configuracion);
         }
     }
 
@@ -1853,7 +2663,7 @@ public sealed partial class MainWindow : Window
             var selector=new FileOpenPicker();
             selector.FileTypeFilter.Add(".db");
             selector.SuggestedStartLocation=PickerLocationId.DocumentsLibrary;
-            InitializeWithWindow.Initialize(selector,WindowNative.GetWindowHandle(this));
+            InitializeWithWindow.Initialize(selector,WindowNative.GetWindowHandle(_hostWindow));
             var archivo=await selector.PickSingleFileAsync();
             if(archivo is not null)RutaRespaldoInput.Text=archivo.Path;
         }

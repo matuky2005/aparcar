@@ -15,7 +15,7 @@ using WinRT.Interop;
 
 namespace Aparcar.Desktop;
 
-public sealed partial class MainWindow
+public sealed partial class MainWindowView
 {
     private IReadOnlyList<TalonarioFiscal> _talonariosFiscalesV25=Array.Empty<TalonarioFiscal>();
 
@@ -330,7 +330,7 @@ public sealed partial class MainWindow
     {
         var selector=new FileOpenPicker{SuggestedStartLocation=PickerLocationId.DocumentsLibrary};
         foreach(var ext in extensiones)selector.FileTypeFilter.Add(ext);
-        InitializeWithWindow.Initialize(selector,WindowNative.GetWindowHandle(this));
+        InitializeWithWindow.Initialize(selector,WindowNative.GetWindowHandle(_hostWindow));
         var archivo=await selector.PickSingleFileAsync();
         return archivo?.Path;
     }
