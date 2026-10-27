@@ -49,7 +49,7 @@ public sealed class RespaldoV9Tests
             var valido=CopiaSqlite(db.RutaDb,Path.Combine(dir,"valido.db"));
             var info=db.VerificarRespaldo(valido);
             Assert.True(info.IntegridadCorrecta);
-            Assert.Equal(19,info.VersionEsquema);
+            Assert.Equal(20,info.VersionEsquema);
             Assert.Equal(64,info.HashSha256.Length);
         }
         finally{Quitar(dir);}
@@ -66,7 +66,7 @@ public sealed class RespaldoV9Tests
             db.RegistrarIngreso("BB222BB","Moto","General");
             Assert.Equal(2,db.ListarActivas().Count);
             var listo=db.PrepararRestauracion(anterior);
-            Assert.Equal(19,listo.VersionEsquema);
+            Assert.Equal(20,listo.VersionEsquema);
             Assert.Equal(2,db.ListarActivas().Count); // Aún NO se cambió la base en uso
             Assert.Throws<InvalidOperationException>(()=>db.PrepararRestauracion(anterior));
             db.CerrarSesion();
