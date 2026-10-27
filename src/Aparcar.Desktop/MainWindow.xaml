@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 26634)
-Total output lines: 1269
+Warning: truncated output (original token count: 26538)
+Total output lines: 1255
 
 <Window
     x:Class="Aparcar.Desktop.MainWindow"
@@ -43,7 +43,6 @@ Total output lines: 1269
             <Grid Margin="24">
                 <Grid x:Name="InicioPanel" Visibility="Visible">
     <TabView x:Name="InicioPanelTabs" IsAddTabButtonVisible="False">
-        <TabView.TabItems>
             <TabViewItem Header="Caja rápida">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
@@ -180,7 +179,6 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-        </TabView.TabItems>
     </TabView>
 </Grid>
 
@@ -219,7 +217,6 @@ Total output lines: 1269
 
                 <Grid x:Name="SalidaPanel" Visibility="Collapsed">
     <TabView x:Name="SalidaPanelTabs" IsAddTabButtonVisible="False">
-        <TabView.TabItems>
             <TabViewItem Header="Cobrar">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
@@ -302,7 +299,6 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-        </TabView.TabItems>
     </TabView>
 </Grid>
 
@@ -316,7 +312,6 @@ Total output lines: 1269
 
                 <Grid x:Name="TarifasPanel" Visibility="Collapsed">
     <TabView x:Name="TarifasPanelTabs" IsAddTabButtonVisible="False">
-        <TabView.TabItems>
             <TabViewItem Header="Tarifas generales">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
@@ -389,13 +384,11 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-        </TabView.TabItems>
     </TabView>
 </Grid>
 
                 <Grid x:Name="CajaPanel" Visibility="Collapsed">
     <TabView x:Name="CajaPanelTabs" IsAddTabButtonVisible="False">
-        <TabView.TabItems>
             <TabViewItem Header="Turno">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
@@ -489,19 +482,20 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-        </TabView.TabItems>
     </TabView>
 </Grid>
 
                 <Grid x:Name="LavaderoPanel" Visibility="Collapsed">
     <TabView x:Name="LavaderoPanelTabs" IsAddTabButtonVisible="False">
-        <TabView.TabItems>
             <TabViewItem Header="Órdenes y cobros">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="Lavadero" FontSize="30" FontWeight="Bold"/>
                         <TextBlock Text="Órdenes de trabajo y cobros separados del estacionamiento. No generan otro ingreso del vehículo."
-                                   TextWrapping=…6634 tokens truncated…ecked="True"/>
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="NUEVA ORDEN" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LavServiciosCombo" Width="480" HorizontalAlignment="Left"
+                                  PlaceholderT…6538 tokens truncated…                        IsChecked="True"/>
                         <Button x:Name="ConfigGuardarSectorButton" Content="Guardar sector"
                                 Click="GuardarSector_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="SECTORES CONFIGURADOS" FontWeight="SemiBold"/>
@@ -897,7 +891,6 @@ Total output lines: 1269
                     </StackPanel>
                 </ScrollViewer>
             </TabViewItem>
-        </TabView.TabItems>
     </TabView>
 </Grid>
             </Grid>
