@@ -23,6 +23,9 @@ public sealed partial class MainWindow : Window
     private bool _procesandoImpresionCobro;
     private string? _impresora;
     private int _anchoTicket = 80;
+    private bool _autoImprimirIngreso = true;
+    private bool _autoImprimirCobro = true;
+    private string? _respaldoInicioRuta;
     private CotizacionOperativa? _cotizacion;
     private Guid _claveCobro = Guid.Empty;
     private ResumenRecaudacion? _reporteActual;
@@ -53,6 +56,17 @@ public sealed partial class MainWindow : Window
         _db = new AparcarDb(ruta);
         _db.Inicializar();
 
+        // El respaldo de arranque se realiza antes de mostrar la aplicación.
+        // Si falla, el programa sigue disponible y deja el motivo visible.
+        try
+        {
+            var respaldoAutomatico = _db.ObtenerPreferenciaInicial("RespaldoAutomaticoInicio") ?? "true";
+            _respaldoInicioRuta = respaldoAutomatico == "true"
+                ? _db.CrearRespaldoAutomatico()
+                : "Respaldo automático de inicio desactivado.";
+        }
+        catch (Exception ex) { _respaldoInicioRuta = "No se pudo crear el respaldo automático: " + ex.Message; }
+
         RutaDatosText.Text = _db.RutaDb;
         if(avisoRestauracion is not null)
             EstadoRestauracionText.Text="Resultado de recuperación: "+avisoRestauracion;
@@ -72,6 +86,15 @@ public sealed partial class MainWindow : Window
         reloj.Start();
     }
 
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        SplashEstadoText.Text = _respaldoInicioRuta is not null &&
+            _respaldoInicioRuta.StartsWith("No se pudo", StringComparison.Ordinal)
+            ? _respaldoInicioRuta
+            : "Base de datos y respaldo de seguridad listos.";
+        DispatcherQueue.TryEnqueue(() => SplashOverlay.Visibility = Visibility.Collapsed);
+    }
+
     private void MostrarAcceso()
     {
         bool necesitaAdmin=!_db.HayAdministrador();
@@ -80,6 +103,9 @@ public sealed partial class MainWindow : Window
         AccesoMensaje.Text="";
         LoginPasswordBox.Password="";
         AdminInicialPasswordBox.Password="";
+        ArcaClavePfxInput.Password="";
+        CertClaveInput.Password="";
+        CertPfxClaveInput.Password="";
         PantallaAcceso.Visibility=Visibility.Visible;
         Navegacion.Visibility=Visibility.Collapsed;
         SalirButton.Visibility=Visibility.Collapsed;
@@ -110,6 +136,7 @@ public sealed partial class MainWindow : Window
             RolesAparcar.Permite(rol,PermisosAparcar.Cobro)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[4]).Visibility=
             RolesAparcar.Permite(rol,PermisosAparcar.Tarifas)?Visibility.Visible:Visibility.Collapsed;
+        MenuTarifas.Visibility=Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[5]).Visibility=
             RolesAparcar.Permite(rol,PermisosAparcar.AbrirCaja)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[9]).Visibility=
@@ -126,16 +153,24 @@ public sealed partial class MainWindow : Window
         AbCrearContratoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.AbonosAdministrar);
         AbCobrarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
         CargarImpresoras();
-        AutoImprimirCheck.IsChecked=_db.ObtenerPreferencia("AutoImprimir")!="false";
+        var autoAnterior=_db.ObtenerPreferencia("AutoImprimir")!="false";
+        _autoImprimirIngreso=(_db.ObtenerPreferencia("AutoImprimirIngreso")??(autoAnterior?"true":"false"))=="true";
+        _autoImprimirCobro=(_db.ObtenerPreferencia("AutoImprimirCobro")??(autoAnterior?"true":"false"))=="true";
+        AutoImprimirIngresoCheck.IsChecked=_autoImprimirIngreso;
+        AutoImprimirCobroCheck.IsChecked=_autoImprimirCobro;
         TipoTarifaCombo.SelectedIndex=0;
         ActualizarSectores();
         ActualizarTarifasSector();
         GuardarTarifaSectorButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
+        ConfigGuardarTarifaButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
+        ConfigGuardarHorarioButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
+        ConfigGuardarTarifaSectorButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
         GuardarHorarioButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
         var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
+        GuardarRespaldoPoliticaButton.IsEnabled=puedeConfigurar;
         ArcaProbarConexionButton.IsEnabled=puedeConfigurar;
         FiscalConsultarCondicionesButton.IsEnabled=puedeConfigurar;
         FiscalPrepararButton.IsEnabled=puedeConfigurar;
@@ -144,6 +179,7 @@ public sealed partial class MainWindow : Window
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
         TalonarioXCrearButton.IsEnabled=puedeConfigurar;
+        TalonarioXGuardarCambiosButton.IsEnabled=puedeConfigurar;
         TalonarioXGuardarPreferidoButton.IsEnabled=puedeConfigurar;
         TalonarioXActualizarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Consulta);
         TalonarioXEmitirButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
@@ -166,6 +202,13 @@ public sealed partial class MainWindow : Window
         FiscalPerfilHistorialButton.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsEnabled=puedeConfigurar;
         CajaCiegaObligatoriaCheck.IsChecked=_db.CajaCiegaObligatoria();
+        RespaldoAutomaticoInicioCheck.IsChecked=
+            (_db.ObtenerPreferencia("RespaldoAutomaticoInicio") ?? "true") == "true";
+        RespaldoEstadoText.Text = _respaldoInicioRuta is null
+            ? "No se generó respaldo de arranque."
+            : _respaldoInicioRuta.StartsWith("No se pudo", StringComparison.Ordinal)
+                ? _respaldoInicioRuta
+                : "Respaldo de arranque: " + _respaldoInicioRuta;
         if(_db.CajaCiegaObligatoria())
         {
             CajaCiegaTurnoCheck.IsChecked=true;
@@ -378,20 +421,22 @@ public sealed partial class MainWindow : Window
         if (pantalla == "ingreso")
         {
             ActualizarSectores();
-            PatenteInput.Focus(FocusState.Programmatic);
+            DispatcherQueue.TryEnqueue(() => { if(IngresoPanel.Visibility==Visibility.Visible) PatenteInput.Focus(FocusState.Programmatic); });
         }
         if (pantalla == "salida")
         {
             if(RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Consulta))
                 ActualizarRecibosCobroV21();
-            BusquedaInput.Focus(FocusState.Programmatic);
+            SalidaPanelTabs.SelectedItem=SalidaPanelTabs.TabItems[0];
+            DispatcherQueue.TryEnqueue(() => { if(SalidaPanel.Visibility==Visibility.Visible) BusquedaInput.Focus(FocusState.Programmatic); });
         }
-        if (pantalla == "caja") ActualizarCaja();
+        if (pantalla == "caja") { ActualizarCaja(); ActualizarCierresZ(); }
         if (pantalla == "tarifas"){MostrarTarifaSeleccionada();ActualizarTarifasSector();}
         if (pantalla == "lavadero") RefrescarLavadero();
         if (pantalla == "abonados") RefrescarAbonados();
         if (pantalla == "reportes") ConsultarReporteActual();
-        if (pantalla == "config") ActualizarSectores();
+        if (pantalla == "config") { ActualizarSectores(); TalonarioXActualizar_Click(this,new RoutedEventArgs()); FiscalMaestroActualizar_Click(this,new RoutedEventArgs()); }
+        if (pantalla == "config") ActualizarTarifasConfiguracion();
         if (pantalla == "usuarios") RefrescarUsuarios();
         if (pantalla == "auditoria") CargarAuditoria();
     }
@@ -464,6 +509,8 @@ public sealed partial class MainWindow : Window
         CancelarPreparacionInicioV23();
         _coincidenciasRapidasV22=Array.Empty<Estadia>();
         InicioCoincidenciasList.ItemsSource=null;
+        InicioCoincidenciasList.Visibility=Visibility.Collapsed;
+        InicioOpcionesBusquedaPanel.Visibility=Visibility.Collapsed;
         InicioBusquedaInput.Text="";
         InicioBusquedaEstadoText.Text="";
         InicioEstimacionText.Text="";
@@ -500,6 +547,8 @@ public sealed partial class MainWindow : Window
         CancelarPreparacionInicioV23();
         _coincidenciasRapidasV22=Array.Empty<Estadia>();
         InicioCoincidenciasList.ItemsSource=null;
+        InicioCoincidenciasList.Visibility=Visibility.Collapsed;
+        InicioOpcionesBusquedaPanel.Visibility=Visibility.Collapsed;
         InicioEstimacionText.Text="";
         InicioEstimarSalidaButton.IsEnabled=false;
         InicioPrepararSalidaButton.IsEnabled=false;
@@ -507,6 +556,8 @@ public sealed partial class MainWindow : Window
         {
             var resultados=_db.BuscarPresentesRapidoV22(InicioBusquedaInput.Text,25);
             _coincidenciasRapidasV22=resultados;
+            InicioCoincidenciasList.Visibility=resultados.Count>1?Visibility.Visible:Visibility.Collapsed;
+            InicioOpcionesBusquedaPanel.Visibility=resultados.Count>1?Visibility.Visible:Visibility.Collapsed;
             InicioCoincidenciasList.ItemsSource=resultados.Select(estadia=>
                 $"#{estadia.Ticket:D7} · {estadia.Patente} · {estadia.TipoVehiculo} · "+
                 $"{estadia.Sector} · {estadia.IngresoUtc.ToLocalTime():dd/MM HH:mm}").ToList();
@@ -517,6 +568,12 @@ public sealed partial class MainWindow : Window
                 :$"{resultados.Count} coincidencia(s)"+
                     (resultados.Count==25?" (máximo mostrado; afiná la búsqueda)":"")+
                     ". Elegí el vehículo antes de preparar la salida.";
+            if(resultados.Count==1 && InicioPrepararSalidaButton.IsEnabled)
+                InicioPrepararSalida_Click(sender,new RoutedEventArgs());
+            else if(resultados.Count>1)
+                DispatcherQueue.TryEnqueue(() =>
+                {if(InicioPanel.Visibility==Visibility.Visible && InicioCoincidenciasList.Visibility==Visibility.Visible)
+                    InicioCoincidenciasList.Focus(FocusState.Programmatic);});
         }
         catch(Exception ex)
         {
@@ -585,7 +642,7 @@ public sealed partial class MainWindow : Window
                 $"Vence a las {c.VenceUtc.ToLocalTime():HH:mm:ss}. "+
                 "Se recalcula dentro de la transacción al confirmar; un cambio de tarifa/tiempo exige reconfirmar.";
             InicioCobroMedioCombo.SelectedIndex=0;
-            InicioCobroRecibidoInput.Text=c.CubiertoPorAbono?"0":"";
+            InicioCobroRecibidoInput.Text=EditarImporte(c.ImporteCentavos);
             InicioCobroReferenciaInput.Text="";
             InicioCobroVerificadoCheck.IsChecked=false;
             InicioCobroEmitirXCheck.IsChecked=false;
@@ -594,7 +651,11 @@ public sealed partial class MainWindow : Window
             InicioCobroEstadoText.Text=c.TurnoId.HasValue
                 ?"Confirmá únicamente si recibiste el dinero o verificaste el pago."
                 :"No hay turno de caja abierto. Abrí uno desde Caja antes de cobrar.";
-            InicioCobroMedioCombo.Focus(FocusState.Programmatic);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if(InicioPanel.Visibility==Visibility.Visible && _cotizacionInicioV23 is not null)
+                {InicioCobroRecibidoInput.Focus(FocusState.Programmatic);InicioCobroRecibidoInput.SelectAll();}
+            });
             InicioBusquedaEstadoText.Text="Salida preparada SIN COBRAR. Revisá medio, total y comprobante.";
         }
         catch(Exception ex)
@@ -752,7 +813,7 @@ public sealed partial class MainWindow : Window
                 InicioCobroEstadoText.Text+=". "+resultadoX;
                 Mensaje.Text+=". "+resultadoX;
             }
-            else if(AutoImprimirCheck.IsChecked==true)
+            else if(_autoImprimirCobro)
             {
                 ImprimirCobroSeguro(cobro);
                 InicioCobroEstadoText.Text+=". "+SalidaResultadoReciboText.Text;
@@ -764,6 +825,8 @@ public sealed partial class MainWindow : Window
                 $"Ticket #{cobro.Ticket:D7} finalizado y cobrado. Buscá otro vehículo.";
             _coincidenciasRapidasV22=Array.Empty<Estadia>();
             InicioCoincidenciasList.ItemsSource=null;
+            InicioCoincidenciasList.Visibility=Visibility.Collapsed;
+            InicioOpcionesBusquedaPanel.Visibility=Visibility.Collapsed;
             InicioBusquedaInput.Text="";
             InicioCobroPanelV23.Visibility=Visibility.Collapsed;
             InicioCobroEmitirXCheck.IsChecked=false;
@@ -928,7 +991,7 @@ public sealed partial class MainWindow : Window
                 Mensaje.Text+=$" La actualización visual falló: {ex.Message}. "+
                     "El ingreso YA ESTÁ GUARDADO. No lo registres nuevamente.";
             }
-            if(AutoImprimirCheck.IsChecked==true)
+            if(_autoImprimirIngreso)
                 ImprimirTicketSeguro(numero.Value);
         }
         catch(Exception ex)
@@ -955,6 +1018,7 @@ public sealed partial class MainWindow : Window
             _cotizacion = null;
             _claveCobro = Guid.Empty;
             ConfirmarSalidaButton.IsEnabled = false;
+            SalidaResultadoReciboText.Text="";
             _estadiaSeleccionada = _db.BuscarActiva(BusquedaInput.Text);
             if (_estadiaSeleccionada is null)
             {
@@ -981,11 +1045,16 @@ public sealed partial class MainWindow : Window
             Mensaje.Text = _cotizacion.TurnoId.HasValue
                 ? "Contá el efectivo y confirmá el cobro."
                 : "Para cobrar primero abrí un turno en Caja.";
-            EfectivoRecibidoInput.Text = _cotizacion.CubiertoPorAbono ? "0" : "";
+            MedioPagoCombo.SelectedIndex=0;
+            EfectivoRecibidoInput.Text = EditarImporte(_cotizacion.ImporteCentavos);
             ReferenciaElectronicaInput.Text = "";
             PagoVerificadoCheck.IsChecked = false;
-            VueltoPrevistoText.Text = "";
-            MedioPagoCombo.Focus(FocusState.Programmatic);
+            VueltoPrevistoText.Text = "Vuelto a entregar: "+Dinero(0);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if(SalidaPanel.Visibility==Visibility.Visible && _cotizacion is not null)
+                {EfectivoRecibidoInput.Focus(FocusState.Programmatic);EfectivoRecibidoInput.SelectAll();}
+            });
         }
         catch (Exception ex)
         {
@@ -1077,7 +1146,7 @@ public sealed partial class MainWindow : Window
                 SalidaResultadoReciboText.Text=resultadoX;
                 Mensaje.Text+=" "+resultadoX;
             }
-            else if(AutoImprimirCheck.IsChecked==true)
+            else if(_autoImprimirCobro)
                 ImprimirCobroSeguro(cobro);
             else
                 SalidaResultadoReciboText.Text=
@@ -1394,9 +1463,11 @@ public sealed partial class MainWindow : Window
             if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
             var arqueo=_db.CerrarTurno(turno.Id,contado);
             UltimoArqueoText.Text=$"Turno cerrado. Esperado {Dinero(arqueo.EsperadoCentavos)}" +
-                $" · Contado {Dinero(arqueo.ContadoCentavos)} · Diferencia {Dinero(arqueo.DiferenciaCentavos)}.";
-            Mensaje.Text="Turno cerrado y arqueo guardado.";
+                $" · Contado {Dinero(arqueo.ContadoCentavos)} · Diferencia {Dinero(arqueo.DiferenciaCentavos)}"+
+                $" · Cierre Z N° {arqueo.NumeroCierreZ:D8}.";
+            Mensaje.Text=$"Turno cerrado y Cierre Z N° {arqueo.NumeroCierreZ:D8} guardado.";
             ActualizarCaja();
+            ActualizarCierresZ();
         }
         catch(Exception ex){ Mensaje.Text="No se pudo cerrar caja: "+ex.Message; }
     }
@@ -1405,6 +1476,7 @@ public sealed partial class MainWindow : Window
         string motivo="",bool devuelto=false)
     {
         Guid intento=Guid.Empty;
+        bool enviado=false;
         try
         {
             // Persistir antes de enviarlo al driver: evita originales duplicados,
@@ -1414,6 +1486,7 @@ public sealed partial class MainWindow : Window
                 cobro.ImporteCentavos,cobro.EntregadoCentavos,cobro.VueltoCentavos,cobro.FechaUtc);
             TicketPrinter.ImprimirCobro(recibo,_impresora??"",_anchoTicket,
                 cobro.MedioPago,copia,devuelto);
+            enviado=true;
             _db.RegistrarResultadoReciboCobroV21(intento,true,
                 "Trabajo entregado al controlador Windows; salida en papel no confirmada.");
             var texto=(copia?"COPIA":"ORIGINAL")+
@@ -1424,14 +1497,15 @@ public sealed partial class MainWindow : Window
         }
         catch(Exception ex)
         {
-            if(intento!=Guid.Empty)
+            if(intento!=Guid.Empty && !enviado)
             {
                 try { _db.RegistrarResultadoReciboCobroV21(intento,false,ex.Message); }
                 catch { /* Conservar el problema inicial, incluidos errores de auditoría. */ }
             }
             var texto=$"El cobro #{cobro.Ticket:D7} SIGUE CONFIRMADO. "+
-                "No se pudo completar el envío del recibo: "+ex.Message+
-                ". NO repitas el cobro; consultá el historial de impresiones.";
+                (enviado?"El recibo fue enviado al controlador, pero no se pudo actualizar su registro: ":
+                    "No se pudo completar el envío del recibo: ")+ex.Message+
+                ". NO repitas el cobro; consultá el historial y revisá la impresora.";
             SalidaResultadoReciboText.Text=texto;
             Mensaje.Text+=" "+texto;
         }
@@ -1557,10 +1631,17 @@ public sealed partial class MainWindow : Window
                         break;
                     }
             }
+            ImpresoraEstadoText.Text=ImpresorasCombo.Items.Count==0
+                ?"Windows no informa impresoras instaladas. Instalá el controlador y actualizá la lista."
+                :string.IsNullOrWhiteSpace(_impresora)
+                    ?"Elegí la impresora y el ancho, guardá y enviá una página de prueba."
+                    :ImpresorasCombo.SelectedItem is null
+                        ?"La impresora guardada no aparece en Windows. Seleccioná otra y guardá."
+                        :$"Seleccionada: {_impresora} · {_anchoTicket} mm.";
         }
         catch (Exception ex)
         {
-            Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
+            ImpresoraEstadoText.Text = Mensaje.Text = "No se pudo enumerar las impresoras de Windows: " + ex.Message;
         }
     }
 
@@ -1687,8 +1768,8 @@ public sealed partial class MainWindow : Window
             }
             catch(Exception ex)
             {
-                return $"{id} QUEDÓ EMITIDO pero falló la impresión: {ex.Message}. "+
-                    "No vuelvas a cobrar ni emitir: utilizá la reimpresión autorizada.";
+                return $"{id} QUEDÓ EMITIDO; no se pudo confirmar el resultado de la impresión: {ex.Message}. "+
+                    "No vuelvas a cobrar ni emitir: revisá la impresora y utilizá una copia autorizada si hace falta.";
             }
         }
         catch(Exception ex)
@@ -1732,21 +1813,23 @@ public sealed partial class MainWindow : Window
     private void EnviarTicketXImpresora(TicketX ticket,bool copia,string motivo)
     {
         Guid intento=Guid.Empty;
+        bool enviado=false;
         try
         {
-            intento=_db.RegistrarIntentoImpresionX(
-                ticket.Id,copia,motivo,_impresora??"");
+            intento=_db.RegistrarIntentoImpresionX(ticket.Id,copia,motivo,_impresora??"");
             TicketXPrinter.Imprimir(ticket,_impresora??"",_anchoTicket,copia);
-            _db.RegistrarResultadoImpresionX(
-                intento,true,"Enviado al controlador de impresión Windows");
+            enviado=true;
+            _db.RegistrarResultadoImpresionX(intento,true,"Enviado al controlador de impresión Windows");
         }
         catch(Exception ex)
         {
-            if(intento!=Guid.Empty)
+            if(intento!=Guid.Empty && !enviado)
             {
                 try {_db.RegistrarResultadoImpresionX(intento,false,ex.Message);}
-                catch { /* Se conserva el error inicial de impresión. */ }
+                catch { }
             }
+            if(enviado)
+                throw new InvalidOperationException("El trabajo fue enviado al controlador, pero no se pudo actualizar su auditoría. Revisá la impresora antes de pedir una copia: "+ex.Message,ex);
             throw;
         }
     }
@@ -1779,15 +1862,17 @@ public sealed partial class MainWindow : Window
                 {
                     TalonarioXResultadoText.Text=
                         $"X {resultado.Ticket.Talonario}-{resultado.Ticket.Numero:D8} QUEDÓ EMITIDO, "+
-                        "pero falló el envío a impresora: "+ex.Message+
-                        ". No vuelvas a emitir: utilizá una copia autorizada.";
+                        "pero no se pudo confirmar el resultado de impresión: "+ex.Message+
+                        ". No vuelvas a emitir: revisá la impresora y pedí una copia autorizada si hace falta.";
                 }
             }
-            ActualizarTalonariosX();
+            try {ActualizarTalonariosX();}
+            catch(Exception ex){TalonarioXResultadoText.Text+=" No se actualizó la lista: "+ex.Message;}
         }
         catch(Exception ex)
         {
-            TalonarioXResultadoText.Text="No se emitió el X: "+ex.Message;
+            TalonarioXResultadoText.Text="No se pudo completar o verificar la emisión del X: "+ex.Message+
+                ". Revisá el historial antes de reintentar.";
         }
         finally
         {
@@ -1818,7 +1903,7 @@ public sealed partial class MainWindow : Window
         }
         catch(Exception ex)
         {
-            TalonarioXResultadoText.Text="No se reimprimió el ticket X: "+ex.Message;
+            TalonarioXResultadoText.Text="No se pudo confirmar el resultado de la reimpresión: "+ex.Message+". Revisá la impresora antes de repetirla.";
         }
         finally
         {
@@ -2848,7 +2933,7 @@ public sealed partial class MainWindow : Window
         var elegida = ImpresorasCombo.SelectedItem?.ToString();
         if (string.IsNullOrWhiteSpace(elegida))
         {
-            Mensaje.Text = "Seleccioná una impresora instalada en Windows.";
+            ImpresoraEstadoText.Text = Mensaje.Text = "Seleccioná una impresora instalada en Windows.";
             return;
         }
         try
@@ -2856,12 +2941,16 @@ public sealed partial class MainWindow : Window
             var mm = AnchoTicketCombo.SelectedIndex == 0 ? 58 : 80;
             _db.GuardarPreferencia("Impresora", elegida);
             _db.GuardarPreferencia("PapelMm", mm.ToString());
-            _db.GuardarPreferencia("AutoImprimir", AutoImprimirCheck.IsChecked == true ? "true" : "false");
+            _db.GuardarPreferencia("AutoImprimirIngreso",AutoImprimirIngresoCheck.IsChecked == true ? "true" : "false");
+            _db.GuardarPreferencia("AutoImprimirCobro",AutoImprimirCobroCheck.IsChecked == true ? "true" : "false");
             _impresora = elegida;
             _anchoTicket = mm;
+            _autoImprimirIngreso=AutoImprimirIngresoCheck.IsChecked==true;
+            _autoImprimirCobro=AutoImprimirCobroCheck.IsChecked==true;
             Mensaje.Text = $"Impresora configurada: {elegida} · {mm} mm.";
+            ImpresoraEstadoText.Text = Mensaje.Text + " Ya podés hacer una página de prueba.";
         }
-        catch (Exception ex) { Mensaje.Text = "No se pudo guardar la impresora: " + ex.Message; }
+        catch (Exception ex) { ImpresoraEstadoText.Text = Mensaje.Text = "No se pudo guardar la impresora: " + ex.Message; }
     }
 
     private void ImprimirTicketSeguro(long numero,bool duplicado=false)
@@ -2870,17 +2959,26 @@ public sealed partial class MainWindow : Window
         var destino = _impresora ?? "";
         try
         {
-            TicketPrinter.ImprimirIngreso(ticket, destino, _anchoTicket, duplicado);
-            _db.RegistrarImpresion(ticket.EstadiaId, destino, true, duplicado?"DUPLICADO: enviado al controlador":"Enviado al controlador de impresión");
-            Mensaje.Text = $"Ingreso #{numero:D7} guardado. Ticket enviado a {destino}.";
+            TicketPrinter.ImprimirIngreso(ticket,destino,_anchoTicket,duplicado);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
-            // La persistencia del ingreso ya está confirmada; solo se reporta
-            // el fallo de impresión, sin iniciar un segundo registro.
-            try { _db.RegistrarImpresion(ticket.EstadiaId, destino, false, (duplicado?"DUPLICADO: ":"")+ex.Message); }
-            catch { /* No tapar el error original del controlador de impresión. */ }
-            Mensaje.Text = $"Ingreso #{numero:D7} GUARDADO, pero NO impreso: {ex.Message}. Reimprimilo desde Configuración.";
+            try {_db.RegistrarImpresion(ticket.EstadiaId,destino,false,(duplicado?"DUPLICADO: ":"")+ex.Message);}
+            catch { }
+            Mensaje.Text=$"Ingreso #{numero:D7} GUARDADO, pero no se confirmó el envío a la impresora: {ex.Message}. " +
+                "Revisá Configuración > Impresora y no repitas el ingreso.";
+            return;
+        }
+        try
+        {
+            _db.RegistrarImpresion(ticket.EstadiaId,destino,true,
+                duplicado?"DUPLICADO: enviado al controlador":"Enviado al controlador de impresión");
+            Mensaje.Text=$"Ingreso #{numero:D7} guardado; ticket enviado a {destino}. Revisá el papel.";
+        }
+        catch(Exception ex)
+        {
+            Mensaje.Text=$"Ingreso #{numero:D7} guardado y ticket enviado a {destino}, pero no pudo guardarse la auditoría: {ex.Message}. " +
+                "Revisá el papel antes de reimprimir.";
         }
     }
 
@@ -2914,17 +3012,16 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key != VirtualKey.Enter || TipoInput.IsDropDownOpen) return;
         e.Handled = true;
-        SectoresIngresoCombo.Focus(FocusState.Programmatic);
+        if(SectoresIngresoCombo.Items.Count==1) GuardarIngresoButton.Focus(FocusState.Programmatic);
+        else SectoresIngresoCombo.Focus(FocusState.Programmatic);
     }
 
     private void SectoresIngresoCombo_KeyDown(object sender,KeyRoutedEventArgs e)
     {
         if(e.Key!=VirtualKey.Enter || SectoresIngresoCombo.IsDropDownOpen)return;
         e.Handled=true;
-        if(PlazaIngresoInput.IsEnabled)
-            PlazaIngresoInput.Focus(FocusState.Programmatic);
-        else
-            GuardarIngresoButton.Focus(FocusState.Programmatic);
+        // La asignación automática de plaza es válida; Tab permite indicar una manualmente.
+        GuardarIngresoButton.Focus(FocusState.Programmatic);
     }
 
     private void SectorInput_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -2956,18 +3053,27 @@ public sealed partial class MainWindow : Window
         if(PantallaAcceso.Visibility==Visibility.Visible || _db.SesionActual is null)return;
         if(e.Key==VirtualKey.F2 &&
            RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Ingreso))
-            Navegacion.SelectedItem=Navegacion.MenuItems[1];
+        {
+            if(ReferenceEquals(Navegacion.SelectedItem,Navegacion.MenuItems[1])) Mostrar("ingreso");
+            else Navegacion.SelectedItem=Navegacion.MenuItems[1];
+        }
         else if(e.Key==VirtualKey.F4 &&
                 RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Cobro))
-            Navegacion.SelectedItem=Navegacion.MenuItems[2];
+        {
+            if(ReferenceEquals(Navegacion.SelectedItem,Navegacion.MenuItems[2])) Mostrar("salida");
+            else Navegacion.SelectedItem=Navegacion.MenuItems[2];
+        }
         else if(e.Key==VirtualKey.F8 &&
                 RolesAparcar.Permite(_db.SesionActual.Rol,PermisosAparcar.Consulta))
             Navegacion.SelectedItem=Navegacion.MenuItems[3];
-        else if(e.Key==VirtualKey.F5 && InicioPanel.Visibility==Visibility.Visible)
+        else if(e.Key==VirtualKey.F5 && InicioPanel.Visibility==Visibility.Visible
+                && ReferenceEquals(InicioPanelTabs.SelectedItem,InicioPanelTabs.TabItems[0]))
             InicioBuscar_Click(sender,new RoutedEventArgs());
-        else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible)
+        else if(e.Key==VirtualKey.F5 && SalidaPanel.Visibility==Visibility.Visible
+                && ReferenceEquals(SalidaPanelTabs.SelectedItem,SalidaPanelTabs.TabItems[0]))
             Buscar_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F10 && InicioPanel.Visibility==Visibility.Visible
+                && ReferenceEquals(InicioPanelTabs.SelectedItem,InicioPanelTabs.TabItems[0])
                 && InicioCobroPanelV23.Visibility==Visibility.Visible
                 && InicioConfirmarCobroButton.IsEnabled && !_procesandoInicioV23)
             InicioConfirmarCobro_Click(sender,new RoutedEventArgs());
@@ -2975,6 +3081,7 @@ public sealed partial class MainWindow : Window
                 && GuardarIngresoButton.IsEnabled && !_guardandoIngreso)
             Ingresar_Click(sender,new RoutedEventArgs());
         else if(e.Key==VirtualKey.F10 && SalidaPanel.Visibility==Visibility.Visible
+                && ReferenceEquals(SalidaPanelTabs.SelectedItem,SalidaPanelTabs.TabItems[0])
                 && ConfirmarSalidaButton.IsEnabled && !_procesandoSalida)
             ConfirmarSalida_Click(sender,new RoutedEventArgs());
         else return;
@@ -3429,7 +3536,43 @@ public sealed partial class MainWindow : Window
 
     private void Respaldar_Click(object sender, RoutedEventArgs e)
     {
-        try { Mensaje.Text = "Respaldo creado: " + _db.CrearRespaldo(); }
+        try
+        {
+            var ruta = _db.CrearRespaldo();
+            RespaldoEstadoText.Text = "Respaldo manual creado: " + ruta;
+            Mensaje.Text = "Respaldo creado correctamente.";
+        }
         catch (Exception ex) { Mensaje.Text = "Error al respaldar: " + ex.Message; }
+    }
+
+    private void GuardarRespaldoPolitica_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var activo = RespaldoAutomaticoInicioCheck.IsChecked == true;
+            _db.GuardarPreferencia("RespaldoAutomaticoInicio", activo ? "true" : "false");
+            RespaldoEstadoText.Text = activo
+                ? "Se creará un respaldo consistente en cada inicio."
+                : "Respaldo automático de inicio desactivado; los respaldos manuales siguen disponibles.";
+            Mensaje.Text = "Política de respaldos guardada.";
+        }
+        catch (Exception ex) { RespaldoEstadoText.Text = "No se guardó la política: " + ex.Message; }
+    }
+
+    private void ActualizarCierresZ_Click(object sender, RoutedEventArgs e) => ActualizarCierresZ();
+
+    private void ActualizarCierresZ()
+    {
+        try
+        {
+            CierresZList.ItemsSource = _db.ListarCierresZ(100)
+                .Select(z => $"Z {z.Numero:D8} · {z.CierreUtc.ToLocalTime():dd/MM/yyyy HH:mm} · " +
+                    $"{z.Operador} · efectivo {Dinero(z.RecaudacionEfectivoCentavos)} · " +
+                    $"contado {Dinero(z.ContadoCentavos)} · diferencia {Dinero(z.DiferenciaCentavos)}")
+                .ToList();
+            CierresZEstadoText.Text = "Los cierres Z son inmutables y quedan vinculados al turno cerrado.";
+        }
+        catch (Exception ex) { CierresZEstadoText.Text = "No se pudieron cargar los cierres Z: " + ex.Message; }
     }
 }

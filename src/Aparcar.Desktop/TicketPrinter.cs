@@ -12,6 +12,38 @@ namespace Aparcar.Desktop;
 /// </summary>
 internal static class TicketPrinter
 {
+    /// <summary>Trabajo de diagnóstico sin generar un ingreso ni un cobro.</summary>
+    public static void ImprimirPrueba(string impresora,int anchoMm)
+    {
+        if(string.IsNullOrWhiteSpace(impresora))
+            throw new InvalidOperationException("Seleccioná una impresora en Configuración.");
+        if(anchoMm is not (58 or 80))throw new ArgumentOutOfRangeException(nameof(anchoMm));
+        using var documento=new PrintDocument();
+        documento.PrinterSettings.PrinterName=impresora;
+        if(!documento.PrinterSettings.IsValid)
+            throw new InvalidOperationException("La impresora no está disponible en Windows.");
+        int ancho=anchoMm==58?228:315;
+        documento.DocumentName="Aparcar - prueba de impresora";
+        documento.PrintController=new StandardPrintController();
+        documento.DefaultPageSettings.PaperSize=new PaperSize("Prueba Aparcar",ancho,300);
+        documento.DefaultPageSettings.Margins=new Margins(0,0,0,0);
+        documento.PrintPage+=(_,e)=>
+        {
+            if(e.Graphics is null)throw new InvalidOperationException("El controlador no generó superficie de impresión.");
+            var g=e.Graphics;
+            g.PageUnit=GraphicsUnit.Display;
+            g.TranslateTransform(-e.PageSettings.HardMarginX,-e.PageSettings.HardMarginY);
+            using var titulo=new Font("Arial",14f,FontStyle.Bold);
+            using var normal=new Font("Arial",9f);
+            g.DrawString("APARCAR",titulo,Brushes.Black,new RectangleF(12,15,ancho-24,35));
+            g.DrawString("PRUEBA DE IMPRESORA\nNo es un comprobante.\n"+
+                $"Papel configurado: {anchoMm} mm\n{DateTime.Now:dd/MM/yyyy HH:mm}",
+                normal,Brushes.Black,new RectangleF(12,55,ancho-24,120));
+            e.HasMorePages=false;
+        };
+        documento.Print();
+    }
+
     public static void ImprimirIngreso(TicketIngreso ticket, string impresora, int anchoMm, bool duplicado=false)
     {
         if (string.IsNullOrWhiteSpace(impresora))

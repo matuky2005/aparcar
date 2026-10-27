@@ -334,6 +334,7 @@ public sealed partial class AparcarDb
             throw new InvalidOperationException("El turno ya está cerrado o no corresponde a esta caja.");
         var diferencia=checked(contadoCentavos-abierto.EsperadoCentavos);
         var ahora=DateTimeOffset.UtcNow;
+        long numeroCierreZ;
         using var cmd=db.CreateCommand();
         cmd.Transaction=tx;
         cmd.CommandText="""
@@ -347,9 +348,10 @@ public sealed partial class AparcarDb
         cmd.Parameters.AddWithValue("$diferencia",diferencia);
         cmd.Parameters.AddWithValue("$id",turnoId.ToString("D"));
         if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("El turno cambió de estado.");
+        RegistrarCierreZ(db,tx,abierto,contadoCentavos,diferencia,ahora,out numeroCierreZ);
         AuditarSesion(db,tx,"Caja.Cerrar",turnoId.ToString("D"),$"Esperado={abierto.EsperadoCentavos}; contado={contadoCentavos}; diferencia={diferencia}");
         tx.Commit();
-        return new ArqueoCierre(turnoId,abierto.EsperadoCentavos,contadoCentavos,diferencia,ahora);
+        return new ArqueoCierre(turnoId,abierto.EsperadoCentavos,contadoCentavos,diferencia,ahora,numeroCierreZ);
     }
 
     public CotizacionOperativa CotizarSalida(Guid estadiaId)

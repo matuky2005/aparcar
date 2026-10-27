@@ -55,16 +55,16 @@ jobs:
       - name: Guardar hash SHA256 verificable
         shell: pwsh
         run: |
-          Get-FileHash -Algorithm SHA256 dist/Aparcar-Setup-0.24.0-x64.exe |
-            ForEach-Object { "$($_.Hash)  Aparcar-Setup-0.24.0-x64.exe" } |
+          Get-FileHash -Algorithm SHA256 dist/Aparcar-Setup-0.26.0-x64.exe |
+            ForEach-Object { "$($_.Hash)  Aparcar-Setup-0.26.0-x64.exe" } |
             Set-Content -Encoding ascii dist/SHA256.txt
 
       - name: Subir instalador descargable solo si paso todo
         uses: actions/upload-artifact@v4
         with:
-          name: Aparcar-Setup-0.24.0-x64
+          name: Aparcar-Setup-0.26.0-x64
           path: |
-            dist/Aparcar-Setup-0.24.0-x64.exe
+            dist/Aparcar-Setup-0.26.0-x64.exe
             dist/SHA256.txt
           if-no-files-found: error
           compression-level: 0

@@ -7,7 +7,12 @@ public sealed record TurnoCajaOperativo(
 
 public sealed record ArqueoCierre(
     Guid TurnoId, long EsperadoCentavos, long ContadoCentavos,
-    long DiferenciaCentavos, DateTimeOffset FechaUtc);
+    long DiferenciaCentavos, DateTimeOffset FechaUtc, long NumeroCierreZ = 0);
+
+public sealed record CierreZListado(
+    long Numero, Guid TurnoId, string Operador, DateTimeOffset AperturaUtc,
+    DateTimeOffset CierreUtc, long RecaudacionEfectivoCentavos,
+    long EsperadoCentavos, long ContadoCentavos, long DiferenciaCentavos);
 
 public sealed record CotizacionOperativa(
     Guid EstadiaId, long Ticket, string Patente, string TipoVehiculo,

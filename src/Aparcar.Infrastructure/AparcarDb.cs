@@ -90,6 +90,8 @@ public sealed partial class AparcarDb
         InicializarV19TicketsX();
         InicializarV21RecibosCobro();
         InicializarV24IntegridadX();
+        InicializarV25Talonarios();
+        InicializarV26CierresZ();
     }
 
     public static string NormalizarPatente(string texto)
@@ -250,6 +252,15 @@ public sealed partial class AparcarDb
     public string CrearRespaldo()
     {
         ExigirPermiso(PermisosAparcar.Respaldo);
+        return CrearRespaldoInterno();
+    }
+
+    /// <summary>
+    /// Respaldo de seguridad de arranque. Se ejecuta antes de mostrar la
+    /// aplicación y no depende de una sesión abierta ni de un permiso de caja.
+    /// </summary>
+    public string CrearRespaldoAutomatico()
+    {
         return CrearRespaldoInterno();
     }
 

@@ -7,7 +7,7 @@
 #ifndef InstallerOutputDir
   #error Se requiere /DInstallerOutputDir
 #endif
-#define AppVersion "0.24.0"
+#define AppVersion "0.26.0"
 
 [Setup]
 AppId={{B9A646DB-96D1-4685-848A-54D46646A74A}
@@ -32,7 +32,7 @@ UninstallDisplayIcon={app}\Aparcar.Desktop.exe
 CloseApplications=yes
 RestartApplications=no
 ChangesAssociations=no
-VersionInfoVersion=0.24.0.0
+VersionInfoVersion=0.26.0.0
 SetupLogging=yes
 
 [Files]

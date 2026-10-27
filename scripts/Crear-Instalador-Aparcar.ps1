@@ -59,7 +59,7 @@ if (-not $InnoCompiler -or -not (Test-Path -LiteralPath $InnoCompiler)) {
 Write-Host 'Compilando instalador EXE de pruebas...' -ForegroundColor Cyan
 & $InnoCompiler "/DAppSourceDir=$publish" "/DInstallerOutputDir=$OutputDir" $iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup falló ($LASTEXITCODE): no se genera instalador." }
-$installer = Join-Path $OutputDir 'Aparcar-Setup-0.24.0-x64.exe'
+$installer = Join-Path $OutputDir 'Aparcar-Setup-0.26.0-x64.exe'
 if (-not (Test-Path -LiteralPath $installer)) { throw "Instalador no encontrado: $installer" }
 $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
 Write-Host "Instalador generado: $installer"

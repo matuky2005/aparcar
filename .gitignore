@@ -22,3 +22,8 @@ dist/
 *.sqlite3
 *.bak
 *.zip
+
+# Solicitudes y claves privadas: nunca subir credenciales ARCA
+*.key
+*.pem
+*.csr

@@ -126,9 +126,19 @@ public sealed partial class AparcarDb
         return cmd.ExecuteScalar() as string;
     }
 
+    /// <summary>Lectura de una preferencia no sensible durante el arranque, antes del login.</summary>
+    public string? ObtenerPreferenciaInicial(string clave)
+    {
+        using var db = Abrir();
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "SELECT Valor FROM PreferenciasDispositivos WHERE Clave=$clave";
+        cmd.Parameters.AddWithValue("$clave", clave);
+        return cmd.ExecuteScalar() as string;
+    }
+
     public void GuardarPreferencia(string clave, string valor)
     {
-        ExigirPermiso(PermisosAparcar.Usuarios);
+        ExigirPermiso(PermisosAparcar.Configuracion);
         using var db = Abrir();
         using var cmd = db.CreateCommand();
         cmd.CommandText = """
