@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 42264)
-Total output lines: 3575
-
 using System;
 using System.IO;
 using System.Drawing.Printing;
@@ -1673,7 +1670,222 @@ public sealed partial class MainWindowView : UserControl
         CobrosXCombo.Items.Clear();
         foreach(var cobro in _db.ListarCobrosParaX(200))
         {
-            CobrosXCombo.Items.Add(new …2264 tokens truncated…{
+            CobrosXCombo.Items.Add(new ComboBoxItem
+            {
+                Tag=cobro.Origen+"|"+cobro.CobroId.ToString("D"),
+                Content=$"{cobro.FechaCobroUtc.ToLocalTime():dd/MM HH:mm} · "+
+                    $"{cobro.Descripcion} · {Dinero(cobro.ImporteCentavos)}"+
+                    (cobro.YaEmitido?" · X YA EMITIDO":"")
+            });
+        }
+        HistorialXCombo.Items.Clear();
+        foreach(var ticket in _db.ListarTicketsX(200))
+        {
+            HistorialXCombo.Items.Add(new ComboBoxItem
+            {
+                Tag=ticket.Talonario+"|"+ticket.Numero.ToString(CultureInfo.InvariantCulture),
+                Content=$"X {ticket.Talonario}-{ticket.Numero:D8} · {ticket.Origen} · "+
+                    $"{Dinero(ticket.ImporteCentavos)}"
+            });
+        }
+    }
+
+    private void TalonarioXActualizar_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            ActualizarTalonariosX();
+            TalonarioXResultadoText.Text="Talonarios y comprobantes X actualizados.";
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se actualizó el talonario X: "+ex.Message;
+        }
+    }
+
+    private void TalonarioXGuardarPreferido_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var codigo=(TalonarioXPreferidoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ??
+                throw new ArgumentException("Elegí un talonario X habilitado.");
+            var guardado=_db.ConfigurarTalonarioXParaCobros(codigo);
+            TalonarioXResultadoText.Text=
+                $"Talonario X {guardado.Codigo} elegido para los cobros. "+
+                "La casilla Emitir X está desmarcada por defecto en cada operación.";
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se guardó el talonario X: "+ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Validar ANTES de registrar el cobro si se solicita emitir X.
+    /// Ninguna pantalla debe suponer que el ticket X reemplaza la factura ARCA.
+    /// </summary>
+    private string? PrepararXAntesDelCobro(bool emitir)
+    {
+        if(!emitir)return null;
+        _db.ExigirPermiso(PermisosAparcar.Cobro);
+        _db.ExigirPermiso(PermisosAparcar.Impresion);
+        var talonario=_db.ObtenerTalonarioXParaCobros() ??
+            throw new InvalidOperationException(
+                "Configurá el talonario X predeterminado antes de cobrar, o desmarcá Emitir X.");
+        if(!talonario.Habilitado)
+            throw new InvalidOperationException("El talonario X predeterminado está suspendido.");
+        if(string.IsNullOrWhiteSpace(_impresora))
+            throw new InvalidOperationException(
+                "Configurá la impresora para el X o desmarcá Emitir X.");
+        var impresora=new PrinterSettings{PrinterName=_impresora};
+        if(!impresora.IsValid)
+            throw new InvalidOperationException(
+                "La impresora configurada no está disponible; desmarcá Emitir X o corregí la impresora.");
+        return talonario.Codigo;
+    }
+
+    /// <summary>El cobro ya está confirmado. No lanzar errores ni repetir pagos.</summary>
+    private string EmitirXDespuesDelCobro(string? talonario,
+        string origen,Guid cobroId)
+    {
+        if(talonario is null)return "";
+        try
+        {
+            var resultado=_db.EmitirTicketX(talonario,origen,cobroId);
+            var ticket=resultado.Ticket;
+            var id=$"X {ticket.Talonario}-{ticket.Numero:D8}";
+            if(!resultado.EsNuevo)
+                return $"{id} ya estaba emitido. No se imprimió otro ORIGINAL: "+
+                    "pedí COPIA autorizada desde el historial X.";
+            try
+            {
+                EnviarTicketXImpresora(ticket,false,"");
+                return $"{id} emitido y enviado al controlador Windows "+
+                    "(no confirma impresión física; documento no fiscal).";
+            }
+            catch(Exception ex)
+            {
+                return $"{id} QUEDÓ EMITIDO; no se pudo confirmar el resultado de la impresión: {ex.Message}. "+
+                    "No vuelvas a cobrar ni emitir: revisá la impresora y utilizá una copia autorizada si hace falta.";
+            }
+        }
+        catch(Exception ex)
+        {
+            return "COBRO CONFIRMADO, pero no se pudo registrar el X: "+
+                ex.Message+". Revisá la operación en el historial antes de volver a intentarlo.";
+        }
+    }
+
+    private void TalonarioXCrear_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var creado=_db.CrearTalonarioX(
+                TalonarioXCodigoInput.Text,TalonarioXNombreInput.Text);
+            ActualizarTalonariosX();
+            TalonariosXCombo.SelectedItem=TalonariosXCombo.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(x=>x.Tag?.ToString()==creado.Codigo);
+            TalonarioXResultadoText.Text=
+                $"Talonario X {creado.Codigo} creado. Numeración independiente y no fiscal.";
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se creó el talonario X: "+ex.Message;
+        }
+    }
+
+    private string TalonarioXSeleccionado() =>
+        (TalonariosXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ??
+        throw new ArgumentException("Elegí un talonario X.");
+
+    private (string Origen,Guid CobroId) CobroSeleccionadoX()
+    {
+        var valor=(CobrosXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
+        var partes=valor.Split('|');
+        if(partes.Length!=2 || !Guid.TryParse(partes[1],out var cobroId))
+            throw new ArgumentException("Seleccioná un cobro confirmado.");
+        return (partes[0],cobroId);
+    }
+
+    private void EnviarTicketXImpresora(TicketX ticket,bool copia,string motivo)
+    {
+        Guid intento=Guid.Empty;
+        bool enviado=false;
+        try
+        {
+            intento=_db.RegistrarIntentoImpresionX(ticket.Id,copia,motivo,_impresora??"");
+            TicketXPrinter.Imprimir(ticket,_impresora??"",_anchoTicket,copia);
+            enviado=true;
+            _db.RegistrarResultadoImpresionX(intento,true,"Enviado al controlador de impresión Windows");
+        }
+        catch(Exception ex)
+        {
+            if(intento!=Guid.Empty && !enviado)
+            {
+                try {_db.RegistrarResultadoImpresionX(intento,false,ex.Message);}
+                catch { }
+            }
+            if(enviado)
+                throw new InvalidOperationException("El trabajo fue enviado al controlador, pero no se pudo actualizar su auditoría. Revisá la impresora antes de pedir una copia: "+ex.Message,ex);
+            throw;
+        }
+    }
+
+    private void TalonarioXEmitir_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoX)return;
+        _procesandoX=true;
+        TalonarioXEmitirButton.IsEnabled=false;
+        try
+        {
+            var (origen,cobroId)=CobroSeleccionadoX();
+            var resultado=_db.EmitirTicketX(TalonarioXSeleccionado(),origen,cobroId);
+            if(!resultado.EsNuevo)
+            {
+                TalonarioXResultadoText.Text=
+                    $"El cobro ya tiene X {resultado.Ticket.Talonario}-{resultado.Ticket.Numero:D8}. "+
+                    "No se generó otro número ni otro cobro. Solicitá copia autorizada si necesitás imprimir.";
+            }
+            else
+            {
+                try
+                {
+                    EnviarTicketXImpresora(resultado.Ticket,false,"");
+                    TalonarioXResultadoText.Text=
+                        $"X {resultado.Ticket.Talonario}-{resultado.Ticket.Numero:D8} registrado y "+
+                        "enviado a impresora. No es factura ni confirma impresión física.";
+                }
+                catch(Exception ex)
+                {
+                    TalonarioXResultadoText.Text=
+                        $"X {resultado.Ticket.Talonario}-{resultado.Ticket.Numero:D8} QUEDÓ EMITIDO, "+
+                        "pero no se pudo confirmar el resultado de impresión: "+ex.Message+
+                        ". No vuelvas a emitir: revisá la impresora y pedí una copia autorizada si hace falta.";
+                }
+            }
+            try {ActualizarTalonariosX();}
+            catch(Exception ex){TalonarioXResultadoText.Text+=" No se actualizó la lista: "+ex.Message;}
+        }
+        catch(Exception ex)
+        {
+            TalonarioXResultadoText.Text="No se pudo completar o verificar la emisión del X: "+ex.Message+
+                ". Revisá el historial antes de reintentar.";
+        }
+        finally
+        {
+            _procesandoX=false;
+            TalonarioXEmitirButton.IsEnabled=RolesAparcar.Permite(
+                _db.SesionActual?.Rol??"",PermisosAparcar.Cobro);
+        }
+    }
+
+    private void TalonarioXReimprimir_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoX)return;
+        _procesandoX=true;
+        TalonarioXReimprimirButton.IsEnabled=false;
+        try
+        {
             var texto=(HistorialXCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString()??"";
             var partes=texto.Split('|');
             if(partes.Length!=2 ||
