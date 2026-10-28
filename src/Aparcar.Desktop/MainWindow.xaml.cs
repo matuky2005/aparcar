@@ -137,7 +137,7 @@ public sealed partial class MainWindowView : UserControl
         ((NavigationViewItem)Navegacion.MenuItems[5]).Visibility=
             RolesAparcar.Permite(rol,PermisosAparcar.AbrirCaja)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[9]).Visibility=
-            RolesAparcar.Permite(rol,PermisosAparcar.Usuarios)?Visibility.Visible:Visibility.Collapsed;
+            RolesAparcar.Permite(rol,PermisosAparcar.Configuracion)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[6]).Visibility=
             RolesAparcar.Permite(rol,PermisosAparcar.LavaderoConsultar)?Visibility.Visible:Visibility.Collapsed;
         ((NavigationViewItem)Navegacion.MenuItems[7]).Visibility=
@@ -223,7 +223,7 @@ public sealed partial class MainWindowView : UserControl
         PrepararRestauracionButton.IsEnabled=
             RolesAparcar.Permite(rol,PermisosAparcar.Restauracion);
         Navegacion.SelectedItem=Navegacion.MenuItems[0];
-        Refrescar();
+        Mostrar("inicio");
     }
 
     private void CrearAdministradorInicial_Click(object sender,RoutedEventArgs e)
