@@ -53,6 +53,28 @@ public sealed class WsfeFacturadorReutilizadoTests
     }
 
     [Fact]
+    public void NotaDeCreditoExigeFacturaAsociadaDeLaMismaClaseYLaIncluyeEnWsfe()
+    {
+        var nc=FacturaB() with
+        {
+            Tipo=8,
+            Numero=129,
+            ComprobantesAsociados=new[] { new ComprobanteAsociadoWsfe(3,6,128) }
+        };
+        var xml=AdaptadorWsfeFacturador.PrepararFeCaeReq(nc).ToString();
+        Assert.Contains("<CbteTipo>8</CbteTipo>",xml);
+        Assert.Contains("<CbtesAsoc>",xml);
+        Assert.Contains("<Tipo>6</Tipo>",xml);
+        Assert.Contains("<PtoVta>3</PtoVta>",xml);
+        Assert.Contains("<Nro>128</Nro>",xml);
+        Assert.Throws<InvalidOperationException>(()=>
+            AdaptadorWsfeFacturador.Validar(nc with { ComprobantesAsociados=null }));
+        Assert.Throws<InvalidOperationException>(()=>
+            AdaptadorWsfeFacturador.Validar(nc with
+            { ComprobantesAsociados=new[] { new ComprobanteAsociadoWsfe(3,1,128) } }));
+    }
+
+    [Fact]
     public void ParserSoloConsideraAutorizadoConIdentidadYCaeValido()
     {
         string ok="<FECAESolicitarResponse>"+Cabecera+
