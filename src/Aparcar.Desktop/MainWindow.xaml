@@ -1,1 +1,1330 @@
-fatal: not a git repository (or any of the parent directories): .git
+<UserControl
+    x:Class="Aparcar.Desktop.MainWindowView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="BrandBrush" Color="#0F4C81"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#16A6A1"/>
+        <SolidColorBrush x:Key="PageBrush" Color="#F4F7FB"/>
+        <Style TargetType="Button">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="MinHeight" Value="38"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="MinHeight" Value="38"/>
+        </Style>
+    </UserControl.Resources>
+    <Grid x:Name="RootGrid" Background="{StaticResource PageBrush}" KeyDown="RootGrid_KeyDown">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="{StaticResource BrandBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="0,0,0,3" Padding="20,14">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Border Background="{StaticResource AccentBrush}" CornerRadius="8" Padding="8,4">
+                        <TextBlock Text="A" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="APARCAR" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                        <TextBlock Text="Gestión simple de estacionamientos" Foreground="#D8F4F2" FontSize="11"/>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Grid.Column="1" x:Name="UsuarioActivoTexto" Text="Sin sesión" Foreground="#E7F0FA" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" x:Name="SalirButton" Content="Cerrar sesión" Click="CerrarSesion_Click" Visibility="Collapsed"/>
+                <TextBlock Grid.Column="3" x:Name="Mensaje" Text="v0.26 · Operación segura" Foreground="#D8F4F2" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </Grid>
+        </Border>
+
+        <NavigationView x:Name="Navegacion" Grid.Row="1"
+                        PaneDisplayMode="Left" IsBackButtonVisible="Collapsed"
+                        SelectionChanged="Navegacion_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Inicio" Tag="inicio" Icon="Home"/>
+                <NavigationViewItem Content="Nuevo ingreso" Tag="ingreso" Icon="Add"/>
+                <NavigationViewItem Content="Salida y cobro" Tag="salida" Icon="Forward"/>
+                <NavigationViewItem Content="Vehículos presentes" Tag="presentes" Icon="List"/>
+                <NavigationViewItem x:Name="MenuTarifas" Content="Tarifas (configuración)" Tag="tarifas" Icon="Calculator"
+                                    Visibility="Collapsed"/>
+                <NavigationViewItem Content="Caja" Tag="caja" Icon="Library"/>
+                <NavigationViewItem Content="Lavadero" Tag="lavadero" Icon="Setting"/>
+                <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
+                <NavigationViewItem Content="Reportes" Tag="reportes" Icon="Document"/>
+                <NavigationViewItem Content="Configuración" Tag="config" Icon="Setting"/>
+                <NavigationViewItem x:Name="MenuUsuarios" Content="Usuarios" Tag="usuarios" Icon="People"
+                                    Visibility="Collapsed"/>
+                <NavigationViewItem x:Name="MenuAuditoria" Content="Auditoría" Tag="auditoria" Icon="Document"
+                                    Visibility="Collapsed"/>
+            </NavigationView.MenuItems>
+            <Grid Margin="24">
+                <Grid x:Name="InicioPanel" Visibility="Visible">
+    <TabView x:Name="InicioPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Caja rápida">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Panel operativo" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Ingresá o cobrá con pocos pasos. F2: ingreso · F4: salida."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Background="#E9F2FF" Padding="16" CornerRadius="10" MinWidth="200">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="VEHÍCULOS PRESENTES" Foreground="#164677" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TotalActivosText" Text="0" FontSize="38"
+                                               Foreground="#164677" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#E9F2FF" Padding="16" CornerRadius="10" MinWidth="210">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="LUGARES DISPONIBLES" Foreground="#164677" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="InicioLibresText" Text="—" FontSize="38"
+                                               Foreground="#164677" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="InicioOcupacionText" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="InicioCajaEstadoText" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button x:Name="InicioNuevoIngresoButton" Content="F2 · Nuevo ingreso"
+                                    Click="IrIngreso_Click"/>
+                            <Button x:Name="InicioIrSalidaButton" Content="F4 · Salida y cobro"
+                                    Click="IrSalida_Click"/>
+                            <Button Content="Actualizar panel" Click="Actualizar_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="BÚSQUEDA RÁPIDA" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Ingresá la patente o el número de ticket y presioná Enter."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="InicioBusquedaInput" Width="340" MaxLength="40"
+                                     PlaceholderText="Patente o ticket"
+                                     KeyDown="InicioBusqueda_KeyDown"/>
+                            <Button Content="Buscar" Click="InicioBuscar_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="InicioBusquedaEstadoText" TextWrapping="Wrap"/>
+                        <ListView x:Name="InicioCoincidenciasList" KeyDown="InicioCoincidencias_KeyDown" Visibility="Collapsed" Width="760" Height="130"
+                                  SelectionChanged="InicioCoincidencias_SelectionChanged"
+                                  HorizontalAlignment="Left"/>
+                        <StackPanel x:Name="InicioOpcionesBusquedaPanel" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                            <Button x:Name="InicioEstimarSalidaButton" Content="Estimar tarifa actual"
+                                    Click="InicioEstimarSalida_Click" IsEnabled="False"/>
+                            <Button x:Name="InicioPrepararSalidaButton" Content="Preparar cobro"
+                                    Click="InicioPrepararSalida_Click" IsEnabled="False"/>
+                        </StackPanel>
+                        <TextBlock x:Name="InicioEstimacionText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <Border x:Name="InicioCobroPanelV23" Visibility="Collapsed"
+                                Background="#E9F2FF" CornerRadius="10" Padding="18">
+                            <StackPanel Spacing="10" MaxWidth="700">
+                                <TextBlock Text="CAJA RÁPIDA · SALIDA PREPARADA"
+                                           FontSize="18" FontWeight="SemiBold" Foreground="#164677"/>
+                                <TextBlock x:Name="InicioCobroDetalleText" TextWrapping="Wrap"
+                                           Foreground="#164677" IsTextSelectionEnabled="True"/>
+                                <TextBlock x:Name="InicioCobroImporteText" FontSize="28"
+                                           FontWeight="Bold" Foreground="#164677"/>
+                                <TextBlock x:Name="InicioCobroVigenciaText"
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <TextBlock Text="Medio de pago" Foreground="#164677"/>
+                                <ComboBox x:Name="InicioCobroMedioCombo" Width="250"
+                                          HorizontalAlignment="Left" SelectedIndex="0"
+                                          SelectionChanged="InicioCobroMedio_SelectionChanged"
+                                          KeyDown="InicioCobroMedio_KeyDown">
+                                    <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                                    <ComboBoxItem Content="Débito" Tag="Debito"/>
+                                    <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                                    <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                                    <ComboBoxItem Content="QR" Tag="QR"/>
+                                </ComboBox>
+                                <StackPanel x:Name="InicioCobroEfectivoPanel" Spacing="6">
+                                    <TextBlock Text="Efectivo recibido (se propone el importe exacto)" Foreground="#164677"/>
+                                    <TextBox x:Name="InicioCobroRecibidoInput" Width="250"
+                                             HorizontalAlignment="Left" PlaceholderText="Ej.: 5000"
+                                             TextChanged="InicioCobroRecibido_TextChanged"
+                                             KeyDown="InicioCobroRecibido_KeyDown"/>
+                                </StackPanel>
+                                <StackPanel x:Name="InicioCobroElectronicoPanel"
+                                            Spacing="8" Visibility="Collapsed">
+                                    <TextBlock Text="Referencia REAL del banco, tarjeta o billetera"
+                                               Foreground="#164677"/>
+                                    <TextBox x:Name="InicioCobroReferenciaInput" Width="400"
+                                             MaxLength="200" HorizontalAlignment="Left"
+                                             PlaceholderText="Nº de operación, mínimo 4 caracteres"
+                                             KeyDown="InicioCobroReferencia_KeyDown"/>
+                                    <CheckBox x:Name="InicioCobroVerificadoCheck"
+                                              Content="Verifiqué manualmente el pago en el proveedor"
+                                              KeyDown="InicioCobroVerificado_KeyDown"/>
+                                    <TextBlock Text="Aparcar no verifica transferencias, tarjetas ni QR automáticamente."
+                                               Foreground="#164677" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <TextBlock x:Name="InicioCobroVueltoText" Foreground="#164677"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <CheckBox x:Name="InicioCobroEmitirXCheck" IsChecked="False"
+                                          Content="Emitir Ticket X NO FISCAL para este cobro (si hay talonario e impresora)"/>
+                                <TextBlock Text="Ticket X y recibo no sustituyen factura ARCA. Si no se elige X, se aplica la preferencia de impresión automática del recibo."
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="InicioConfirmarCobroButton"
+                                            Content="F10 · Confirmar cobro y salida"
+                                            Click="InicioConfirmarCobro_Click" IsEnabled="False"/>
+                                    <Button Content="Usar formulario completo"
+                                            Click="InicioIrFormularioSalida_Click"/>
+                                    <Button Content="Cancelar preparación"
+                                            Click="InicioCancelarCobro_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="InicioCobroEstadoText" Foreground="#164677"
+                                           TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="InicioPanelEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" Opacity="0.8"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Ocupación y movimientos">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="OCUPACIÓN POR SECTOR" FontSize="18" FontWeight="SemiBold"/>
+                        <ListView x:Name="InicioSectoresList" Width="760" Height="136"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="ÚLTIMOS INGRESOS QUE SIGUEN PRESENTES"
+                                   FontSize="18" FontWeight="SemiBold"/>
+                        <ListView x:Name="ResumenActivosList" Width="760" Height="170"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="ÚLTIMAS SALIDAS COBRADAS"
+                                   FontSize="18" FontWeight="SemiBold"/>
+                        <ListView x:Name="InicioUltimasSalidasList" Width="760" Height="170"
+                                  HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <ScrollViewer x:Name="IngresoPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="650" HorizontalAlignment="Left">
+                        <TextBlock Text="Registrar ingreso" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Los datos se guardan en SQLite antes de cualquier impresión." Opacity="0.7"/>
+                        <TextBlock Text="Patente o identificador"/>
+                        <TextBox x:Name="PatenteInput" KeyDown="PatenteInput_KeyDown" PlaceholderText="Ej.: AF123BC" MaxLength="20" Width="360" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Tipo de vehículo"/>
+                        <ComboBox x:Name="TipoInput" KeyDown="TipoInput_KeyDown" SelectedIndex="0" Width="240" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBlock Text="Sector"/>
+                        <ComboBox x:Name="SectoresIngresoCombo" KeyDown="SectoresIngresoCombo_KeyDown" Width="360"
+                                  HorizontalAlignment="Left" PlaceholderText="Seleccionar sector"
+                                  SelectionChanged="SectoresIngresoCombo_SelectionChanged"/>
+                        <TextBox x:Name="SectorInput" Text="General"
+                                 Visibility="Collapsed" IsReadOnly="True" Width="360" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Plaza (solo para sectores de asignación individual; vacío = automática)"/>
+                        <TextBox x:Name="PlazaIngresoInput" KeyDown="PlazaIngresoInput_KeyDown"
+                                 Width="240" HorizontalAlignment="Left" PlaceholderText="Ej.: A-01"/>
+                        <TextBlock x:Name="IngresoSectorDisponibilidadText" TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button x:Name="GuardarIngresoButton" Content="F10 — Guardar ingreso" Click="Ingresar_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TicketPreviewText" Text="Enter: patente → tipo → guardar (si hay un solo sector). Usá Tab para elegir una plaza; F10 también guarda."
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True" Opacity="0.85"/>
+                        <TextBlock Text="El ingreso queda guardado aunque falle la impresora; reimprimí sin registrarlo otra vez."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="SalidaPanel" Visibility="Collapsed">
+    <TabView x:Name="SalidaPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Cobrar">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Salida y cobranza" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Buscá por patente, ticket o QR. Pagos electrónicos solo después de verificar en su proveedor."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBox x:Name="BusquedaInput" KeyDown="BusquedaInput_KeyDown" Width="320" PlaceholderText="Ticket o patente"/>
+                            <Button Content="Buscar" Click="Buscar_Click"/>
+                        </StackPanel>
+                        <Border Background="#E9F2FF" CornerRadius="10" Padding="18">
+                            <StackPanel Spacing="8">
+                                <TextBlock x:Name="SalidaDetalleText" Text="Buscá una estadía activa."
+                                           Foreground="#164677" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="SalidaImporteText" Text="" FontSize="30"
+                                           FontWeight="Bold" Foreground="#164677"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock x:Name="CotizacionVigenciaText" Text="" Opacity="0.7"/>
+                        <TextBlock Text="Medio de pago:"/>
+                        <ComboBox x:Name="MedioPagoCombo" Width="260" HorizontalAlignment="Left"
+                                  SelectedIndex="0" SelectionChanged="MedioPagoCombo_SelectionChanged" KeyDown="MedioPagoCombo_KeyDown">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <StackPanel x:Name="EfectivoPanel" Spacing="8">
+                            <TextBlock Text="Efectivo recibido (se propone el importe exacto; podés cambiarlo):"/>
+                            <TextBox x:Name="EfectivoRecibidoInput" TextChanged="EfectivoRecibidoInput_TextChanged" PlaceholderText="Ej.: 5000" Width="240"
+                                 HorizontalAlignment="Left" KeyDown="EfectivoRecibidoInput_KeyDown"/>
+                        </StackPanel>
+                        <StackPanel x:Name="ElectronicoPanel" Spacing="8" Visibility="Collapsed">
+                            <TextBlock Text="Referencia de pago comprobada (nº operación o autorización)"/>
+                            <TextBox x:Name="ReferenciaElectronicaInput" Width="365"
+                                     MaxLength="200" PlaceholderText="Referencia real del proveedor" KeyDown="ReferenciaElectronicaInput_KeyDown"/>
+                            <CheckBox x:Name="PagoVerificadoCheck" Content="Verifiqué la acreditación/autorización en el proveedor" KeyDown="PagoVerificadoCheck_KeyDown"/>
+                            <TextBlock Text="Aparcar NO consulta bancos ni pasarelas: esto es una declaración manual."
+                                       TextWrapping="Wrap" Opacity="0.7"/>
+                        </StackPanel>
+                        <TextBlock x:Name="VueltoPrevistoText" Text="" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="SalidaEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL al confirmar este cobro"
+                                  IsChecked="False"/>
+                        <Button x:Name="ConfirmarSalidaButton" Content="F10 · Confirmar cobro y salida"
+                                Click="ConfirmarSalida_Click" HorizontalAlignment="Left"
+                                IsEnabled="False"/>
+                        <TextBlock Text="Confirmá solamente un pago efectivamente recibido/verificado. Caja y salida se registran en una misma transacción."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Enter: buscar → medio → importe/referencia → confirmar. F5: buscar · F10: confirmar cobro. La verificación electrónica se tilda con Espacio, nunca automáticamente."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock x:Name="SalidaResultadoReciboText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Recibos">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="HISTORIAL Y RECUPERACIÓN DE RECIBOS DE COBRO"
+                                   FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="El recibo es NO FISCAL. Recuperar una impresión nunca crea otro cobro. Enviado al controlador no garantiza papel impreso."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="ReciboCobroActualizarButton" Content="Actualizar recibos de cobro"
+                                Click="ReciboCobroActualizar_Click" HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="RecibosCobroCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un cobro confirmado del historial"/>
+                        <TextBlock Text="FACTURACIÓN DEL COBRO SELECCIONADO" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <TextBlock Text="La factura se prepara desde este cobro. Después elegí cliente identificado o Consumidor Final en la pantalla fiscal."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FacturarCobroButton" Content="Facturar cobro seleccionado"
+                                    Click="FacturarCobroSeleccionado_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="FacturarConsumidorFinalButton" Content="Facturar a consumidor final"
+                                    Click="FacturarConsumidorFinal_Click" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                        <Button x:Name="ReciboCobroImprimirOriginalButton"
+                                Content="Imprimir ORIGINAL sin intento previo"
+                                Click="ReciboCobroImprimirOriginal_Click" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="ReciboCobroMotivoCopiaInput" Width="500" MaxLength="250"
+                                 HorizontalAlignment="Left"
+                                 PlaceholderText="Motivo de COPIA (mínimo 8 caracteres)"/>
+                        <Button x:Name="ReciboCobroImprimirCopiaButton"
+                                Content="Imprimir COPIA (supervisor)"
+                                Click="ReciboCobroImprimirCopia_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ReciboCobroHistorialEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <ScrollViewer x:Name="PresentesPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="14" MaxWidth="750" HorizontalAlignment="Left">
+                        <TextBlock Text="Vehículos presentes" FontSize="30" FontWeight="Bold"/>
+                        <Button Content="Actualizar listado" Click="Actualizar_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="PresentesList" MinHeight="380" Width="640" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="TarifasPanel" Visibility="Collapsed">
+    <TabView x:Name="TarifasPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Tarifas generales">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Tarifas configurables" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Una tarifa nueva se aplica a los próximos ingresos. Las estadías anteriores conservan sus precios." TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="TipoTarifaCombo" Width="250" HorizontalAlignment="Left"
+                                  SelectionChanged="TipoTarifaCombo_SelectionChanged">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBlock x:Name="VersionTarifaText" Text=""/>
+                        <TextBlock Text="Primera hora ($)"/>
+                        <TextBox x:Name="PrimeraHoraInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fracción adicional ($)"/>
+                        <TextBox x:Name="FraccionPrecioInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Minutos por fracción"/>
+                        <TextBox x:Name="MinutosFraccionInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Máximo por 24 horas ($)"/>
+                        <TextBox x:Name="TopeDiaInput" Width="230" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cortesía inicial en minutos"/>
+                        <TextBox x:Name="CortesiaInput" Width="230" HorizontalAlignment="Left"/>
+                        <Button Content="Guardar nueva versión de tarifa" Click="GuardarTarifa_Click"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Por sector y horario">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="TARIFAS POR SECTOR Y FRANJA" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Se aplica la franja del momento de ingreso a toda la estadía. Si no hay tarifa particular, se utiliza la general."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="TarifaSectorCombo" Width="320" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegir sector"
+                                  SelectionChanged="TarifaSectorCombo_SelectionChanged"/>
+                        <ComboBox x:Name="TarifaSectorTipoCombo" Width="220" SelectedIndex="0"
+                                  HorizontalAlignment="Left" SelectionChanged="TarifaSectorCombo_SelectionChanged">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <ComboBox x:Name="TarifaFranjaCombo" Width="220" SelectedIndex="0"
+                                  HorizontalAlignment="Left" SelectionChanged="TarifaSectorCombo_SelectionChanged">
+                            <ComboBoxItem Content="Diurna" Tag="Diurna"/>
+                            <ComboBoxItem Content="Nocturna" Tag="Nocturna"/>
+                        </ComboBox>
+                        <TextBlock Text="Horario nocturno del sector (HH:mm), por ejemplo 20:00 a 08:00"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="HorarioNocheInicioInput" Width="110" Text="20:00"/>
+                            <TextBox x:Name="HorarioNocheFinInput" Width="110" Text="08:00"/>
+                            <Button x:Name="GuardarHorarioButton" Content="Guardar horario"
+                                    Click="GuardarHorario_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TarifaSectorVersionText" TextWrapping="Wrap"/>
+                        <TextBlock Text="Primera hora ARS"/>
+                        <TextBox x:Name="TarifaSectorPrimeraInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fracción adicional ARS"/>
+                        <TextBox x:Name="TarifaSectorFraccionInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Minutos por fracción"/>
+                        <TextBox x:Name="TarifaSectorMinutosInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Máximo por 24 horas ARS"/>
+                        <TextBox x:Name="TarifaSectorTopeInput" Width="200" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cortesía (minutos)"/>
+                        <TextBox x:Name="TarifaSectorCortesiaInput" Width="200" HorizontalAlignment="Left"/>
+                        <Button x:Name="GuardarTarifaSectorButton" Content="Guardar nueva versión de tarifa sectorial"
+                                Click="GuardarTarifaSector_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Solo los administradores autorizados pueden editar tarifas. Los importes guardados se versionan."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <Grid x:Name="CajaPanel" Visibility="Collapsed">
+    <TabView x:Name="CajaPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Turno">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Caja principal — efectivo y medios electrónicos" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock x:Name="CajaEstadoText" Text="Sin turno abierto" FontSize="18" FontWeight="SemiBold"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="APERTURA DE TURNO" FontWeight="Bold"/>
+                        <TextBlock Text="Operador responsable"/>
+                        <TextBox x:Name="OperadorCajaInput" Width="320" HorizontalAlignment="Left" PlaceholderText="Nombre o identificador"/>
+                        <TextBlock Text="Fondo inicial ($)"/>
+                        <TextBox x:Name="FondoInicialInput" Width="230" HorizontalAlignment="Left" Text="0"/>
+                        <CheckBox x:Name="CajaCiegaTurnoCheck" Content="Turno con caja ciega (ocultar total hasta cerrar)"
+                                  IsChecked="True"/>
+                        <Button x:Name="AbrirCajaButton" Content="Abrir caja" Click="AbrirCaja_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="CIERRE Y ARQUEO" FontWeight="Bold"/>
+                        <TextBlock Text="Caja ciega: el cajero carga lo contado sin conocer el esperado."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Efectivo contado en la caja ($)"/>
+                        <TextBox x:Name="EfectivoContadoInput" Width="230" HorizontalAlignment="Left"/>
+                        <Button x:Name="CerrarCajaButton" Content="Cerrar turno y emitir Cierre Z" Click="CerrarCaja_Click"
+                                HorizontalAlignment="Left" IsEnabled="False"/>
+                        <TextBlock x:Name="UltimoArqueoText" Text="" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Cierres Z">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="CIERRES Z OPERATIVOS" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Cada cierre de turno genera un número Z único e inmutable con el arqueo del efectivo. Es un documento interno de control y no reemplaza una declaración ni una factura fiscal." TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Actualizar cierres Z" Click="ActualizarCierresZ_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="CierresZList" Width="780" MinHeight="220" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="CierresZEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Movimientos">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="MOVIMIENTOS DE EFECTIVO" FontWeight="Bold"/>
+                        <ComboBox x:Name="MovimientoTipoCombo" Width="180" SelectedIndex="0" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Depósito" Tag="Deposito"/>
+                            <ComboBoxItem Content="Retiro" Tag="Retiro"/>
+                        </ComboBox>
+                        <TextBox x:Name="MovimientoMontoInput" PlaceholderText="Monto en ARS" Width="235" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="MovimientoMotivoInput" PlaceholderText="Motivo obligatorio" Width="430" MaxLength="300" HorizontalAlignment="Left"/>
+                        <Button Content="Registrar movimiento" Click="MovimientoManual_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="MovimientosCajaList" Width="670" MaxHeight="150" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Devoluciones">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="DEVOLUCIONES DE EFECTIVO" FontWeight="Bold"/>
+                        <TextBlock Text="PIN local básico: no sustituye usuarios y permisos reales." Opacity="0.7"/>
+                        <PasswordBox x:Name="PinInicialBox" PlaceholderText="Crear PIN de supervisor (6-12 dígitos)" Width="340" HorizontalAlignment="Left"/>
+                        <Button x:Name="CrearPinButton" Content="Configurar PIN inicial" Click="CrearPin_Click" HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="CobrosDevolucionCombo" PlaceholderText="Elegí cobro en efectivo" Width="460" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="MotivoDevolucionInput" Width="440" MaxLength="300" HorizontalAlignment="Left" PlaceholderText="Motivo de devolución completa"/>
+                        <TextBox x:Name="AutorizadorInput" Width="340" HorizontalAlignment="Left" PlaceholderText="Nombre del supervisor"/>
+                        <PasswordBox x:Name="PinDevolucionBox" PlaceholderText="PIN de supervisor" Width="230" HorizontalAlignment="Left"/>
+                        <Button Content="Solicitar devolución completa" Click="DevolverEfectivo_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ResultadoDevolucionText" TextWrapping="Wrap"/>
+                        <TextBlock Text="DEVOLUCIONES DE LAVADERO Y ABONOS (SOLO EFECTIVO)" FontWeight="Bold"/>
+                        <ComboBox x:Name="DevolucionComplementoCombo" Width="530"
+                                  HorizontalAlignment="Left" PlaceholderText="Elegir cobro complementario"/>
+                        <TextBox x:Name="DevolucionComplementoMotivoInput" Width="440"
+                                 HorizontalAlignment="Left" MaxLength="300" PlaceholderText="Motivo (mínimo 8 caracteres)"/>
+                        <TextBox x:Name="DevolucionComplementoSupervisorInput" Width="330"
+                                 HorizontalAlignment="Left" PlaceholderText="Supervisor que autoriza"/>
+                        <PasswordBox x:Name="DevolucionComplementoPin" Width="230"
+                                     HorizontalAlignment="Left" PlaceholderText="PIN del supervisor"/>
+                        <Button Content="Registrar devolución completa del complemento"
+                                Click="DevolverComplemento_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Un abono utilizado o un lavado ya entregado no admite devolución automática."
+                                   Opacity="0.7" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Cobros">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="ÚLTIMOS COBROS" FontWeight="Bold"/>
+                        <ListView x:Name="CobrosCajaList" Width="670" MinHeight="160"
+                                  HorizontalAlignment="Left"/>
+                        <Button Content="Actualizar caja" Click="ActualizarCaja_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Los pagos externos se verifican manualmente. ARCA solo está habilitada para comprobantes de prueba en homologación."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <Grid x:Name="LavaderoPanel" Visibility="Collapsed">
+    <TabView x:Name="LavaderoPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Órdenes y cobros">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Lavadero" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Órdenes de trabajo y cobros separados del estacionamiento. No generan otro ingreso del vehículo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="NUEVA ORDEN" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LavServiciosCombo" Width="480" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar servicio"/>
+                        <TextBox x:Name="LavPatenteInput" Width="240" HorizontalAlignment="Left"
+                                 PlaceholderText="Patente"/>
+                        <TextBox x:Name="LavOperarioInput" Width="320" HorizontalAlignment="Left"
+                                 PlaceholderText="Operario asignado"/>
+                        <TextBox x:Name="LavObservacionesInput" Width="480" MaxLength="500"
+                                 HorizontalAlignment="Left" PlaceholderText="Observaciones"/>
+                        <CheckBox x:Name="LavVincularEstadiaCheck"
+                                  Content="Vincular a una estadía activa de esta patente"/>
+                        <Button x:Name="LavCrearOrdenButton" Content="Crear orden de lavado"
+                                Click="CrearOrdenLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="ÓRDENES (seleccioná una)" FontWeight="SemiBold"/>
+                        <ListView x:Name="LavOrdenesList" Width="710" Height="185"
+                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                        <ComboBox x:Name="LavEstadoCombo" Width="215" HorizontalAlignment="Left"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="EnProceso" Tag="EnProceso"/>
+                            <ComboBoxItem Content="Terminado" Tag="Terminado"/>
+                            <ComboBoxItem Content="Entregado" Tag="Entregado"/>
+                            <ComboBoxItem Content="Cancelado" Tag="Cancelado"/>
+                        </ComboBox>
+                        <Button x:Name="LavCambiarEstadoButton" Content="Actualizar estado de la orden seleccionada"
+                                Click="CambiarEstadoLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="COBRAR ORDEN SELECCIONADA" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="LavPagoMedioCombo" Width="230" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <TextBox x:Name="LavRecibidoInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Efectivo entregado / total externo"/>
+                        <TextBox x:Name="LavReferenciaInput" Width="420" HorizontalAlignment="Left"
+                                 PlaceholderText="Referencia de pago externo"/>
+                        <CheckBox x:Name="LavVerificadoCheck"
+                                  Content="Verifiqué el pago externo en su proveedor"/>
+                        <CheckBox x:Name="LavEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL para este lavado"
+                                  IsChecked="False"/>
+                        <Button x:Name="LavCobrarButton" Content="Confirmar cobro de lavado"
+                                Click="CobrarLavado_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Los pagos externos se verifican manualmente. El pago de la orden se registra una sola vez."
+                                   Opacity="0.7" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Servicios">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="CATÁLOGO DE SERVICIOS" FontWeight="SemiBold"/>
+                        <TextBox x:Name="LavServicioNombreInput" Width="360" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre (ej.: Lavado completo)"/>
+                        <ComboBox x:Name="LavServicioTipoCombo" SelectedIndex="0" Width="220"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBox x:Name="LavServicioPrecioInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Precio ARS"/>
+                        <Button x:Name="LavGuardarServicioButton" Content="Guardar nueva versión del servicio"
+                                Click="GuardarServicioLavado_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <Grid x:Name="AbonadosPanel" Visibility="Collapsed">
+    <TabView x:Name="AbonadosPanelTabs" IsAddTabButtonVisible="False">
+            <TabViewItem Header="Contratos y cobros">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="Abonados" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Cobertura 24 horas o nocturna (20:00–08:00). Renovaciones, hasta 5 patentes y pago antes de activar."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="NUEVO ABONO PENDIENTE" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="AbPlanesCombo" Width="500" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar plan"/>
+                        <TextBox x:Name="AbClienteInput" Width="400" HorizontalAlignment="Left"
+                                 PlaceholderText="Cliente"/>
+                        <TextBox x:Name="AbPatenteInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Patente"/>
+                        <Button x:Name="AbCrearContratoButton" Content="Crear contrato pendiente"
+                                Click="CrearContratoAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="CONTRATOS (seleccioná uno pendiente para cobrar)" FontWeight="SemiBold"/>
+                        <ListView x:Name="AbContratosList" Width="710" Height="185"
+                                  HorizontalAlignment="Left" SelectionMode="Single"
+                                  SelectionChanged="AbContratosList_SelectionChanged"/>
+                        <TextBlock Text="GESTIÓN DE PATENTES Y RENOVACIONES" FontWeight="SemiBold"/>
+                        <TextBlock Text="Seleccioná contrato pendiente para editar patentes; uno activo para renovarlo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="AbPatenteExtraInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Otra patente autorizada"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Añadir patente" Click="AgregarPatenteAbono_Click"/>
+                            <Button Content="Quitar patente" Click="QuitarPatenteAbono_Click"/>
+                        </StackPanel>
+                        <Button Content="Crear renovación del contrato seleccionado con el plan elegido"
+                                Click="RenovarAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="AbVehiculosText" TextWrapping="Wrap"/>
+                        <TextBlock Text="ACTIVAR MEDIANTE COBRO" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="AbPagoMedioCombo" Width="230" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Efectivo" Tag="Efectivo"/>
+                            <ComboBoxItem Content="Débito" Tag="Debito"/>
+                            <ComboBoxItem Content="Crédito" Tag="Credito"/>
+                            <ComboBoxItem Content="Transferencia" Tag="Transferencia"/>
+                            <ComboBoxItem Content="QR" Tag="QR"/>
+                        </ComboBox>
+                        <TextBox x:Name="AbRecibidoInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Efectivo recibido / total externo"/>
+                        <TextBox x:Name="AbReferenciaInput" Width="430" HorizontalAlignment="Left"
+                                 PlaceholderText="Referencia de pago externo"/>
+                        <CheckBox x:Name="AbVerificadoCheck"
+                                  Content="Verifiqué el pago externo en el proveedor"/>
+                        <CheckBox x:Name="AbEmitirXCheck"
+                                  Content="Emitir ticket X NO FISCAL para este abono"
+                                  IsChecked="False"/>
+                        <Button x:Name="AbCobrarButton" Content="Cobrar y activar contrato pendiente"
+                                Click="CobrarAbono_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cobertura sin retroactividad. La permanencia debe estar completamente dentro del horario y vigencia. Una renovación anticipada empieza al vencer la anterior."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+            <TabViewItem Header="Planes">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="CATÁLOGO DE PLANES" FontWeight="SemiBold"/>
+                        <TextBox x:Name="AbPlanNombreInput" Width="370" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre del plan"/>
+                        <ComboBox x:Name="AbPlanTipoCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Auto"/>
+                            <ComboBoxItem Content="Moto"/>
+                            <ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <ComboBox x:Name="AbPlanPeriodoCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="2">
+                            <ComboBoxItem Content="Semanal"/>
+                            <ComboBoxItem Content="Quincenal"/>
+                            <ComboBoxItem Content="Mensual"/>
+                        </ComboBox>
+                        <TextBlock Text="Modalidad de cobertura"/>
+                        <ComboBox x:Name="AbPlanModalidadCombo" Width="240" SelectedIndex="0"
+                                  HorizontalAlignment="Left">
+                            <ComboBoxItem Content="24 horas" Tag="Completa"/>
+                            <ComboBoxItem Content="Nocturna 20:00–08:00" Tag="Nocturna"/>
+                        </ComboBox>
+                        <TextBox x:Name="AbPlanPrecioInput" Width="220" HorizontalAlignment="Left"
+                                 PlaceholderText="Precio ARS"/>
+                        <Button x:Name="AbGuardarPlanButton" Content="Guardar versión de plan"
+                                Click="GuardarPlanAbono_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabViewItem>
+    </TabView>
+</Grid>
+
+                <ScrollViewer x:Name="ReportesPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="850" HorizontalAlignment="Left">
+                        <TextBlock Text="Reportes de recaudación" FontSize="30" FontWeight="Bold"/>
+                        <TextBlock Text="Cobros y devoluciones por fecha efectiva, separados por medio. No son reportes fiscales." TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Fecha desde (dd/MM/aaaa)"/>
+                        <TextBox x:Name="ReporteDesdeInput" Width="210" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Fecha hasta inclusive (dd/MM/aaaa)"/>
+                        <TextBox x:Name="ReporteHastaInput" Width="210" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="Consultar recaudación" Click="ConsultarReporte_Click"/>
+                            <Button Content="Exportar Excel (.xlsx)" Click="ExportarExcel_Click"/>
+                            <Button Content="Exportar PDF (.pdf)" Click="ExportarPdf_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ReporteTotalesText" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        <ListView x:Name="ReporteFilasList" Width="730" MinHeight="340"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="OPERACIONES PENDIENTES DE FACTURACIÓN (NO SON FACTURAS)" FontWeight="Bold"/>
+                        <TextBlock Text="Las operaciones listadas no tienen CAE ni autorización fiscal. Pendiente integrar ARCA con datos de emisor y receptor."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ListView x:Name="PendientesFiscalesList" Width="720" Height="185"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="RutaReporteText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="Excel y PDF exportan exactamente el período consultado; no son documentos fiscales."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="UsuariosPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="700" HorizontalAlignment="Left">
+                        <TextBlock Text="Administración de usuarios" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="Solo el administrador puede crear cuentas. Cada operador debe tener su contraseña personal."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Nombre de usuario"/>
+                        <TextBox x:Name="NuevoUsuarioInput" Width="300" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Contraseña (mínimo 10 caracteres, letras y números)"/>
+                        <PasswordBox x:Name="NuevaContrasenaBox" Width="330" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Rol asignado"/>
+                        <ComboBox x:Name="NuevoRolCombo" Width="220" HorizontalAlignment="Left" SelectedIndex="2">
+                            <ComboBoxItem Content="Administrador"/>
+                            <ComboBoxItem Content="Supervisor"/>
+                            <ComboBoxItem Content="Cajero"/>
+                            <ComboBoxItem Content="Lavadero"/>
+                            <ComboBoxItem Content="Consulta"/>
+                        </ComboBox>
+                        <Button Content="Crear usuario" Click="CrearUsuario_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="ListaUsuarios" Width="640" MinHeight="200"
+                                  HorizontalAlignment="Left" SelectionMode="Single"/>
+                        <TextBlock Text="EDITAR CUENTA SELECCIONADA" FontWeight="SemiBold"/>
+                        <TextBlock Text="Rol nuevo"/>
+                        <ComboBox x:Name="RolCambioCombo" Width="250" SelectedIndex="2" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Administrador"/>
+                            <ComboBoxItem Content="Supervisor"/>
+                            <ComboBoxItem Content="Cajero"/>
+                            <ComboBoxItem Content="Lavadero"/>
+                            <ComboBoxItem Content="Consulta"/>
+                        </ComboBox>
+                        <Button Content="Cambiar rol seleccionado" Click="CambiarRolUsuario_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Restablecer contraseña de la cuenta seleccionada"/>
+                        <PasswordBox x:Name="ResetPasswordBox" Width="350" HorizontalAlignment="Left"/>
+                        <Button Content="Restablecer contraseña" Click="RestablecerUsuario_Click"
+                                HorizontalAlignment="Left"/>
+                        <Button Content="Desactivar cuenta seleccionada" Click="DesactivarUsuario_Click"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+                <ScrollViewer x:Name="AuditoriaPanel" Visibility="Collapsed">
+                    <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Left">
+                        <TextBlock Text="Registro de auditoría" FontSize="28" FontWeight="Bold"/>
+                        <TextBlock Text="Registro encadenado para detectar modificaciones no autorizadas. No sustituye almacenamiento externo de auditoría."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Verificar integridad y actualizar" Click="VerificarAuditoria_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="AuditoriaEstadoText" TextWrapping="Wrap"/>
+                        <ListView x:Name="ListaAuditoria" Width="700" MinHeight="340" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="ConfigPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#E6F5F4" CornerRadius="12" Padding="18,14" Margin="0,0,0,14">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="Configuración central" FontSize="26" FontWeight="Bold" Foreground="#0F4C81"/>
+                            <TextBlock Text="Administrá tarifas, sectores, impresoras, respaldos y datos fiscales desde un solo lugar." Foreground="#31556F" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+    <Grid Grid.Row="1" ColumnSpacing="18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="#EEF4FA" CornerRadius="12" Padding="8" VerticalAlignment="Stretch">
+            <StackPanel Spacing="4">
+                <TextBlock Text="SECCIONES" FontSize="12" FontWeight="SemiBold" Foreground="#55728A" Margin="10,6,10,4"/>
+                <ListView x:Name="ConfigSectionNavigation" SelectionChanged="ConfigSection_SelectionChanged">
+                    <ListViewItem Content="Tarifas" Tag="tarifas"/>
+                    <ListViewItem Content="Maestros" Tag="maestros"/>
+                    <ListViewItem Content="Sectores y plazas" Tag="sectores"/>
+                    <ListViewItem Content="Impresión" Tag="impresion"/>
+                    <ListViewItem Content="Talonarios" Tag="talonarios"/>
+                    <ListViewItem Content="ARCA y certificados" Tag="arca"/>
+                    <ListViewItem Content="Facturación de prueba" Tag="fiscal"/>
+                    <ListViewItem Content="Solicitudes ARCA" Tag="solicitudes"/>
+                    <ListViewItem Content="Control documental" Tag="documental"/>
+                    <ListViewItem Content="Caja y respaldos" Tag="seguridad"/>
+                </ListView>
+            </StackPanel>
+        </Border>
+        <Grid Grid.Column="1">
+            <Grid x:Name="ConfigSectionTarifas">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="920" HorizontalAlignment="Left">
+                        <TextBlock Text="TARIFAS Y FRANJAS" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock Text="Toda modificación se versiona y solo afecta a los próximos ingresos. Las estadías activas conservan la tarifa congelada al ingresar." TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Tarifa general" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="ConfigTipoTarifaCombo" Width="240" SelectedIndex="0" SelectionChanged="ConfigTipoTarifa_SelectionChanged">
+                            <ComboBoxItem Content="Auto"/><ComboBoxItem Content="Moto"/><ComboBoxItem Content="Camioneta"/>
+                        </ComboBox>
+                        <TextBlock x:Name="ConfigTarifaVersionText" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="ConfigTarifaPrimeraInput" Width="170" PlaceholderText="Primera hora ARS"/>
+                            <TextBox x:Name="ConfigTarifaFraccionInput" Width="170" PlaceholderText="Fracción ARS"/>
+                            <TextBox x:Name="ConfigTarifaMinutosInput" Width="150" PlaceholderText="Minutos"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="ConfigTarifaTopeInput" Width="170" PlaceholderText="Tope 24 h ARS"/>
+                            <TextBox x:Name="ConfigTarifaCortesiaInput" Width="150" PlaceholderText="Cortesía min."/>
+                            <Button x:Name="ConfigGuardarTarifaButton" Content="Guardar tarifa general" Click="ConfigGuardarTarifa_Click"/>
+                        </StackPanel>
+                        <TextBlock Text="Tarifa por sector y horario" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="ConfigTarifaSectorCombo" Width="300" PlaceholderText="Sector" SelectionChanged="ConfigTarifaSector_SelectionChanged"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox x:Name="ConfigTarifaSectorTipoCombo" Width="150" SelectedIndex="0" SelectionChanged="ConfigTarifaSector_SelectionChanged">
+                                <ComboBoxItem Content="Auto"/><ComboBoxItem Content="Moto"/><ComboBoxItem Content="Camioneta"/>
+                            </ComboBox>
+                            <ComboBox x:Name="ConfigTarifaFranjaCombo" Width="150" SelectedIndex="0" SelectionChanged="ConfigTarifaSector_SelectionChanged">
+                                <ComboBoxItem Content="Diurna" Tag="Diurna"/><ComboBoxItem Content="Nocturna" Tag="Nocturna"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="ConfigHorarioInicioInput" Width="100" Text="20:00" PlaceholderText="Desde HH:mm"/>
+                            <TextBox x:Name="ConfigHorarioFinInput" Width="100" Text="08:00" PlaceholderText="Hasta HH:mm"/>
+                            <Button x:Name="ConfigGuardarHorarioButton" Content="Guardar horario" Click="ConfigGuardarHorario_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ConfigTarifaSectorVersionText" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="ConfigTarifaSectorPrimeraInput" Width="150" PlaceholderText="Primera hora"/>
+                            <TextBox x:Name="ConfigTarifaSectorFraccionInput" Width="150" PlaceholderText="Fracción"/>
+                            <TextBox x:Name="ConfigTarifaSectorMinutosInput" Width="120" PlaceholderText="Minutos"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="ConfigTarifaSectorTopeInput" Width="150" PlaceholderText="Tope 24 h"/>
+                            <TextBox x:Name="ConfigTarifaSectorCortesiaInput" Width="120" PlaceholderText="Cortesía"/>
+                            <Button x:Name="ConfigGuardarTarifaSectorButton" Content="Guardar tarifa sectorial" Click="ConfigGuardarTarifaSector_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="ConfigTarifasEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionMaestros" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="820" HorizontalAlignment="Left">
+                        <TextBlock Text="MAESTROS DEL SISTEMA" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock Text="Los catálogos que modifican la operación se administran desde este acceso central. Los datos operativos siguen separados para que el cajero no vea formularios innecesarios." TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Configurar servicios y precios de lavadero" Click="ConfigAbrirLavaderoMaestros_Click" HorizontalAlignment="Left"/>
+                        <Button Content="Configurar planes y abonos" Click="ConfigAbrirAbonadosMaestros_Click" HorizontalAlignment="Left"/>
+                        <Button Content="Administrar usuarios y roles" Click="ConfigAbrirUsuarios_Click" HorizontalAlignment="Left"/>
+                        <Button Content="Consultar auditoría de seguridad" Click="ConfigAbrirAuditoria_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Los accesos respetan los permisos del rol activo y no crean cobros por sí mismos." TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionSectores" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="SECTORES Y PLAZAS" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Capacidad máxima por sector. Libre = sin plaza individual; Asignado = una plaza física por vehículo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Nombre de sector"/>
+                        <TextBox x:Name="ConfigSectorNombreInput" Width="300" HorizontalAlignment="Left"
+                                 PlaceholderText="Ej.: General, Techado, VIP"/>
+                        <TextBlock Text="Capacidad"/>
+                        <TextBox x:Name="ConfigSectorCapacidadInput" Width="200" HorizontalAlignment="Left"
+                                 PlaceholderText="Cantidad máxima de vehículos"/>
+                        <ComboBox x:Name="ConfigSectorModoCombo" Width="250"
+                                  HorizontalAlignment="Left" SelectedIndex="0">
+                            <ComboBoxItem Content="Libre" Tag="Libre"/>
+                            <ComboBoxItem Content="Plaza asignada" Tag="Asignado"/>
+                        </ComboBox>
+                        <CheckBox x:Name="ConfigSectorActivoCheck" Content="Sector habilitado para nuevos ingresos"
+                                  IsChecked="True"/>
+                        <Button x:Name="ConfigGuardarSectorButton" Content="Guardar sector"
+                                Click="GuardarSector_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="SECTORES CONFIGURADOS" FontWeight="SemiBold"/>
+                        <ListView x:Name="ConfigSectoresList" Width="650" Height="160"
+                                  SelectionChanged="ConfigSectoresList_SelectionChanged"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="Plaza dentro del sector seleccionado"/>
+                        <TextBox x:Name="ConfigPlazaCodigoInput" Width="240" HorizontalAlignment="Left"
+                                 PlaceholderText="Ej.: A-01"/>
+                        <CheckBox x:Name="ConfigPlazaHabilitadaCheck" Content="Plaza habilitada"
+                                  IsChecked="True"/>
+                        <Button x:Name="ConfigGuardarPlazaButton" Content="Guardar plaza"
+                                Click="GuardarPlaza_Click" HorizontalAlignment="Left"/>
+                        <ListView x:Name="ConfigPlazasList" Width="650" Height="170" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ConfigOcupacionText" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionImpresion" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="IMPRESIÓN DE TICKETS" FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Impresora instalada en Windows:"/>
+                        <ComboBox x:Name="ImpresorasCombo" Width="390" HorizontalAlignment="Left" PlaceholderText="Elegir impresora"/>
+                        <TextBlock Text="Ancho de papel:"/>
+                        <ComboBox x:Name="AnchoTicketCombo" SelectedIndex="1" Width="190" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="58 mm"/>
+                            <ComboBoxItem Content="80 mm"/>
+                        </ComboBox>
+                        <CheckBox x:Name="AutoImprimirIngresoCheck" Content="Imprimir automáticamente el ticket de ingreso" IsChecked="True"/>
+                        <CheckBox x:Name="AutoImprimirCobroCheck" Content="Imprimir automáticamente el recibo de cobro no fiscal" IsChecked="True"/>
+                        <Button Content="Guardar configuración de impresora" Click="GuardarImpresora_Click" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+    <Button Content="Actualizar impresoras" Click="ActualizarImpresoras_Click"/>
+    <Button Content="Imprimir página de prueba" Click="ProbarImpresora_Click"/>
+</StackPanel>
+<TextBlock x:Name="ImpresoraEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBox x:Name="TicketReimpresionInput" PlaceholderText="Nº ticket para reimprimir" Width="250"/>
+                            <Button x:Name="ReimprimirTicketButton" Content="Reimprimir ingreso" Click="ReimprimirTicket_Click"/>
+                        </StackPanel>
+                        <TextBox x:Name="MotivoReimpresionInput" Width="500" HorizontalAlignment="Left"
+                                 MaxLength="250" PlaceholderText="Motivo obligatorio de la reimpresión (mínimo 8 caracteres)"/>
+                        <TextBlock Text="Solo administrador o supervisor puede reimprimir. Cada autorización queda auditada." Opacity="0.7"/>
+                        <TextBlock Text="Usá una impresora con controlador Windows compatible. Los tickets QR son operativos, no fiscales."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionTalonarios" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="TALONARIO X — DOCUMENTOS NO FISCALES" FontSize="18"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Emite tickets X numerados exclusivamente sobre cobros ya registrados, sin alterar caja ni sustituir la factura exigida por ARCA. La reimpresión requiere permiso de supervisor y motivo."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="TalonarioXCodigoInput" Width="115"
+                                     PlaceholderText="Código 0001"/>
+                            <TextBox x:Name="TalonarioXNombreInput" Width="300"
+                                     PlaceholderText="Nombre del talonario / caja"/>
+                            <Button x:Name="TalonarioXCrearButton" Content="Crear talonario X"
+                                    Click="TalonarioXCrear_Click"/>
+                        </StackPanel>
+                        <ComboBox x:Name="TalonariosXCombo" SelectionChanged="TalonarioX_SelectionChanged" Width="590" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná el talonario no fiscal"/>
+                        <CheckBox x:Name="TalonarioXHabilitadoCheck" Content="Talonario habilitado" IsChecked="True"/>
+<Button x:Name="TalonarioXGuardarCambiosButton" Content="Guardar nombre y estado" Click="TalonarioXGuardarCambios_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Talonario X predeterminado para cobrar (no fiscal)"
+                                   FontWeight="SemiBold"/>
+                        <ComboBox x:Name="TalonarioXPreferidoCombo" Width="590" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí el talonario que usarán los cajeros al tildar Emitir X"/>
+                        <Button x:Name="TalonarioXGuardarPreferidoButton"
+                                Content="Guardar talonario X para cobros"
+                                Click="TalonarioXGuardarPreferido_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cada cobro requiere tildar Emitir X expresamente. Si la impresora falla, el X sigue registrado y se recupera desde el historial."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="TalonarioXActualizarButton" Content="Actualizar talonarios, cobros y tickets"
+                                Click="TalonarioXActualizar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cobro confirmado para documentar (seleccionar)"
+                                   FontWeight="SemiBold"/>
+                        <ComboBox x:Name="CobrosXCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un cobro de estacionamiento, lavadero o abono"/>
+                        <Button x:Name="TalonarioXEmitirButton"
+                                Content="Emitir número X e imprimir comprobante no fiscal"
+                                Click="TalonarioXEmitir_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Historial y reimpresión del ticket X" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="HistorialXCombo" Width="650" HorizontalAlignment="Left"
+                                  PlaceholderText="Elegí un X emitido para consultar/reimprimir"/>
+                        <TextBox x:Name="TalonarioXMotivoCopiaInput" Width="500"
+                                 MaxLength="250" HorizontalAlignment="Left"
+                                 PlaceholderText="Motivo de reimpresión (mínimo 8 caracteres)"/>
+                        <Button x:Name="TalonarioXReimprimirButton"
+                                Content="Reimprimir COPIA X (supervisor)"
+                                Click="TalonarioXReimprimir_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="TalonarioXResultadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="PUNTOS DE VENTA FISCALES" FontSize="18" FontWeight="SemiBold"/>
+<TextBlock Text="Registrá aquí los puntos de venta y tipos de factura habilitados en ARCA. La numeración autorizada se consulta en ARCA; estos registros no crean puntos de venta ni habilitan producción." TextWrapping="Wrap"/>
+<ComboBox x:Name="FiscalMaestroAmbienteCombo" Width="260" HorizontalAlignment="Left" SelectedIndex="0"><ComboBoxItem Content="Homologación" Tag="Homologacion"/><ComboBoxItem Content="Producción" Tag="Produccion"/></ComboBox>
+<TextBox x:Name="FiscalMaestroCuitInput" Width="260" HorizontalAlignment="Left" PlaceholderText="CUIT emisor (11 dígitos)" MaxLength="11"/>
+<TextBox x:Name="FiscalMaestroPuntoInput" Width="260" HorizontalAlignment="Left" PlaceholderText="Punto de venta ARCA"/>
+<ComboBox x:Name="FiscalMaestroTipoCombo" Width="260" HorizontalAlignment="Left" SelectedIndex="0"><ComboBoxItem Content="Factura A" Tag="1"/><ComboBoxItem Content="Factura B" Tag="6"/><ComboBoxItem Content="Factura C" Tag="11"/></ComboBox>
+<TextBox x:Name="FiscalMaestroNombreInput" Width="380" HorizontalAlignment="Left" PlaceholderText="Nombre descriptivo" MaxLength="80"/>
+<CheckBox x:Name="FiscalMaestroHabilitadoCheck" Content="Habilitado" IsChecked="True"/>
+<StackPanel Orientation="Horizontal" Spacing="8"><Button Content="Guardar punto de venta" Click="FiscalMaestroGuardar_Click"/><Button Content="Actualizar lista" Click="FiscalMaestroActualizar_Click"/><Button Content="Usar en prueba" Click="FiscalMaestroAplicar_Click"/></StackPanel>
+<ListView x:Name="FiscalMaestroList" Width="650" Height="160" HorizontalAlignment="Left" SelectionChanged="FiscalMaestroList_SelectionChanged"/>
+<TextBlock x:Name="FiscalMaestroEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionArca" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="CERTIFICADOS ARCA" FontSize="20" FontWeight="SemiBold"/>
+<TextBlock Text="1. Elegí el ambiente y generá la solicitud (CSR). 2. Presentá el CSR en ARCA con tu clave fiscal y descargá el certificado emitido. 3. Elegí la clave y el certificado para crear el PFX." TextWrapping="Wrap"/>
+<ComboBox x:Name="CertAmbienteCombo" Width="260" HorizontalAlignment="Left" SelectedIndex="0"><ComboBoxItem Content="Homologación" Tag="Homologacion"/><ComboBoxItem Content="Producción" Tag="Produccion"/></ComboBox>
+<TextBox x:Name="CertCuitInput" Width="260" HorizontalAlignment="Left" PlaceholderText="CUIT titular del certificado (11 dígitos)" MaxLength="11"/>
+<TextBox x:Name="CertOrganizacionInput" Width="400" HorizontalAlignment="Left" PlaceholderText="Nombre o razón social" MaxLength="80"/>
+<TextBox x:Name="CertNombreInput" Width="400" HorizontalAlignment="Left" Text="Aparcar" PlaceholderText="Nombre del sistema" MaxLength="64"/>
+<PasswordBox x:Name="CertClaveInput" Width="360" HorizontalAlignment="Left" PlaceholderText="Contraseña para proteger la clave (12 caracteres mínimo)"/>
+<Button Content="Generar solicitud CSR y clave protegida" Click="CertGenerarSolicitud_Click" HorizontalAlignment="Left"/>
+<TextBlock Text="Conservá la clave protegida y su contraseña. ARCA no recibe esa clave. En homologación el CUIT del CSR debe coincidir con el usuario de WSASS." TextWrapping="Wrap"/>
+<StackPanel Orientation="Horizontal" Spacing="8"><TextBox x:Name="CertClaveRutaInput" Width="470" PlaceholderText="Ruta de clave protegida .pem"/><Button Content="Examinar clave" Click="CertExaminarClave_Click"/></StackPanel>
+<StackPanel Orientation="Horizontal" Spacing="8"><TextBox x:Name="CertFirmadoRutaInput" Width="470" PlaceholderText="Certificado descargado de ARCA (.crt, .cer o .pem)"/><Button Content="Examinar certificado" Click="CertExaminarFirmado_Click"/></StackPanel>
+<TextBlock Text="Para crear el PFX, volvé a ingresar la contraseña de la clave privada arriba y elegí otra contraseña para el PFX." TextWrapping="Wrap"/>
+<PasswordBox x:Name="CertPfxClaveInput" Width="360" HorizontalAlignment="Left" PlaceholderText="Contraseña para el nuevo PFX (12 caracteres mínimo)"/>
+<Button Content="Crear PFX con certificado y clave" Click="CertCrearPfx_Click" HorizontalAlignment="Left"/>
+<TextBlock x:Name="CertEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+<TextBlock Text="ARCA debe emitir el certificado y asociarlo a cada servicio. Producción todavía no está habilitada para emitir facturas en Aparcar." TextWrapping="Wrap"/>
+                        <TextBlock Text="ARCA / FACTURACIÓN — HOMOLOGACIÓN (SOLO CONSULTA)"
+                                   FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Permite probar credenciales WSAA y consultar el último comprobante WSFEv1 sin emitir CAE. No almacena certificado ni contraseña."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="ArcaCertificadoInput" Width="570" HorizontalAlignment="Left"
+                                 PlaceholderText="Ruta del certificado de homologación .pfx"/>
+                        <Button Content="Examinar PFX de homologación" Click="ArcaExaminarPfx_Click" HorizontalAlignment="Left"/>
+                        <PasswordBox x:Name="ArcaClavePfxInput" Width="320" HorizontalAlignment="Left"
+                                     PlaceholderText="Contraseña PFX (solo en memoria)"/>
+                        <TextBox x:Name="ArcaCuitInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="CUIT emisor (11 dígitos)"/>
+                        <TextBox x:Name="ArcaPtoVtaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Punto de venta"/>
+                        <ComboBox x:Name="ArcaCbteTipoCombo" Width="250" SelectedIndex="1" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Factura A (1)" Tag="1"/>
+                            <ComboBoxItem Content="Factura B (6)" Tag="6"/>
+                            <ComboBoxItem Content="Factura C (11)" Tag="11"/>
+                        </ComboBox>
+                        <Button x:Name="ArcaProbarConexionButton" Content="Consultar último comprobante en homologación"
+                                HorizontalAlignment="Left" Click="ArcaProbarConexion_Click"/>
+                        <TextBlock x:Name="ArcaResultadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionFiscal" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="BORRADORES FISCALES — HOMOLOGACIÓN SOLAMENTE"
+                                   FontSize="17" FontWeight="SemiBold"/>
+                        <TextBlock Text="El operador confirma todos los datos fiscales. No se infiere condición IVA, clase de factura ni alícuota a partir de la patente. Las solicitudes son de PRUEBA, sin validez fiscal."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button Content="Actualizar operaciones y solicitudes" Click="FiscalActualizar_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock Text="Cobro pendiente de facturación"/>
+                        <ComboBox x:Name="FiscalCobroCombo" Width="570" HorizontalAlignment="Left"
+                                  SelectionChanged="FiscalCobroCombo_SelectionChanged"
+                                  PlaceholderText="Elegir cobro no devuelto"/>
+                        <TextBlock Text="OPCIONES DE FACTURACIÓN POR CUIT EMISOR"
+                                   FontWeight="SemiBold"/>
+                        <CheckBox x:Name="FiscalCfPorDefectoCheck"
+                                  Content="Predeterminar Consumidor Final cuando la normativa lo permita"/>
+                        <Button x:Name="FiscalGuardarPreferenciaCfButton"
+                                Content="Guardar preferencia para este CUIT"
+                                Click="FiscalGuardarPreferenciaCf_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalPreferenciaCfEstadoText" TextWrapping="Wrap" Opacity="0.8"/>
+                        <TextBlock Text="Receptor y Constancia de Inscripción ARCA"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Para contribuyentes identificados por CUIT, consultá la constancia de inscripción en homologación. Requiere autorización WSAA separada para el servicio de padrón; la condición IVA del comprobante se confirma con el catálogo WSFEv1."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBlock Text="Documento del receptor"/>
+                        <ComboBox x:Name="FiscalDocTipoCombo" SelectedIndex="0" Width="280" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="CUIT (80)" Tag="80"/>
+                            <ComboBoxItem Content="CUIL (86)" Tag="86"/>
+                            <ComboBoxItem Content="DNI (96)" Tag="96"/>
+                            <ComboBoxItem Content="Consumidor final sin identificar (99)" Tag="99"/>
+                        </ComboBox>
+                        <TextBox x:Name="FiscalDocNumeroInput" Width="280" HorizontalAlignment="Left"
+                                 PlaceholderText="Nro. documento; 0 si tipo 99"/>
+                        <TextBlock Text="CARTERA DE CLIENTES FISCALES (v0.18)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Buscar clientes guardados por nombre, CUIT, CUIL o DNI. La cartera corresponde exclusivamente al CUIT emisor; Consumidor Final anónimo no se guarda."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="FiscalBuscarClientesInput" Width="340"
+                                     PlaceholderText="Nombre o número de documento"/>
+                            <Button x:Name="FiscalBuscarClientesButton" Content="Buscar clientes"
+                                    Click="FiscalBuscarClientes_Click"/>
+                        </StackPanel>
+                        <ComboBox x:Name="FiscalClientesCombo" Width="600"
+                                  HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná un cliente existente"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FiscalAplicarClienteButton" Content="Usar cliente"
+                                    Click="FiscalAplicarCliente_Click"/>
+                            <Button x:Name="FiscalVersionesClienteButton" Content="Ver versiones"
+                                    Click="FiscalVersionesCliente_Click"/>
+                            <Button x:Name="FiscalDesactivarClienteButton" Content="Desactivar"
+                                    Click="FiscalDesactivarCliente_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="FiscalClientesEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <Button x:Name="FiscalConsultarConstanciaButton"
+                                Content="Consultar Constancia de Inscripción por CUIT (ARCA)"
+                                Click="FiscalConsultarConstancia_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalConstanciaEstadoText"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="Condición IVA receptor: consultar catálogo oficial en homologación"
+                                   TextWrapping="Wrap"/>
+                        <Button x:Name="FiscalConsultarCondicionesButton"
+                                Content="Consultar condiciones IVA válidas en ARCA"
+                                Click="FiscalConsultarCondiciones_Click"
+                                HorizontalAlignment="Left"/>
+                        <ComboBox x:Name="FiscalCondicionIvaCombo" Width="480" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná la condición IVA oficial de esta clase"/>
+                        <TextBlock x:Name="FiscalCondicionIvaEstadoText" TextWrapping="Wrap" Opacity="0.7"/>
+                        <CheckBox x:Name="FiscalIdentificarPorSolicitudClienteCheck"
+                                  Content="El cliente solicita identificación (p. ej. deducción de Ganancias)"/>
+                        <Button x:Name="FiscalAplicarConsumidorFinalButton"
+                                Content="Usar Consumidor Final en esta operación"
+                                Click="FiscalAplicarConsumidorFinal_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Desglose de importes fiscales (pesos; suma = cobro)"/>
+                        <TextBox x:Name="FiscalNetoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Neto gravado"/>
+                        <TextBox x:Name="FiscalIvaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="IVA"/>
+                        <TextBox x:Name="FiscalExentoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Exento"/>
+                        <TextBox x:Name="FiscalNoGravadoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="No gravado"/>
+                        <TextBox x:Name="FiscalAlicuotaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Código alícuota IVA (ej.: 5 = 21%)"/>
+                        <TextBlock Text="Fechas para Concepto 2 (servicios): yyyy-MM-dd"/>
+                        <TextBox x:Name="FiscalServicioDesdeInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Servicio desde"/>
+                        <TextBox x:Name="FiscalServicioHastaInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Servicio hasta"/>
+                        <TextBox x:Name="FiscalVencimientoInput" Width="230" HorizontalAlignment="Left"
+                                 PlaceholderText="Vencimiento del pago"/>
+                        <Button x:Name="FiscalPrepararButton" Content="Validar datos y reservar siguiente número en homologación"
+                                Click="FiscalPreparar_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionSolicitudes" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <TextBlock Text="Consulta fiscal del EMISOR (homologación)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Consulta ARCA la razón social y domicilio fiscal del CUIT emisor. El domicilio comercial, IVA e Ingresos Brutos deben revisarse antes de guardar el perfil."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="FiscalConsultarConstanciaEmisorButton"
+                                Content="Consultar constancia de inscripción del EMISOR"
+                                Click="FiscalConsultarConstanciaEmisor_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalConstanciaEmisorEstadoText"
+                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="PERFILES FISCALES REUTILIZABLES (v0.16 - por CUIT)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Los perfiles guardan versiones históricas. Cargá o seleccioná uno para completar automáticamente los datos del emisor. Los datos se declaran manualmente: Aparcar aún no los verifica con ARCA."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="FiscalPerfilesCombo" Width="610" HorizontalAlignment="Left"
+                                  PlaceholderText="Seleccioná un perfil fiscal guardado"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FiscalPerfilActualizarButton" Content="Buscar perfiles"
+                                    Click="FiscalPerfilActualizar_Click"/>
+                            <Button x:Name="FiscalPerfilAplicarButton" Content="Aplicar perfil elegido"
+                                    Click="FiscalPerfilAplicar_Click"/>
+                            <Button x:Name="FiscalPerfilHistorialButton" Content="Ver historial de versiones"
+                                    Click="FiscalPerfilHistorial_Click"/>
+                        </StackPanel>
+                        <Button x:Name="FiscalPerfilGuardarButton"
+                                Content="Guardar datos del emisor como perfil / nueva versión"
+                                Click="FiscalPerfilGuardar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalPerfilEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" Opacity="0.8"/>
+                        <TextBlock Text="DATOS COMERCIALES DE LA SOLICITUD (solo homologación)"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Seleccioná primero una solicitud Preparada. Estos datos se guardan una sola vez, antes de solicitar CAE de prueba. CUIT, documento e IVA receptor se toman de la solicitud reservada; no se permite cambiarlos."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <TextBox x:Name="FiscalRazonSocialEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Razón social del emisor"/>
+                        <TextBox x:Name="FiscalNombreFantasiaEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre de fantasía (opcional)"/>
+                        <TextBox x:Name="FiscalDomicilioEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Domicilio comercial del emisor"/>
+                        <TextBox x:Name="FiscalCondicionIvaEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Condición frente al IVA del emisor"/>
+                        <TextBox x:Name="FiscalIngresosBrutosEmisorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="N° Ingresos Brutos o condición de exento/no contribuyente"/>
+                        <TextBox x:Name="FiscalInicioActividadesEmisorInput" Width="330" HorizontalAlignment="Left"
+                                 PlaceholderText="Inicio actividades: yyyy-MM-dd"/>
+                        <TextBox x:Name="FiscalNombreReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Nombre o razón social del receptor"/>
+                        <TextBox x:Name="FiscalDomicilioReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Domicilio del receptor"/>
+                        <TextBox x:Name="FiscalCorreoReceptorInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Correo receptor (opcional)"/>
+                        <Button x:Name="FiscalGuardarClienteButton"
+                                Content="Guardar cliente identificado / nueva versión"
+                                Click="FiscalGuardarCliente_Click" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="FiscalDescripcionServicioInput" Width="480" HorizontalAlignment="Left"
+                                 PlaceholderText="Detalle: estacionamiento, abono o lavadero"/>
+                        <TextBox x:Name="FiscalCondicionVentaInput" Width="360" HorizontalAlignment="Left"
+                                 PlaceholderText="Condición de venta (ej.: contado)"/>
+                        <Button x:Name="FiscalGuardarDatosDocumentoButton"
+                                Content="Guardar identidad comercial INMUTABLE de la solicitud"
+                                Click="FiscalGuardarDatosDocumento_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="FiscalEmitirButton" Content="Solicitar CAE de PRUEBA (confirmación requerida)"
+                                Click="FiscalEmitir_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="FiscalConciliarButton" Content="Consultar ARCA para conciliar solicitud incierta"
+                                Click="FiscalConciliar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="COPIAS DE HOMOLOGACIÓN - NO SON FACTURAS VÁLIDAS"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Disponible solo para solicitudes de prueba Autorizadas con CAE; no se genera QR fiscal ni comprobante comercial."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="FiscalGuardarPdfButton"
+                                Content="Guardar PDF de PRUEBA (sin validez fiscal)"
+                                Click="FiscalGuardarPdf_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="FiscalImprimirButton"
+                                Content="Imprimir copia de PRUEBA en impresora configurada"
+                                Click="FiscalImprimir_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalResultadoText" IsTextSelectionEnabled="True"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionDocumental" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="CONTROL DOCUMENTAL DE COBROS" FontSize="18"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Consulta de seguimiento local: X no fiscal, devoluciones y solicitudes ARCA exclusivamente de HOMOLOGACIÓN. No se verifica facturación de producción ni se considera cumplida por un Ticket X."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <Button x:Name="ControlDocumentalActualizarButton"
+                                Content="Consultar estado documental de cobros"
+                                Click="ControlDocumentalActualizar_Click"
+                                HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="ControlDocumentalEstadoText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <ListView x:Name="ControlDocumentalCobrosList" Width="650" Height="230"
+                                  HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Grid x:Name="ConfigSectionSeguridad" Visibility="Collapsed">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Text="SEGURIDAD DE CAJA" FontWeight="SemiBold" FontSize="18"/>
+                        <CheckBox x:Name="CajaCiegaObligatoriaCheck"
+                                  Content="Exigir caja ciega para todos los turnos"
+                                  IsChecked="False"/>
+                        <Button x:Name="GuardarPoliticaCajaButton" Content="Guardar política de caja"
+                                Click="GuardarPoliticaCaja_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="El cajero no puede desactivar la caja ciega obligatoria. Se configura con el turno cerrado." Opacity="0.7" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="RutaDatosText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="RESPALDO AUTOMÁTICO DE SEGURIDAD" FontSize="18" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="RespaldoAutomaticoInicioCheck"
+                                  Content="Crear un respaldo consistente automáticamente al iniciar Aparcar"
+                                  IsChecked="True"/>
+                        <Button x:Name="GuardarRespaldoPoliticaButton" Content="Guardar política de respaldos"
+                                Click="GuardarRespaldoPolitica_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="RespaldoEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                        <Button Content="Crear respaldo consistente" Click="Respaldar_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="RECUPERACIÓN SEGURA DE RESPALDOS" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Text="Elegí una base Aparcar (.db). Primero se verifica su integridad. Al preparar la restauración no se reemplazan datos todavía; se aplica al reiniciar el programa."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="RutaRespaldoInput" Width="500"
+                                     PlaceholderText="Ruta de respaldo .db"/>
+                            <Button Content="Examinar" Click="ExaminarRespaldo_Click"/>
+                        </StackPanel>
+                        <Button Content="Verificar integridad del respaldo"
+                                Click="VerificarRespaldo_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="PrepararRestauracionButton" Content="Preparar restauración al reiniciar"
+                                Click="PrepararRestauracion_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="EstadoRestauracionText" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"/>
+                        <TextBlock Text="El respaldo se guarda en Documentos/Aparcar/Respaldos. Copiá además una copia fuera de esta computadora."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Grid>
+</Grid>
+            </Grid>
+        </NavigationView>
+        <Border x:Name="PantallaAcceso" Grid.Row="1" Background="#F3F6FB"
+                Padding="28" Visibility="Visible">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                <Border MaxWidth="430" Padding="28" CornerRadius="16" Background="White" BorderBrush="#D9E5F0" BorderThickness="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Background="{StaticResource AccentBrush}" CornerRadius="8" Padding="9,5">
+                            <TextBlock Text="A" Foreground="White" FontSize="22" FontWeight="Bold"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="APARCAR" FontWeight="Bold" FontSize="26" Foreground="#164677"/>
+                            <TextBlock Text="Operación de estacionamientos" FontSize="13" Foreground="#55728A"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel x:Name="PrimerAdministradorPanel" Spacing="9" Visibility="Collapsed">
+                        <TextBlock Text="Configuración inicial" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <TextBlock Text="Creá el primer administrador. No existen usuarios ni contraseñas predeterminadas."
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Usuario administrador"/>
+                        <TextBox x:Name="AdminInicialUsuarioInput" Width="360" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Contraseña (10 a 128 caracteres, con letras y números)"/>
+                        <PasswordBox x:Name="AdminInicialPasswordBox" Width="360" HorizontalAlignment="Left"/>
+                        <Button Content="Crear administrador e ingresar" Click="CrearAdministradorInicial_Click"
+                                HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <StackPanel x:Name="LoginPanel" Spacing="9" Visibility="Visible">
+                        <TextBlock Text="Iniciar sesión" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <TextBox x:Name="LoginUsuarioInput" Width="360" Header="Usuario" HorizontalAlignment="Left"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Width="360" Header="Contraseña" HorizontalAlignment="Left"/>
+                        <Button Content="Ingresar a Aparcar" Click="Login_Click" HorizontalAlignment="Left"/>
+                        <TextBlock Text="Tras cinco intentos erróneos la cuenta se bloquea temporalmente."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                    </StackPanel>
+                    <TextBlock x:Name="AccesoMensaje" TextWrapping="Wrap" Foreground="#B91C1C"/>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+        </Border>
+        <Border x:Name="SplashOverlay" Grid.RowSpan="2" Background="#164677" Visibility="Visible">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Width="420">
+                <TextBlock Text="APARCAR" Foreground="White" FontSize="38" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <ProgressRing IsActive="True" Width="42" Height="42" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="SplashEstadoText" Text="Inicializando base de datos, configuración y seguridad…"
+                           Foreground="White" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
