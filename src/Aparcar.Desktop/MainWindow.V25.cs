@@ -250,7 +250,7 @@ public sealed partial class MainWindowView
             ArcaCuitInput.Text=t.Cuit;
             ArcaPtoVtaInput.Text=t.PuntoVenta.ToString(CultureInfo.InvariantCulture);
             ArcaCbteTipoCombo.SelectedIndex=t.Tipo==1?0:t.Tipo==6?1:2;
-            ConfigPanelTabs.SelectedItem=ConfigPanelTabs.TabItems[5];
+            ConfigSectionNavigation.SelectedIndex=5;
             ArcaResultadoText.Text="Datos del punto de venta cargados. Seleccioná su certificado de homologación y consultá ARCA.";
         }
         catch(Exception ex){FiscalMaestroEstadoText.Text="No se aplicó: "+ex.Message;}

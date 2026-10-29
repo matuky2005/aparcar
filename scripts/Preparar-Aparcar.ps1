@@ -44,6 +44,19 @@ $domainProj = Join-Path $src 'Aparcar.Domain\Aparcar.Domain.csproj'
 $infraProj = Join-Path $src 'Aparcar.Infrastructure\Aparcar.Infrastructure.csproj'
 $testProj = Join-Path $testsDir 'Aparcar.Tests\Aparcar.Tests.csproj'
 
+# Identidad visual compartida por el ejecutable y el instalador.
+$iconSource = Join-Path $repo 'assets\Aparcar.ico'
+$iconDestination = Join-Path $src 'Aparcar.Desktop\Assets\Aparcar.ico'
+if (-not (Test-Path -LiteralPath $iconSource)) { throw "Falta el icono de Aparcar: $iconSource" }
+New-Item -ItemType Directory -Path (Split-Path $iconDestination) -Force | Out-Null
+Copy-Item -LiteralPath $iconSource -Destination $iconDestination -Force
+$desktopProjectText = Get-Content -LiteralPath $desktopProj -Raw
+if ($desktopProjectText -notmatch '<ApplicationIcon>') {
+    $projectProperty = '<PropertyGroup>' + [Environment]::NewLine + '    <ApplicationIcon>Assets\Aparcar.ico</ApplicationIcon>'
+    $desktopProjectText = $desktopProjectText -replace '<PropertyGroup>', $projectProperty, 1
+    Set-Content -LiteralPath $desktopProj -Value $desktopProjectText -Encoding utf8
+}
+
 foreach ($project in @($desktopProj,$domainProj,$infraProj,$testProj)) {
     Invoke-Dotnet -Arguments @('sln',$solution,'add',$project)
 }

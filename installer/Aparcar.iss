@@ -24,6 +24,7 @@ OutputBaseFilename=Aparcar-Setup-{#AppVersion}-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile={#AppSourceDir}\Aparcar.ico
 ArchitecturesAllowed=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog

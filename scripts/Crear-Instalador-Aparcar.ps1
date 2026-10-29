@@ -17,10 +17,12 @@ if (-not [IO.Path]::IsPathRooted($OutputDir)) { $OutputDir = Join-Path $repo $Ou
 $project = Join-Path $Workspace 'src\Aparcar.Desktop\Aparcar.Desktop.csproj'
 $publish = Join-Path $Workspace 'publish\win-x64'
 $iss = Join-Path $repo 'installer\Aparcar.iss'
+$iconSource = Join-Path $repo 'assets\Aparcar.ico'
 if (-not (Test-Path -LiteralPath $project)) {
     throw "Falta el proyecto generado: $project. Ejecutá primero scripts/Preparar-Aparcar.ps1."
 }
 if (-not (Test-Path -LiteralPath $iss)) { throw "Falta el script Inno Setup: $iss." }
+if (-not (Test-Path -LiteralPath $iconSource)) { throw "Falta el icono de Aparcar: $iconSource." }
 if (Test-Path -LiteralPath $publish) { Remove-Item -LiteralPath $publish -Recurse -Force }
 New-Item -ItemType Directory -Path $publish,$OutputDir -Force | Out-Null
 
@@ -43,6 +45,7 @@ $arguments = @(
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falló ($LASTEXITCODE): no se genera instalador." }
 $exe = Join-Path $publish 'Aparcar.Desktop.exe'
 if (-not (Test-Path -LiteralPath $exe)) { throw "No existe $exe. Publicación inválida." }
+Copy-Item -LiteralPath $iconSource -Destination (Join-Path $publish 'Aparcar.ico') -Force
 $size = (Get-ChildItem -LiteralPath $publish -File -Recurse | Measure-Object -Property Length -Sum).Sum
 if ($size -lt 10000000) { throw "Publicación sospechosamente pequeña ($size bytes). Falta el runtime." }
 

@@ -51,7 +51,8 @@
                 <NavigationViewItem Content="Nuevo ingreso" Tag="ingreso" Icon="Add"/>
                 <NavigationViewItem Content="Salida y cobro" Tag="salida" Icon="Forward"/>
                 <NavigationViewItem Content="Vehículos presentes" Tag="presentes" Icon="List"/>
-                <NavigationViewItem x:Name="MenuTarifas" Content="Tarifas" Tag="tarifas" Icon="Calculator"/>
+                <NavigationViewItem x:Name="MenuTarifas" Content="Tarifas (configuración)" Tag="tarifas" Icon="Calculator"
+                                    Visibility="Collapsed"/>
                 <NavigationViewItem Content="Caja" Tag="caja" Icon="Library"/>
                 <NavigationViewItem Content="Lavadero" Tag="lavadero" Icon="Setting"/>
                 <NavigationViewItem Content="Abonados" Tag="abonados" Icon="People"/>
@@ -764,8 +765,30 @@
                             <TextBlock Text="Administrá tarifas, sectores, impresoras, respaldos y datos fiscales desde un solo lugar." Foreground="#31556F" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
-    <TabView Grid.Row="1" x:Name="ConfigPanelTabs" IsAddTabButtonVisible="False">
-            <TabViewItem Header="Tarifas">
+    <Grid Grid.Row="1" ColumnSpacing="18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="#EEF4FA" CornerRadius="12" Padding="8" VerticalAlignment="Stretch">
+            <StackPanel Spacing="4">
+                <TextBlock Text="SECCIONES" FontSize="12" FontWeight="SemiBold" Foreground="#55728A" Margin="10,6,10,4"/>
+                <ListView x:Name="ConfigSectionNavigation" SelectionChanged="ConfigSection_SelectionChanged">
+                    <ListViewItem Content="Tarifas" Tag="tarifas"/>
+                    <ListViewItem Content="Maestros" Tag="maestros"/>
+                    <ListViewItem Content="Sectores y plazas" Tag="sectores"/>
+                    <ListViewItem Content="Impresión" Tag="impresion"/>
+                    <ListViewItem Content="Talonarios" Tag="talonarios"/>
+                    <ListViewItem Content="ARCA y certificados" Tag="arca"/>
+                    <ListViewItem Content="Facturación de prueba" Tag="fiscal"/>
+                    <ListViewItem Content="Solicitudes ARCA" Tag="solicitudes"/>
+                    <ListViewItem Content="Control documental" Tag="documental"/>
+                    <ListViewItem Content="Caja y respaldos" Tag="seguridad"/>
+                </ListView>
+            </StackPanel>
+        </Border>
+        <Grid Grid.Column="1">
+            <Grid x:Name="ConfigSectionTarifas">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="920" HorizontalAlignment="Left">
                         <TextBlock Text="TARIFAS Y FRANJAS" FontSize="22" FontWeight="SemiBold"/>
@@ -814,8 +837,8 @@
                         <TextBlock x:Name="ConfigTarifasEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Maestros">
+            </Grid>
+            <Grid x:Name="ConfigSectionMaestros" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="820" HorizontalAlignment="Left">
                         <TextBlock Text="MAESTROS DEL SISTEMA" FontSize="22" FontWeight="SemiBold"/>
@@ -827,8 +850,8 @@
                         <TextBlock Text="Los accesos respetan los permisos del rol activo y no crean cobros por sí mismos." TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Sectores">
+            </Grid>
+            <Grid x:Name="ConfigSectionSectores" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="SECTORES Y PLAZAS" FontWeight="SemiBold" FontSize="18"/>
@@ -864,8 +887,8 @@
                         <TextBlock x:Name="ConfigOcupacionText" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Impresora">
+            </Grid>
+            <Grid x:Name="ConfigSectionImpresion" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="IMPRESIÓN DE TICKETS" FontWeight="SemiBold" FontSize="18"/>
@@ -895,8 +918,8 @@
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Talonarios">
+            </Grid>
+            <Grid x:Name="ConfigSectionTalonarios" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="TALONARIO X — DOCUMENTOS NO FISCALES" FontSize="18"
@@ -958,8 +981,8 @@
 <TextBlock x:Name="FiscalMaestroEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Certificados ARCA">
+            </Grid>
+            <Grid x:Name="ConfigSectionArca" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="CERTIFICADOS ARCA" FontSize="20" FontWeight="SemiBold"/>
@@ -1001,8 +1024,8 @@
                         <TextBlock x:Name="ArcaResultadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Facturación de prueba">
+            </Grid>
+            <Grid x:Name="ConfigSectionFiscal" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="BORRADORES FISCALES — HOMOLOGACIÓN SOLAMENTE"
@@ -1100,8 +1123,8 @@
                                 Click="FiscalPreparar_Click" HorizontalAlignment="Left"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Solicitudes ARCA">
+            </Grid>
+            <Grid x:Name="ConfigSectionSolicitudes" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
@@ -1185,8 +1208,8 @@
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Control documental">
+            </Grid>
+            <Grid x:Name="ConfigSectionDocumental" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="CONTROL DOCUMENTAL DE COBROS" FontSize="18"
@@ -1203,8 +1226,8 @@
                                   HorizontalAlignment="Left"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-            <TabViewItem Header="Caja y respaldos">
+            </Grid>
+            <Grid x:Name="ConfigSectionSeguridad" Visibility="Collapsed">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" Margin="0,12,12,12" MaxWidth="900" HorizontalAlignment="Left">
                         <TextBlock Text="SEGURIDAD DE CAJA" FontWeight="SemiBold" FontSize="18"/>
@@ -1241,41 +1264,49 @@
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                 </ScrollViewer>
-            </TabViewItem>
-    </TabView>
+            </Grid>
+        </Grid>
+    </Grid>
 </Grid>
             </Grid>
         </NavigationView>
         <Border x:Name="PantallaAcceso" Grid.Row="1" Background="#F3F6FB"
                 Padding="28" Visibility="Visible">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                <StackPanel MaxWidth="500" HorizontalAlignment="Center" Spacing="16">
-                    <TextBlock Text="APARCAR" FontWeight="Bold" FontSize="35" Foreground="#164677"/>
-                    <TextBlock Text="Acceso seguro a gestión de estacionamientos"
-                               FontSize="17" Foreground="#164677"/>
-                    <StackPanel x:Name="PrimerAdministradorPanel" Spacing="12" Visibility="Collapsed">
-                        <TextBlock Text="Configuración inicial" FontSize="24" FontWeight="SemiBold"/>
+                <Border MaxWidth="430" Padding="28" CornerRadius="16" Background="White" BorderBrush="#D9E5F0" BorderThickness="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Background="{StaticResource AccentBrush}" CornerRadius="8" Padding="9,5">
+                            <TextBlock Text="A" Foreground="White" FontSize="22" FontWeight="Bold"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="APARCAR" FontWeight="Bold" FontSize="26" Foreground="#164677"/>
+                            <TextBlock Text="Operación de estacionamientos" FontSize="13" Foreground="#55728A"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel x:Name="PrimerAdministradorPanel" Spacing="9" Visibility="Collapsed">
+                        <TextBlock Text="Configuración inicial" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
                         <TextBlock Text="Creá el primer administrador. No existen usuarios ni contraseñas predeterminadas."
                                    TextWrapping="Wrap"/>
                         <TextBlock Text="Usuario administrador"/>
-                        <TextBox x:Name="AdminInicialUsuarioInput" Width="320" HorizontalAlignment="Left"/>
+                        <TextBox x:Name="AdminInicialUsuarioInput" Width="360" HorizontalAlignment="Left"/>
                         <TextBlock Text="Contraseña (10 a 128 caracteres, con letras y números)"/>
-                        <PasswordBox x:Name="AdminInicialPasswordBox" Width="320" HorizontalAlignment="Left"/>
+                        <PasswordBox x:Name="AdminInicialPasswordBox" Width="360" HorizontalAlignment="Left"/>
                         <Button Content="Crear administrador e ingresar" Click="CrearAdministradorInicial_Click"
                                 HorizontalAlignment="Left"/>
                     </StackPanel>
-                    <StackPanel x:Name="LoginPanel" Spacing="12" Visibility="Visible">
-                        <TextBlock Text="Iniciar sesión" FontSize="24" FontWeight="SemiBold"/>
-                        <TextBlock Text="Usuario"/>
-                        <TextBox x:Name="LoginUsuarioInput" Width="320" HorizontalAlignment="Left"/>
-                        <TextBlock Text="Contraseña"/>
-                        <PasswordBox x:Name="LoginPasswordBox" Width="320" HorizontalAlignment="Left"/>
+                    <StackPanel x:Name="LoginPanel" Spacing="9" Visibility="Visible">
+                        <TextBlock Text="Iniciar sesión" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <TextBox x:Name="LoginUsuarioInput" Width="360" Header="Usuario" HorizontalAlignment="Left"/>
+                        <PasswordBox x:Name="LoginPasswordBox" Width="360" Header="Contraseña" HorizontalAlignment="Left"/>
                         <Button Content="Ingresar a Aparcar" Click="Login_Click" HorizontalAlignment="Left"/>
                         <TextBlock Text="Tras cinco intentos erróneos la cuenta se bloquea temporalmente."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
                     <TextBlock x:Name="AccesoMensaje" TextWrapping="Wrap" Foreground="#B91C1C"/>
-                </StackPanel>
+                    </StackPanel>
+                </Border>
             </ScrollViewer>
         </Border>
         <Border x:Name="SplashOverlay" Grid.RowSpan="2" Background="#164677" Visibility="Visible">

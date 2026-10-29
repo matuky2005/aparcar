@@ -3,6 +3,7 @@ using System.IO;
 using System.Drawing.Printing;
 using System.Linq;
 using System.Globalization;
+using System.Threading.Tasks;
 using Aparcar.Domain;
 using Aparcar.Infrastructure;
 using Microsoft.UI.Xaml;
@@ -46,6 +47,7 @@ public sealed partial class MainWindowView : UserControl
     {
         _hostWindow = hostWindow ?? throw new ArgumentNullException(nameof(hostWindow));
         InitializeComponent();
+        ConfigSectionNavigation.SelectedIndex = 0;
 
         // V0.1: una sola cuenta de Windows. Fuera del directorio del paquete MSIX.
         var ruta = Path.Combine(
@@ -89,7 +91,13 @@ public sealed partial class MainWindowView : UserControl
             _respaldoInicioRuta.StartsWith("No se pudo", StringComparison.Ordinal)
             ? _respaldoInicioRuta
             : "Base de datos y respaldo de seguridad listos.";
-        SplashOverlay.Visibility = Visibility.Collapsed;
+        // La inicialización ocurre en el constructor; diferimos el cierre para que
+        // WinUI tenga tiempo de pintar el splash antes de mostrar el acceso.
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            await Task.Delay(850);
+            SplashOverlay.Visibility = Visibility.Collapsed;
+        });
     }
 
     private void MostrarAcceso()
@@ -392,6 +400,21 @@ public sealed partial class MainWindowView : UserControl
     {
         if (args.SelectedItem is NavigationViewItem item && item.Tag is string pantalla)
             Mostrar(pantalla);
+    }
+
+    private void ConfigSection_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var pantalla = (ConfigSectionNavigation.SelectedItem as ListViewItem)?.Tag?.ToString() ?? "tarifas";
+        ConfigSectionTarifas.Visibility = pantalla == "tarifas" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionMaestros.Visibility = pantalla == "maestros" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionSectores.Visibility = pantalla == "sectores" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionImpresion.Visibility = pantalla == "impresion" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionTalonarios.Visibility = pantalla == "talonarios" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionArca.Visibility = pantalla == "arca" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionFiscal.Visibility = pantalla == "fiscal" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionSolicitudes.Visibility = pantalla == "solicitudes" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionDocumental.Visibility = pantalla == "documental" ? Visibility.Visible : Visibility.Collapsed;
+        ConfigSectionSeguridad.Visibility = pantalla == "seguridad" ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Mostrar(string pantalla)
