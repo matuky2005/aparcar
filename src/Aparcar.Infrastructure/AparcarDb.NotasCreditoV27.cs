@@ -119,4 +119,84 @@ public sealed partial class AparcarDb
         }
         return lista;
     }
+
+    public NotaCreditoFiscalPrueba ObtenerNotaCreditoHomologacion(Guid id)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        return ListarNotasCreditoHomologacion(1000).FirstOrDefault(x=>x.Id==id)
+            ??throw new InvalidOperationException("Nota de crédito inexistente.");
+    }
+
+    public NotaCreditoFiscalPrueba MarcarEnvioNotaCreditoHomologacion(Guid id)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        using var db=Abrir();using var tx=db.BeginTransaction();
+        using var cmd=db.CreateCommand();cmd.Transaction=tx;
+        cmd.CommandText="""
+            UPDATE NotasCreditoHomologacion SET Estado='PorConciliar',
+                EnviadaUtc=$ahora,ActualizadaUtc=$ahora,
+                Observacion='Solicitud marcada antes de enviar; no reintentar sin FECompConsultar'
+            WHERE Id=$id AND Estado='Preparada';
+            """;
+        cmd.Parameters.AddWithValue("$id",id.ToString("D"));
+        cmd.Parameters.AddWithValue("$ahora",DateTimeOffset.UtcNow.ToString("O"));
+        if(cmd.ExecuteNonQuery()!=1)
+            throw new InvalidOperationException("Nota ya enviada o bloqueada. Consultá ARCA antes de reintentar.");
+        AuditarSesion(db,tx,"Fiscal.NotaCreditoEnvio",id.ToString("D"),
+            "Paso irreversible: pasar a PorConciliar antes del envío");
+        tx.Commit();
+        return ObtenerNotaCreditoHomologacion(id);
+    }
+
+    public NotaCreditoFiscalPrueba RegistrarRespuestaNotaCreditoHomologacion(
+        Guid id,ResultadoAutorizacionWsfe resultado)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        var antes=ObtenerNotaCreditoHomologacion(id);
+        if(antes.Estado!="PorConciliar")
+            throw new InvalidOperationException("No se espera una respuesta para este estado.");
+        var estado=resultado.Estado switch
+        {
+            EstadoAutorizacionWsfe.Autorizado=>"Autorizada",
+            EstadoAutorizacionWsfe.Rechazado=>"Rechazada",
+            _=>"PorConciliar"
+        };
+        if(estado=="Autorizada"&&(resultado.Cae?.Length!=14 ||
+            !resultado.Cae.All(char.IsDigit)||resultado.Vencimiento is null))
+            throw new InvalidOperationException("No se puede registrar una autorización sin CAE y vencimiento válidos.");
+        using var db=Abrir();using var tx=db.BeginTransaction();
+        using var cmd=db.CreateCommand();cmd.Transaction=tx;
+        cmd.CommandText="""
+            UPDATE NotasCreditoHomologacion
+            SET Estado=$estado,Cae=$cae,CaeVto=$vto,Observacion=$observacion,
+                ActualizadaUtc=$fecha
+            WHERE Id=$id AND Estado='PorConciliar';
+            """;
+        cmd.Parameters.AddWithValue("$estado",estado);
+        cmd.Parameters.AddWithValue("$cae",estado=="Autorizada"?resultado.Cae!:(object)DBNull.Value);
+        cmd.Parameters.AddWithValue("$vto",estado=="Autorizada"?resultado.Vencimiento!.Value.ToString("yyyyMMdd",CultureInfo.InvariantCulture):(object)DBNull.Value);
+        cmd.Parameters.AddWithValue("$observacion",resultado.Detalle.Length>400?resultado.Detalle[..400]:resultado.Detalle);
+        cmd.Parameters.AddWithValue("$fecha",DateTimeOffset.UtcNow.ToString("O"));
+        cmd.Parameters.AddWithValue("$id",id.ToString("D"));
+        if(cmd.ExecuteNonQuery()!=1)throw new InvalidOperationException("El estado cambió durante la operación.");
+        AuditarSesion(db,tx,"Fiscal.NotaCreditoRespuesta",id.ToString("D"),
+            $"Estado={estado}; {(estado=="Autorizada"?"CAE verificado":"sin CAE")}");
+        tx.Commit();
+        return ObtenerNotaCreditoHomologacion(id);
+    }
+
+    public NotaCreditoFiscalPrueba RegistrarConciliacionNotaCreditoHomologacion(
+        Guid id,ResultadoConsultaWsfe consulta)
+    {
+        ExigirPermiso(PermisosAparcar.Configuracion);
+        var actual=ObtenerNotaCreditoHomologacion(id);
+        if(actual.Estado!="PorConciliar")
+            throw new InvalidOperationException("Solo se concilian notas ambiguas.");
+        if(!consulta.Encontrado || !consulta.Coincide || !consulta.TieneCae)
+            throw new InvalidOperationException("No se comprobó identidad y CAE oficiales. La nota permanece bloqueada; no reemitir.");
+        return RegistrarRespuestaNotaCreditoHomologacion(id,
+            new ResultadoAutorizacionWsfe(EstadoAutorizacionWsfe.Autorizado,
+                consulta.Cae,consulta.Vencimiento,Array.Empty<int>(),
+                "Autorización conciliada mediante FECompConsultar"));
+    }
 }
