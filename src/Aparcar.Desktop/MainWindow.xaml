@@ -569,6 +569,12 @@
                                   IsChecked="False"/>
                         <Button x:Name="LavCobrarButton" Content="Confirmar cobro de lavado"
                                 Click="CobrarLavado_Click" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FacturarLavadoButton" Content="Facturar lavado seleccionado"
+                                    Click="FacturarLavadoSeleccionado_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="FacturarLavadoCfButton" Content="Facturar lavado a consumidor final"
+                                    Click="FacturarLavadoConsumidorFinal_Click" HorizontalAlignment="Left"/>
+                        </StackPanel>
                         <TextBlock Text="Los pagos externos se verifican manualmente. El pago de la orden se registra una sola vez."
                                    Opacity="0.7" TextWrapping="Wrap"/>
                     </StackPanel>
@@ -648,6 +654,12 @@
                                   IsChecked="False"/>
                         <Button x:Name="AbCobrarButton" Content="Cobrar y activar contrato pendiente"
                                 Click="CobrarAbono_Click" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="FacturarAbonoButton" Content="Facturar abono seleccionado"
+                                    Click="FacturarAbonoSeleccionado_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="FacturarAbonoCfButton" Content="Facturar abono a consumidor final"
+                                    Click="FacturarAbonoConsumidorFinal_Click" HorizontalAlignment="Left"/>
+                        </StackPanel>
                         <TextBlock Text="Cobertura sin retroactividad. La permanencia debe estar completamente dentro del horario y vigencia. Una renovación anticipada empieza al vencer la anterior."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                     </StackPanel>
