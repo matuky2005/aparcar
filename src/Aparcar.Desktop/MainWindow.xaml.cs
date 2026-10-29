@@ -41,6 +41,7 @@ public sealed partial class MainWindowView : UserControl
     private System.Collections.Generic.List<PlanAbono> _planesAbono=new();
     private System.Collections.Generic.List<ContratoAbono> _contratosAbono=new();
     private bool _procesandoCobroExtra;
+    private bool _puedeConfigurarFiscal;
     private System.Collections.Generic.List<SectorEstacionamiento> _sectoresConfigurados = new();
 
     public MainWindowView(Window hostWindow)
@@ -176,6 +177,7 @@ public sealed partial class MainWindowView : UserControl
         ConfigGuardarTarifaSectorButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
         GuardarHorarioButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Tarifas);
         var puedeConfigurar=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
+        _puedeConfigurarFiscal=puedeConfigurar;
         ConfigGuardarSectorButton.IsEnabled=puedeConfigurar;
         ConfigGuardarPlazaButton.IsEnabled=puedeConfigurar;
         GuardarPoliticaCajaButton.IsEnabled=puedeConfigurar;
@@ -2112,6 +2114,8 @@ public sealed partial class MainWindowView : UserControl
             FiscalSolicitudesCombo.Items.Clear();
             FiscalNcOriginalCombo.Items.Clear();
             FiscalNotasCreditoCombo.Items.Clear();
+            FiscalSolicitudAccionesEstadoText.Text="Seleccioná una factura para ver las acciones disponibles.";
+            FiscalNotaCreditoAccionesEstadoText.Text="Seleccioná una nota de crédito para ver las acciones disponibles.";
             FiscalSolicitudesResumenText.Text=$"{solicitudes.Count} solicitud(es) · {solicitudes.Count(x=>x.Estado=="Autorizada")} autorizada(s)";
             foreach(var f in solicitudes)
             {
@@ -2144,6 +2148,7 @@ public sealed partial class MainWindowView : UserControl
                         $"original PV {asociado?.PuntoVenta} Nº {asociado?.Numero} · {Dinero((long)(nc.Comprobante.Total*100m))}"
                 });
             }
+            ActualizarAccionesFiscal();
             // No sobrescribir el resultado del CAE o un error de conciliación.
         }
         catch(Exception ex){FiscalResultadoText.Text="Fiscal: "+ex.Message;}
@@ -2175,6 +2180,60 @@ public sealed partial class MainWindowView : UserControl
         if(!Guid.TryParse((FiscalNotasCreditoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var id))
             throw new ArgumentException("Seleccioná una nota de crédito.");
         return _db.ObtenerNotaCreditoHomologacion(id);
+    }
+
+    private void FiscalSolicitudes_SelectionChanged(object sender,SelectionChangedEventArgs e) =>
+        ActualizarAccionesFiscal();
+
+    private void FiscalNotasCredito_SelectionChanged(object sender,SelectionChangedEventArgs e) =>
+        ActualizarAccionesFiscal();
+
+    private void ActualizarAccionesFiscal()
+    {
+        if(FiscalSolicitudesCombo is null || FiscalNotasCreditoCombo is null)return;
+        var factura=FiscalSolicitudesCombo.SelectedItem as ComboBoxItem;
+        var nota=FiscalNotasCreditoCombo.SelectedItem as ComboBoxItem;
+        SolicitudFiscalPrueba? solicitud=null;
+        NotaCreditoFiscalPrueba? notaElegida=null;
+        try
+        {
+            if(Guid.TryParse(factura?.Tag?.ToString(),out var facturaId))
+                solicitud=_db.ObtenerFacturaHomologacion(facturaId);
+            if(Guid.TryParse(nota?.Tag?.ToString(),out var notaId))
+                notaElegida=_db.ObtenerNotaCreditoHomologacion(notaId);
+        }
+        catch(Exception ex)
+        {
+            FiscalSolicitudAccionesEstadoText.Text="No se pudo leer el estado seleccionado: "+ex.Message;
+        }
+
+        FiscalEmitirButton.IsEnabled=_puedeConfigurarFiscal && solicitud?.Estado=="Preparada";
+        FiscalConciliarButton.IsEnabled=_puedeConfigurarFiscal && solicitud?.Estado=="PorConciliar";
+        FiscalGuardarPdfButton.IsEnabled=_puedeConfigurarFiscal && solicitud?.Estado=="Autorizada";
+        FiscalImprimirButton.IsEnabled=_puedeConfigurarFiscal && solicitud?.Estado=="Autorizada";
+        FiscalEmitirNotaCreditoButton.IsEnabled=_puedeConfigurarFiscal && notaElegida?.Estado=="Preparada";
+        FiscalConciliarNotaCreditoButton.IsEnabled=_puedeConfigurarFiscal && notaElegida?.Estado=="PorConciliar";
+
+        FiscalSolicitudAccionesEstadoText.Text=solicitud is null
+            ?"Sin factura seleccionada."
+            :solicitud.Estado switch
+            {
+                "Preparada"=>"Factura preparada: podés solicitar CAE de prueba.",
+                "PorConciliar"=>"Factura PorConciliar: consultá ARCA antes de reintentar.",
+                "Autorizada"=>"Factura autorizada: podés generar o imprimir una copia de homologación.",
+                "Rechazada"=>"Factura rechazada: revisá los datos y prepará una nueva solicitud.",
+                _=>"Estado fiscal no disponible."
+            };
+        FiscalNotaCreditoAccionesEstadoText.Text=notaElegida is null
+            ?"Sin nota de crédito seleccionada."
+            :notaElegida.Estado switch
+            {
+                "Preparada"=>"NC preparada: podés solicitar CAE de prueba.",
+                "PorConciliar"=>"NC PorConciliar: consultá ARCA antes de reintentar.",
+                "Autorizada"=>"NC autorizada en homologación; queda vinculada a su factura original.",
+                "Rechazada"=>"NC rechazada: revisá la asociación y prepará una nueva solicitud.",
+                _=>"Estado de la NC no disponible."
+            };
     }
 
     private static string ClaseFiscal(int tipo) => tipo switch
@@ -2619,6 +2678,7 @@ public sealed partial class MainWindowView : UserControl
             ArcaClavePfxInput.Password="";
             _procesandoFiscal=false;
             FiscalEmitirButton.IsEnabled=true;
+            ActualizarAccionesFiscal();
         }
     }
 
@@ -2654,6 +2714,7 @@ public sealed partial class MainWindowView : UserControl
             ArcaClavePfxInput.Password="";
             _procesandoFiscal=false;
             FiscalConciliarButton.IsEnabled=true;
+            ActualizarAccionesFiscal();
         }
     }
 
@@ -2690,7 +2751,7 @@ public sealed partial class MainWindowView : UserControl
             RefrescarFiscalHomologacion();
         }
         catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No se solicitó CAE para la NC: "+ex.Message;}
-        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalEmitirNotaCreditoButton.IsEnabled=true;}
+        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalEmitirNotaCreditoButton.IsEnabled=true;ActualizarAccionesFiscal();}
     }
 
     private async void FiscalConciliarNotaCredito_Click(object sender,RoutedEventArgs e)
@@ -2712,7 +2773,7 @@ public sealed partial class MainWindowView : UserControl
             RefrescarFiscalHomologacion();
         }
         catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No fue posible conciliar la NC: "+ex.Message+" No vuelvas a enviar FECAESolicitar; se requiere revisión.";}
-        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalConciliarNotaCreditoButton.IsEnabled=true;}
+        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalConciliarNotaCreditoButton.IsEnabled=true;ActualizarAccionesFiscal();}
     }
 
     private EmisorDocumentoFiscal CapturarEmisorFiscal(string cuit) =>
