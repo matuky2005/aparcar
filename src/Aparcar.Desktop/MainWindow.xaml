@@ -1151,6 +1151,24 @@
                         <TextBlock Text="SOLICITUDES HOMOLOGADAS O POR CONCILIAR" FontWeight="SemiBold"/>
                         <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
                                   PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <TextBlock Text="NOTA DE CRÉDITO SOBRE FACTURA AUTORIZADA" FontWeight="SemiBold" Margin="0,10,0,0"/>
+                        <TextBlock Text="Seleccioná una factura autorizada de homologación. La primera versión permite preparar una nota de crédito total; siempre queda vinculada al comprobante original."
+                                   TextWrapping="Wrap" Opacity="0.7"/>
+                        <ComboBox x:Name="FiscalNcOriginalCombo" Width="610" HorizontalAlignment="Left"
+                                  SelectionChanged="FiscalNcOriginal_SelectionChanged"
+                                  PlaceholderText="Elegir factura original autorizada"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="FiscalNcPuntoVentaInput" Width="180" PlaceholderText="Punto de venta NC"/>
+                            <ComboBox x:Name="FiscalNcTipoCombo" Width="220" PlaceholderText="Tipo de NC">
+                                <ComboBoxItem Content="Nota de crédito A (3)" Tag="3"/>
+                                <ComboBoxItem Content="Nota de crédito B (8)" Tag="8"/>
+                                <ComboBoxItem Content="Nota de crédito C (13)" Tag="13"/>
+                            </ComboBox>
+                            <TextBox x:Name="FiscalNcNumeroInput" Width="180" PlaceholderText="Número NC"/>
+                        </StackPanel>
+                        <Button x:Name="FiscalPrepararNotaCreditoButton" Content="Preparar nota de crédito total"
+                                Click="FiscalPrepararNotaCredito_Click" HorizontalAlignment="Left"/>
+                        <TextBlock x:Name="FiscalNotaCreditoEstadoText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                         <TextBlock Text="Consulta fiscal del EMISOR (homologación)"
                                    FontWeight="SemiBold"/>
                         <TextBlock Text="Consulta ARCA la razón social y domicilio fiscal del CUIT emisor. El domicilio comercial, IVA e Ingresos Brutos deben revisarse antes de guardar el perfil."
