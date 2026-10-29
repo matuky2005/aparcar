@@ -92,6 +92,7 @@ public sealed partial class AparcarDb
         InicializarV24IntegridadX();
         InicializarV25Talonarios();
         InicializarV26CierresZ();
+        InicializarV27NotasCredito();
     }
 
     public static string NormalizarPatente(string texto)
