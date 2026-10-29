@@ -1,0 +1,29 @@
+# .NET / Visual Studio
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+TestResults/
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.pfx
+*.cer
+Aparcar_VisualStudio/
+dist/
+
+# Nunca subir bases de clientes ni respaldos
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.bak
+*.zip
+
+# Solicitudes y claves privadas: nunca subir credenciales ARCA
+*.key
+*.pem
+*.csr
