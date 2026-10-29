@@ -184,6 +184,7 @@ public sealed partial class MainWindowView : UserControl
         FiscalConsultarCondicionesButton.IsEnabled=puedeConfigurar;
         FiscalPrepararButton.IsEnabled=puedeConfigurar;
         FiscalEmitirButton.IsEnabled=puedeConfigurar;
+        FiscalPrepararNotaCreditoButton.IsEnabled=puedeConfigurar;
         FiscalConciliarButton.IsEnabled=puedeConfigurar;
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
@@ -2107,7 +2108,9 @@ public sealed partial class MainWindowView : UserControl
                         $"{Dinero(p.ImporteCentavos)} · {p.CobroId}"
                 });
             FiscalSolicitudesCombo.Items.Clear();
+            FiscalNcOriginalCombo.Items.Clear();
             foreach(var f in solicitudes)
+            {
                 FiscalSolicitudesCombo.Items.Add(new ComboBoxItem
                 {
                     Tag=f.Id.ToString("D"),
@@ -2115,6 +2118,13 @@ public sealed partial class MainWindowView : UserControl
                         $"tipo {f.Comprobante.Tipo} Nº {f.Comprobante.Numero} · " +
                         $"{Dinero((long)(f.Comprobante.Total*100m))}"
                 });
+                if(f.Estado=="Autorizada" && (f.Comprobante.Tipo is 1 or 6 or 11))
+                    FiscalNcOriginalCombo.Items.Add(new ComboBoxItem
+                    {
+                        Tag=f.Id.ToString("D"),
+                        Content=$"Factura {ClaseFiscal(f.Comprobante.Tipo)} · PV {f.Comprobante.PuntoVenta} Nº {f.Comprobante.Numero} · {Dinero((long)(f.Comprobante.Total*100m))}"
+                    });
+            }
             // No sobrescribir el resultado del CAE o un error de conciliación.
         }
         catch(Exception ex){FiscalResultadoText.Text="Fiscal: "+ex.Message;}
@@ -2139,6 +2149,56 @@ public sealed partial class MainWindowView : UserControl
             out var id))
             throw new ArgumentException("Seleccioná una solicitud fiscal.");
         return _db.ObtenerFacturaHomologacion(id);
+    }
+
+    private static string ClaseFiscal(int tipo) => tipo switch
+    {
+        1 or 3 => "A",
+        6 or 8 => "B",
+        11 or 13 => "C",
+        _ => "?"
+    };
+
+    private void FiscalNcOriginal_SelectionChanged(object sender,SelectionChangedEventArgs e)
+    {
+        if(!Guid.TryParse((FiscalNcOriginalCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var id))return;
+        try
+        {
+            var original=_db.ObtenerFacturaHomologacion(id);
+            FiscalNcPuntoVentaInput.Text=original.Comprobante.PuntoVenta.ToString(CultureInfo.InvariantCulture);
+            var tipo=original.Comprobante.Tipo switch {1=>3,6=>8,11=>13,_=>0};
+            FiscalNcTipoCombo.SelectedItem=FiscalNcTipoCombo.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(x=>x.Tag?.ToString()==tipo.ToString(CultureInfo.InvariantCulture));
+            FiscalNcNumeroInput.Text="";
+            FiscalNotaCreditoEstadoText.Text=$"Original seleccionada: Factura {ClaseFiscal(original.Comprobante.Tipo)} PV {original.Comprobante.PuntoVenta} Nº {original.Comprobante.Numero}. Ingresá el número que ARCA reserve para la nota.";
+        }
+        catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No se pudo cargar la factura original: "+ex.Message;}
+    }
+
+    private void FiscalPrepararNotaCredito_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            if(!Guid.TryParse((FiscalNcOriginalCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var originalId))
+                throw new ArgumentException("Elegí una factura original autorizada.");
+            if(!int.TryParse(FiscalNcPuntoVentaInput.Text.Trim(),out var pv) ||
+               !long.TryParse(FiscalNcNumeroInput.Text.Trim(),out var numero) || numero<1)
+                throw new ArgumentException("Completá punto de venta y número de la nota de crédito.");
+            if(!int.TryParse((FiscalNcTipoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var tipo))
+                throw new ArgumentException("Elegí el tipo de nota de crédito.");
+            var original=_db.ObtenerFacturaHomologacion(originalId);
+            var nota=original.Comprobante with
+            {
+                PuntoVenta=pv,Tipo=tipo,Numero=numero,
+                ComprobantesAsociados=new[]{new ComprobanteAsociadoWsfe(
+                    original.Comprobante.PuntoVenta,original.Comprobante.Tipo,original.Comprobante.Numero)}
+            };
+            var preparada=_db.PrepararNotaCreditoHomologacion(originalId,nota);
+            FiscalNotaCreditoEstadoText.Text=$"Nota de crédito preparada: {preparada.Id}. " +
+                $"Tipo {tipo}, PV {pv} Nº {numero}, asociada a Factura {ClaseFiscal(original.Comprobante.Tipo)} " +
+                $"PV {original.Comprobante.PuntoVenta} Nº {original.Comprobante.Numero}. Todavía no se solicitó CAE.";
+        }
+        catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No se preparó la nota de crédito: "+ex.Message;}
     }
 
     private void ValidarCredencialesFiscal()
