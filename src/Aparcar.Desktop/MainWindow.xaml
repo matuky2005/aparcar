@@ -1154,7 +1154,10 @@
                                 <TextBlock Text="Preparadas, PorConciliar, Autorizadas o Rechazadas. Elegí una factura para continuar con sus acciones." TextWrapping="Wrap" Foreground="#164677" Opacity="0.82"/>
                                 <TextBlock x:Name="FiscalSolicitudesResumenText" Text="Cargando solicitudes..." Foreground="#164677" FontWeight="SemiBold"/>
                         <ComboBox x:Name="FiscalSolicitudesCombo" Width="610" HorizontalAlignment="Left"
+                                  SelectionChanged="FiscalSolicitudes_SelectionChanged"
                                   PlaceholderText="Seleccionar solicitud fiscal"/>
+                        <TextBlock x:Name="FiscalSolicitudAccionesEstadoText" TextWrapping="Wrap"
+                                   Foreground="#164677"/>
                             </StackPanel>
                         </Border>
                         <TextBlock Text="NOTA DE CRÉDITO SOBRE FACTURA AUTORIZADA" FontWeight="SemiBold" Margin="0,10,0,0"/>
@@ -1178,6 +1181,7 @@
                         <TextBlock x:Name="FiscalNotasCreditoResumenText" Text="Cargando notas de crédito..."
                                    TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#17665F"/>
                         <ComboBox x:Name="FiscalNotasCreditoCombo" Width="610" HorizontalAlignment="Left"
+                                  SelectionChanged="FiscalNotasCredito_SelectionChanged"
                                   PlaceholderText="Seleccionar nota de crédito preparada o pendiente"/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button x:Name="FiscalEmitirNotaCreditoButton" Content="Solicitar CAE de prueba para NC"
@@ -1185,6 +1189,8 @@
                             <Button x:Name="FiscalConciliarNotaCreditoButton" Content="Conciliar NC con ARCA"
                                     Click="FiscalConciliarNotaCredito_Click"/>
                         </StackPanel>
+                        <TextBlock x:Name="FiscalNotaCreditoAccionesEstadoText" TextWrapping="Wrap"
+                                   Foreground="#17665F"/>
                         <TextBlock Text="La emisión y conciliación siguen siendo exclusivamente de homologación. Una interrupción deja la NC PorConciliar y exige consulta antes de reintentar."
                                    TextWrapping="Wrap" Opacity="0.7"/>
                         <TextBlock Text="Consulta fiscal del EMISOR (homologación)"
