@@ -2112,6 +2112,7 @@ public sealed partial class MainWindowView : UserControl
             FiscalSolicitudesCombo.Items.Clear();
             FiscalNcOriginalCombo.Items.Clear();
             FiscalNotasCreditoCombo.Items.Clear();
+            FiscalSolicitudesResumenText.Text=$"{solicitudes.Count} solicitud(es) · {solicitudes.Count(x=>x.Estado=="Autorizada")} autorizada(s)";
             foreach(var f in solicitudes)
             {
                 FiscalSolicitudesCombo.Items.Add(new ComboBoxItem
@@ -2128,7 +2129,12 @@ public sealed partial class MainWindowView : UserControl
                         Content=$"Factura {ClaseFiscal(f.Comprobante.Tipo)} · PV {f.Comprobante.PuntoVenta} Nº {f.Comprobante.Numero} · {Dinero((long)(f.Comprobante.Total*100m))}"
                     });
             }
-            foreach(var nc in _db.ListarNotasCreditoHomologacion(150))
+            var notasCredito=_db.ListarNotasCreditoHomologacion(150);
+            FiscalNotasCreditoResumenText.Text=$"{notasCredito.Count} nota(s) · " +
+                $"{notasCredito.Count(x=>x.Estado=="Preparada")} preparada(s) · " +
+                $"{notasCredito.Count(x=>x.Estado=="PorConciliar")} por conciliar · " +
+                $"{notasCredito.Count(x=>x.Estado=="Autorizada")} autorizada(s)";
+            foreach(var nc in notasCredito)
             {
                 var asociado=nc.Comprobante.ComprobantesAsociados?.FirstOrDefault();
                 FiscalNotasCreditoCombo.Items.Add(new ComboBoxItem
