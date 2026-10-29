@@ -157,6 +157,10 @@ public sealed partial class MainWindowView : UserControl
         AbGuardarPlanButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.AbonosAdministrar);
         AbCrearContratoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.AbonosAdministrar);
         AbCobrarButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Cobro);
+        FacturarLavadoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
+        FacturarLavadoCfButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
+        FacturarAbonoButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
+        FacturarAbonoCfButton.IsEnabled=RolesAparcar.Permite(rol,PermisosAparcar.Configuracion);
         CargarImpresoras();
         var autoAnterior=_db.ObtenerPreferencia("AutoImprimir")!="false";
         _autoImprimirIngreso=(_db.ObtenerPreferencia("AutoImprimirIngreso")??(autoAnterior?"true":"false"))=="true";
@@ -1579,12 +1583,11 @@ public sealed partial class MainWindowView : UserControl
         return _db.ObtenerReciboCobroV21(cobroId);
     }
 
-    private void PrepararFacturacionDesdeDetalle(bool consumidorFinal)
+    private void PrepararFacturacionDesdeMovimiento(string origen,Guid cobroId,bool consumidorFinal)
     {
         _db.ExigirPermiso(PermisosAparcar.Configuracion);
-        var recibo=ReciboCobroElegidoV21();
         var pendiente=_db.ListarPendientesFiscales(1000)
-            .FirstOrDefault(x=>x.CobroId==recibo.Cobro.Id &&
+            .FirstOrDefault(x=>x.CobroId==cobroId && x.Origen==origen &&
                 x.Estado=="PendienteDatosFiscales");
         if(pendiente is null)
             throw new InvalidOperationException(
@@ -1609,6 +1612,12 @@ public sealed partial class MainWindowView : UserControl
             : "Cobro cargado. Completá o seleccioná los datos del cliente identificado antes de preparar la factura.";
     }
 
+    private void PrepararFacturacionDesdeDetalle(bool consumidorFinal)
+    {
+        var recibo=ReciboCobroElegidoV21();
+        PrepararFacturacionDesdeMovimiento("Estacionamiento",recibo.Cobro.Id,consumidorFinal);
+    }
+
     private void FacturarCobroSeleccionado_Click(object sender,RoutedEventArgs e)
     {
         try { PrepararFacturacionDesdeDetalle(false); }
@@ -1619,6 +1628,48 @@ public sealed partial class MainWindowView : UserControl
     {
         try { PrepararFacturacionDesdeDetalle(true); }
         catch(Exception ex){ ReciboCobroHistorialEstadoText.Text="No se abrió la facturación: "+ex.Message; }
+    }
+
+    private void FacturarLavadoSeleccionado_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var orden=OrdenSeleccionada();
+            var cobro=_db.BuscarCobroComplementario("Lavadero",orden.Id)
+                ??throw new InvalidOperationException("La orden todavía no tiene un cobro confirmado.");
+            PrepararFacturacionDesdeMovimiento("Lavadero",cobro.Id,false);
+        }
+        catch(Exception ex){Mensaje.Text="No se abrió la facturación del lavado: "+ex.Message;}
+    }
+
+    private void FacturarLavadoConsumidorFinal_Click(object sender,RoutedEventArgs e)
+    {
+        try
+        {
+            var orden=OrdenSeleccionada();
+            var cobro=_db.BuscarCobroComplementario("Lavadero",orden.Id)
+                ??throw new InvalidOperationException("La orden todavía no tiene un cobro confirmado.");
+            PrepararFacturacionDesdeMovimiento("Lavadero",cobro.Id,true);
+        }
+        catch(Exception ex){Mensaje.Text="No se abrió la facturación del lavado: "+ex.Message;}
+    }
+
+    private void FacturarAbonoSeleccionado_Click(object sender,RoutedEventArgs e) =>
+        FacturarAbonoSeleccionado(false);
+
+    private void FacturarAbonoConsumidorFinal_Click(object sender,RoutedEventArgs e) =>
+        FacturarAbonoSeleccionado(true);
+
+    private void FacturarAbonoSeleccionado(bool consumidorFinal)
+    {
+        try
+        {
+            var contrato=ContratoSeleccionado();
+            if(!Guid.TryParse(contrato.ReferenciaCobro,out var cobroId))
+                throw new InvalidOperationException("El contrato todavía no tiene un cobro confirmado.");
+            PrepararFacturacionDesdeMovimiento("Abono",cobroId,consumidorFinal);
+        }
+        catch(Exception ex){Mensaje.Text="No se abrió la facturación del abono: "+ex.Message;}
     }
 
     private void ReciboCobroImprimirOriginal_Click(object sender,RoutedEventArgs e)
