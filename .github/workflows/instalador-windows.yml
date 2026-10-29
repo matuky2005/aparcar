@@ -7,6 +7,7 @@ on:
       - feature/base-winui-sqlite-v0.1
     paths:
       - '.github/workflows/instalador-windows.yml'
+      - 'assets/**'
       - 'scripts/**'
       - 'installer/**'
       - 'src/**'
