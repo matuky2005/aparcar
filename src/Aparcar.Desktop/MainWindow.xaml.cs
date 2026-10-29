@@ -185,6 +185,8 @@ public sealed partial class MainWindowView : UserControl
         FiscalPrepararButton.IsEnabled=puedeConfigurar;
         FiscalEmitirButton.IsEnabled=puedeConfigurar;
         FiscalPrepararNotaCreditoButton.IsEnabled=puedeConfigurar;
+        FiscalEmitirNotaCreditoButton.IsEnabled=puedeConfigurar;
+        FiscalConciliarNotaCreditoButton.IsEnabled=puedeConfigurar;
         FiscalConciliarButton.IsEnabled=puedeConfigurar;
         FiscalGuardarPdfButton.IsEnabled=puedeConfigurar;
         FiscalImprimirButton.IsEnabled=puedeConfigurar;
@@ -2109,6 +2111,7 @@ public sealed partial class MainWindowView : UserControl
                 });
             FiscalSolicitudesCombo.Items.Clear();
             FiscalNcOriginalCombo.Items.Clear();
+            FiscalNotasCreditoCombo.Items.Clear();
             foreach(var f in solicitudes)
             {
                 FiscalSolicitudesCombo.Items.Add(new ComboBoxItem
@@ -2124,6 +2127,16 @@ public sealed partial class MainWindowView : UserControl
                         Tag=f.Id.ToString("D"),
                         Content=$"Factura {ClaseFiscal(f.Comprobante.Tipo)} · PV {f.Comprobante.PuntoVenta} Nº {f.Comprobante.Numero} · {Dinero((long)(f.Comprobante.Total*100m))}"
                     });
+            }
+            foreach(var nc in _db.ListarNotasCreditoHomologacion(150))
+            {
+                var asociado=nc.Comprobante.ComprobantesAsociados?.FirstOrDefault();
+                FiscalNotasCreditoCombo.Items.Add(new ComboBoxItem
+                {
+                    Tag=nc.Id.ToString("D"),
+                    Content=$"{nc.Estado} · NC {ClaseFiscal(nc.Comprobante.Tipo)} · PV {nc.Comprobante.PuntoVenta} Nº {nc.Comprobante.Numero} · " +
+                        $"original PV {asociado?.PuntoVenta} Nº {asociado?.Numero} · {Dinero((long)(nc.Comprobante.Total*100m))}"
+                });
             }
             // No sobrescribir el resultado del CAE o un error de conciliación.
         }
@@ -2149,6 +2162,13 @@ public sealed partial class MainWindowView : UserControl
             out var id))
             throw new ArgumentException("Seleccioná una solicitud fiscal.");
         return _db.ObtenerFacturaHomologacion(id);
+    }
+
+    private NotaCreditoFiscalPrueba FiscalNotaCreditoElegida()
+    {
+        if(!Guid.TryParse((FiscalNotasCreditoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString(),out var id))
+            throw new ArgumentException("Seleccioná una nota de crédito.");
+        return _db.ObtenerNotaCreditoHomologacion(id);
     }
 
     private static string ClaseFiscal(int tipo) => tipo switch
@@ -2629,6 +2649,64 @@ public sealed partial class MainWindowView : UserControl
             _procesandoFiscal=false;
             FiscalConciliarButton.IsEnabled=true;
         }
+    }
+
+    private async void FiscalEmitirNotaCredito_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;FiscalEmitirNotaCreditoButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var nota=FiscalNotaCreditoElegida();
+            if(nota.Estado!="Preparada")throw new InvalidOperationException("La nota no está preparada o ya fue enviada. Usá Conciliar NC.");
+            ValidarCredencialesFiscal();
+            if(!string.Equals(ArcaCuitInput.Text.Trim(),nota.CuitEmisor,StringComparison.Ordinal))
+                throw new InvalidOperationException("El CUIT emisor difiere de la nota congelada.");
+            var dialogo=new ContentDialog
+            {
+                Title="Emitir nota de crédito de PRUEBA en ARCA Homologación",
+                Content=$"CUIT {nota.CuitEmisor}, PV {nota.Comprobante.PuntoVenta}, tipo {nota.Comprobante.Tipo}, número {nota.Comprobante.Numero}. Esta acción no tiene validez fiscal.",
+                PrimaryButtonText="Solicitar CAE de prueba",CloseButtonText="Cancelar",
+                DefaultButton=ContentDialogButton.Close,XamlRoot=RootGrid.XamlRoot
+            };
+            if(await dialogo.ShowAsync()!=ContentDialogResult.Primary)return;
+            _db.MarcarEnvioNotaCreditoHomologacion(nota.Id);
+            try
+            {
+                using var arca=new ArcaHomologacion();
+                var respuesta=await arca.SolicitarCaePruebaAsync(ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,nota.CuitEmisor,nota.Comprobante);
+                var guardado=_db.RegistrarRespuestaNotaCreditoHomologacion(nota.Id,respuesta);
+                FiscalNotaCreditoEstadoText.Text=$"Homologación NC: {guardado.Estado}. " +
+                    (guardado.Cae is null?respuesta.Detalle:$"CAE de PRUEBA {guardado.Cae}, vto {guardado.Vencimiento:dd/MM/yyyy}. No equivale a una nota comercial.");
+            }
+            catch(Exception ex){FiscalNotaCreditoEstadoText.Text="NC POR CONCILIAR: "+ex.Message+" NO REINTENTAR. Consultá FECompConsultar.";}
+            RefrescarFiscalHomologacion();
+        }
+        catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No se solicitó CAE para la NC: "+ex.Message;}
+        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalEmitirNotaCreditoButton.IsEnabled=true;}
+    }
+
+    private async void FiscalConciliarNotaCredito_Click(object sender,RoutedEventArgs e)
+    {
+        if(_procesandoFiscal)return;
+        _procesandoFiscal=true;FiscalConciliarNotaCreditoButton.IsEnabled=false;
+        try
+        {
+            _db.ExigirPermiso(PermisosAparcar.Configuracion);
+            var nota=FiscalNotaCreditoElegida();
+            if(nota.Estado!="PorConciliar")throw new InvalidOperationException("Solo corresponde conciliar notas PorConciliar.");
+            ValidarCredencialesFiscal();
+            if(!string.Equals(ArcaCuitInput.Text.Trim(),nota.CuitEmisor,StringComparison.Ordinal))
+                throw new InvalidOperationException("El CUIT no coincide con el emisor de la nota.");
+            using var arca=new ArcaHomologacion();
+            var consulta=await arca.ConsultarComprobanteAsync(ArcaCertificadoInput.Text,ArcaClavePfxInput.Password,nota.CuitEmisor,nota.Comprobante);
+            var conciliada=_db.RegistrarConciliacionNotaCreditoHomologacion(nota.Id,consulta);
+            FiscalNotaCreditoEstadoText.Text=$"Consulta de NC conciliada: CAE de PRUEBA {conciliada.Cae}, vto {conciliada.Vencimiento:dd/MM/yyyy}.";
+            RefrescarFiscalHomologacion();
+        }
+        catch(Exception ex){FiscalNotaCreditoEstadoText.Text="No fue posible conciliar la NC: "+ex.Message+" No vuelvas a enviar FECAESolicitar; se requiere revisión.";}
+        finally{ArcaClavePfxInput.Password="";_procesandoFiscal=false;FiscalConciliarNotaCreditoButton.IsEnabled=true;}
     }
 
     private EmisorDocumentoFiscal CapturarEmisorFiscal(string cuit) =>
