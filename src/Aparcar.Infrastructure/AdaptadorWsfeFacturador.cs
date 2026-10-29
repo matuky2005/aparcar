@@ -15,13 +15,16 @@ namespace Aparcar.Infrastructure;
 /// </summary>
 public sealed record IvaFiscalWsfe(int Id,decimal BaseImponible,decimal Importe);
 
+public sealed record ComprobanteAsociadoWsfe(int PuntoVenta,int Tipo,long Numero);
+
 public sealed record ComprobanteFiscalWsfe(
     int PuntoVenta,int Tipo,long Numero,DateOnly Fecha,
     int Concepto,int DocTipo,long DocNumero,int CondicionIvaReceptorId,
     decimal Total,decimal NoGravado,decimal Neto,decimal Exento,
     decimal Tributos,decimal Iva,IReadOnlyList<IvaFiscalWsfe> Alicuotas,
     DateOnly? ServicioDesde=null,DateOnly? ServicioHasta=null,
-    DateOnly? VencimientoPago=null);
+    DateOnly? VencimientoPago=null,
+    IReadOnlyList<ComprobanteAsociadoWsfe>? ComprobantesAsociados=null);
 
 public enum EstadoAutorizacionWsfe { Autorizado, Rechazado, Indeterminado }
 
@@ -69,6 +72,12 @@ public static class AdaptadorWsfeFacturador
         detalle.Add(new XElement(Ar+"MonId","PES"),
             new XElement(Ar+"MonCotiz","1"),
             new XElement(Ar+"CondicionIVAReceptorId",comprobante.CondicionIvaReceptorId));
+        if(comprobante.ComprobantesAsociados is { Count: > 0 } asociados)
+            detalle.Add(new XElement(Ar+"CbtesAsoc",asociados.Select(x=>
+                new XElement(Ar+"CbteAsoc",
+                    new XElement(Ar+"Tipo",x.Tipo),
+                    new XElement(Ar+"PtoVta",x.PuntoVenta),
+                    new XElement(Ar+"Nro",x.Numero)))));
         if(comprobante.Alicuotas.Count>0)
             detalle.Add(new XElement(Ar+"Iva",comprobante.Alicuotas.Select(x=>
                 new XElement(Ar+"AlicIva",
@@ -100,18 +109,31 @@ public static class AdaptadorWsfeFacturador
     public static void Validar(ComprobanteFiscalWsfe c)
     {
         ArgumentNullException.ThrowIfNull(c);
-        if(c.Tipo is not (1 or 6 or 11))
-            throw new InvalidOperationException("Solo se preparan Facturas A, B o C (sin notas de crédito).");
+        if(c.Tipo is not (1 or 3 or 6 or 8 or 11 or 13))
+            throw new InvalidOperationException("Comprobante no admitido. Se permiten Facturas y Notas de Crédito A, B o C.");
+        var esNotaCredito=c.Tipo is 3 or 8 or 13;
+        if(esNotaCredito)
+        {
+            if(c.ComprobantesAsociados is not { Count: 1 } asociado)
+                throw new InvalidOperationException("La nota de crédito debe asociarse a un único comprobante original.");
+            var tipoOriginal=c.Tipo switch {3=>1,8=>6,13=>11,_=>0};
+            var original=asociado[0];
+            if(original.Tipo!=tipoOriginal || original.PuntoVenta is <1 or >99998 ||
+               original.Numero is <1 or >99999999)
+                throw new InvalidOperationException("La nota de crédito debe asociarse a una factura de la misma clase y con numeración válida.");
+        }
+        else if(c.ComprobantesAsociados is { Count: >0 })
+            throw new InvalidOperationException("Las facturas no pueden incluir asociación de nota de crédito.");
         if(c.PuntoVenta is <1 or >99998 || c.Numero is <1 or >99999999)
             throw new InvalidOperationException("Punto de venta o número fuera del rango permitido.");
         if(c.Concepto is not (1 or 2 or 3))
             throw new InvalidOperationException("Concepto fiscal inválido.");
         if(c.DocTipo is not (80 or 86 or 96 or 99) || c.DocNumero<0)
             throw new InvalidOperationException("Documento del receptor inválido.");
-        if(c.Tipo==1 && (c.DocTipo!=80 || c.DocNumero<=0))
+        if((c.Tipo is 1 or 3) && (c.DocTipo!=80 || c.DocNumero<=0))
             throw new InvalidOperationException("Factura A exige CUIT del receptor.");
-        if(c.DocTipo==99 && (c.Tipo is not (6 or 11) || c.DocNumero!=0))
-            throw new InvalidOperationException("Sin identificar solo corresponde a Factura B/C con documento 0.");
+        if(c.DocTipo==99 && (c.Tipo is not (6 or 8 or 11 or 13) || c.DocNumero!=0))
+            throw new InvalidOperationException("Sin identificar solo corresponde a Factura o Nota de Crédito B/C con documento 0.");
         ReglasConsumidorFinalV17.ValidarIdentificacion(c);
         if(c.DocTipo is 80 or 86 &&
             !CuitValido(c.DocNumero.ToString("00000000000",Inv)))
@@ -129,8 +151,8 @@ public static class AdaptadorWsfeFacturador
             throw new InvalidOperationException("No se implementó detalle de tributos: no se puede autorizar.");
         if(!Cuadrado(c.Total,c.NoGravado+c.Neto+c.Exento+c.Tributos+c.Iva))
             throw new InvalidOperationException("El total no coincide con los conceptos fiscales.");
-        if(c.Tipo==11 && (c.Iva!=0 || c.Alicuotas.Count>0))
-            throw new InvalidOperationException("Factura C no puede desglosar IVA.");
+        if((c.Tipo is 11 or 13) && (c.Iva!=0 || c.Alicuotas.Count>0))
+            throw new InvalidOperationException("Factura o Nota de Crédito C no puede desglosar IVA.");
         if(c.Iva>0 && c.Alicuotas.Count==0)
             throw new InvalidOperationException("Falta el detalle de las alícuotas de IVA.");
         if(c.Alicuotas.Any(x=>x.Id<=0 || x.BaseImponible<0 || x.Importe<0) ||
