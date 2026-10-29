@@ -7,6 +7,29 @@ namespace Aparcar.Infrastructure;
 
 public sealed partial class AparcarDb
 {
+    public CobroComplementario? BuscarCobroComplementario(string categoria,Guid referenciaId)
+    {
+        ExigirPermiso(PermisosAparcar.Consulta);
+        if(categoria is not ("Lavadero" or "Abono") || referenciaId==Guid.Empty)
+            throw new ArgumentException("Categoría o referencia inválida.");
+        using var db=Abrir();
+        using var cmd=db.CreateCommand();
+        cmd.CommandText="""
+            SELECT Id,Categoria,ReferenciaId,MedioPago,ImporteCentavos,
+                   EntregadoCentavos,VueltoCentavos,FechaUtc
+            FROM CobrosComplementarios
+            WHERE Categoria=$categoria AND ReferenciaId=$referencia
+            ORDER BY FechaUtc DESC LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("$categoria",categoria);
+        cmd.Parameters.AddWithValue("$referencia",referenciaId.ToString("D"));
+        using var r=cmd.ExecuteReader();
+        if(!r.Read())return null;
+        return new CobroComplementario(Guid.Parse(r.GetString(0)),r.GetString(1),
+            Guid.Parse(r.GetString(2)),r.GetString(3),r.GetInt64(4),r.GetInt64(5),
+            r.GetInt64(6),ParsearFecha(r.GetString(7)));
+    }
+
     /// <summary>
     /// Pagos de lavadero y abonos con su propio comprobante y clave idempotente.
     /// Efectivo declarado y pagos externos verificados manualmente.
